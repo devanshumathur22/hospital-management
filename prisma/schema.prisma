@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  doctor
+  patient
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+}
+
+enum Day {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+}
+
+model Admin {
+
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  name      String
+  email     String   @unique
+  password  String
+
+  role      Role     @default(admin)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Doctor {
+
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  name           String
+  email          String   @unique
+  password       String
+
+  specialization String
+  experience     Int
+
+  degree         String?
+  phone          String?
+  image          String?
+  about          String?
+
+  rating         Float?   @default(0)
+
+  role           Role     @default(doctor)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  appointments   Appointment[]
+  prescriptions  Prescription[]
+  schedules      Schedule[]
+
+  @@index([specialization])
+}
+
+model Patient {
+
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  name      String
+  email     String   @unique
+  password  String
+
+  phone     String?
+  gender    String?
+  dob       DateTime?
+
+  address   String?
+
+  bloodGroup       String?
+  emergencyContact String?
+
+  allergies        String?
+  medicalHistory   String?
+
+  role      Role   @default(patient)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments  Appointment[]
+  prescriptions Prescription[]
+}
+
+model Appointment {
+
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  doctorId  String   @db.ObjectId
+  patientId String   @db.ObjectId
+
+  date      DateTime
+  time      String
+
+  status    AppointmentStatus @default(pending)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  prescription Prescription?
+
+  @@index([doctorId])
+  @@index([patientId])
+
+  // prevent double booking
+  @@unique([doctorId, date, time])
+}
+
+model Prescription {
+
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  doctorId      String   @db.ObjectId
+  patientId     String   @db.ObjectId
+  appointmentId String   @unique @db.ObjectId
+
+  medicine      Json
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([patientId])
+}
+
+model Schedule {
+
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+
+  doctorId  String @db.ObjectId
+
+  day       Day
+
+  startTime String
+  endTime   String
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+
+  // doctor cannot add same day schedule twice
+  @@unique([doctorId, day])
+}

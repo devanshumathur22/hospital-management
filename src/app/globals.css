@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@media print {
+
+  body * {
+    visibility: hidden;
+  }
+
+  #prescription,
+  #prescription * {
+    visibility: visible;
+  }
+
+  #prescription {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+}
