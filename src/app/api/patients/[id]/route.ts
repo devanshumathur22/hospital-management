@@ -1,14 +1,15 @@
-import { prisma } from "../../../../lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
+
   try {
 
-    const { id } = await context.params
+    const { id } = params
 
     if (!id) {
       return NextResponse.json(
@@ -18,9 +19,7 @@ export async function DELETE(
     }
 
     await prisma.patient.delete({
-      where: {
-        id
-      }
+      where: { id }
     })
 
     return NextResponse.json(
@@ -36,4 +35,5 @@ export async function DELETE(
     )
 
   }
+
 }
