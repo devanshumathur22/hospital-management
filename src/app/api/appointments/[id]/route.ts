@@ -1,14 +1,17 @@
 import { prisma } from "../../../../lib/prisma"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+
+
 
 export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: { id: string } }
 ){
 
   try{
 
-    const { id } = await params
+    const { id } = params
 
     const appointment = await prisma.appointment.findFirst({
       where:{ id },
@@ -36,15 +39,15 @@ export async function GET(
 
 
 export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: { id: string } }
 ){
 
   try{
 
     const body = await req.json()
 
-    const { id } = await params
+    const { id } = params
 
     const appointment = await prisma.appointment.update({
 
