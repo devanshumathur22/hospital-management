@@ -10,12 +10,26 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Check if appointment exists
+    const appointment = await prisma.appointment.findUnique({
+      where:{ id }
+    })
+
+    if(!appointment){
+
+      return NextResponse.json(
+        { error:"Appointment not found" },
+        { status:404 }
+      )
+
+    }
+
     await prisma.appointment.delete({
       where:{ id }
     })
 
     return NextResponse.json({
-      message:"Appointment cancelled"
+      message:"Appointment cancelled successfully"
     })
 
   }catch(err){

@@ -1,40 +1,182 @@
-import Link from "next/link";
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useEffect,useState } from "react"
+
+import {
+LayoutDashboard,
+CalendarDays,
+FileText,
+User,
+Calendar
+} from "lucide-react"
 
 export default function DoctorLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex min-h-screen">
+children,
+}:{
+children: React.ReactNode
+}){
 
-      {/* Sidebar */}
+const pathname = usePathname()
 
-      <aside className="w-64 bg-green-700 text-white p-6">
+const [doctor,setDoctor] = useState<any>(null)
 
-        <h1 className="text-2xl font-bold mb-8">
-          Doctor Panel
-        </h1>
 
-        <nav className="flex flex-col gap-4">
 
-          <Link href="/doctor/dashboard">Dashboard</Link>
-          <Link href="/doctor/appointments">Appointments</Link>
-          <Link href="/doctor/prescriptions">Prescriptions</Link>
-          {/* <Link href="/doctor/patients">Patients</Link> */}
-          {/* <Link href="/doctor/schedule">Schedule</Link> */}
-          <Link href="/doctor/profile">Profile</Link>
+useEffect(()=>{
 
-        </nav>
+const loadDoctor = async()=>{
 
-      </aside>
+try{
 
-      {/* Content */}
+const res = await fetch("/api/doctors/me")
+const data = await res.json()
 
-      <main className="flex-1 p-10 bg-gray-100">
-        {children}
-      </main>
+setDoctor(data)
 
-    </div>
-  );
+}catch(err){
+
+console.log("DOCTOR LOAD ERROR",err)
+
+}
+
+}
+
+loadDoctor()
+
+},[])
+
+
+
+const menu = [
+
+{
+name:"Dashboard",
+href:"/doctor/dashboard",
+icon:LayoutDashboard
+},
+
+{
+name:"Appointments",
+href:"/doctor/appointments",
+icon:CalendarDays
+},
+
+{
+name:"Calendar",
+href:"/doctor/calendar",
+icon:Calendar
+},
+
+{
+name:"Prescriptions",
+href:"/doctor/prescriptions",
+icon:FileText
+},
+
+{
+name:"Profile",
+href:"/doctor/profile",
+icon:User
+}
+
+]
+
+
+
+return(
+
+<div className="flex min-h-screen bg-gray-100">
+
+{/* SIDEBAR */}
+
+<aside className="w-64 bg-green-700 text-white p-6 flex flex-col">
+
+<h1 className="text-2xl font-bold mb-10">
+Doctor Panel
+</h1>
+
+<nav className="space-y-2">
+
+{menu.map((item)=>{
+
+const Icon = item.icon
+
+return(
+
+<Link
+key={item.href}
+href={item.href}
+className={`flex items-center gap-3 px-4 py-3 rounded-lg transition
+
+${pathname === item.href
+? "bg-white text-green-700 font-semibold"
+: "hover:bg-green-600"}
+
+`}
+>
+
+<Icon size={18}/>
+
+{item.name}
+
+</Link>
+
+)
+
+})}
+
+</nav>
+
+</aside>
+
+
+
+{/* MAIN CONTENT */}
+
+<div className="flex-1 flex flex-col">
+
+{/* TOP BAR */}
+
+<header className="bg-white shadow-sm px-8 py-4 flex justify-between items-center">
+
+<h2 className="text-xl font-semibold text-gray-700">
+Doctor Dashboard
+</h2>
+
+<div className="flex items-center gap-4">
+
+<div className="text-sm text-gray-600">
+
+{doctor ? `Dr. ${doctor.name}` : "Loading..."}
+
+</div>
+
+<div className="w-8 h-8 bg-green-600 text-white flex items-center justify-center rounded-full text-sm font-semibold">
+
+{doctor?.name?.charAt(0) || "D"}
+
+</div>
+
+</div>
+
+</header>
+
+
+
+{/* PAGE CONTENT */}
+
+<main className="p-8">
+
+{children}
+
+</main>
+
+</div>
+
+</div>
+
+)
+
 }

@@ -13,33 +13,57 @@ try{
 
 const body = await req.json()
 
+if(!body.doctorId || !body.date || !body.time){
+
+return NextResponse.json(
+{ error:"Missing required fields" },
+{ status:400 }
+)
+
+}
+
+
 const cookieStore = await cookies()
 const token = cookieStore.get("token")?.value
 
 if(!token){
+
 return NextResponse.json(
 { error:"Unauthorized" },
 { status:401 }
 )
+
 }
 
-const payload:any = jwt.verify(
+
+let payload:any
+
+try{
+
+payload = jwt.verify(
 token,
 process.env.JWT_SECRET!
 )
 
+}catch{
 
-/* CHECK SLOT (prevent double booking) */
+return NextResponse.json(
+{ error:"Invalid token" },
+{ status:401 }
+)
+
+}
+
+
+
+/* PREVENT DOUBLE BOOKING */
 
 const exists = await prisma.appointment.findFirst({
 
 where:{
 doctorId: body.doctorId,
-time: body.time,
-date:{
-gte: new Date(body.date),
-lt: new Date(new Date(body.date).getTime() + 86400000)
-}
+date: new Date(body.date),
+time: body.time
 }
 
 })
@@ -54,6 +78,7 @@ return NextResponse.json(
 }
 
 
+
 /* CREATE APPOINTMENT */
 
 const appointment = await prisma.appointment.create({
@@ -62,12 +87,15 @@ data:{
 doctorId: body.doctorId,
 patientId: payload.id,
 date: new Date(body.date),
-time: body.time
+time: body.time,
+status:"pending"
 }
 
 })
 
 return NextResponse.json(appointment)
+
+
 
 }catch(err){
 
@@ -94,15 +122,33 @@ const cookieStore = await cookies()
 const token = cookieStore.get("token")?.value
 
 if(!token){
+
 return NextResponse.json([])
+
 }
 
-const payload:any = jwt.verify(
+
+let payload:any
+
+try{
+
+payload = jwt.verify(
 token,
 process.env.JWT_SECRET!
 )
 
+}catch{
+
+return NextResponse.json(
+{ error:"Invalid token" },
+{ status:401 }
+)
+
+}
+
+
 let appointments:any[] = []
+
 
 
 /* PATIENT VIEW */
@@ -126,6 +172,7 @@ createdAt:"desc"
 })
 
 }
+
 
 
 /* DOCTOR VIEW */
@@ -152,6 +199,7 @@ createdAt:"desc"
 }
 
 
+
 /* ADMIN VIEW */
 
 else if(payload.role === "admin"){
@@ -172,7 +220,10 @@ createdAt:"desc"
 }
 
 
+
 return NextResponse.json(appointments)
+
+
 
 }catch(err){
 

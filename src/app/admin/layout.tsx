@@ -23,6 +23,9 @@ export default function AdminLayout({
           <Link href="/admin/add-doctor">Add Doctor</Link>
           <Link href="/admin/patients">Patients</Link>
           <Link href="/admin/appointments">Appointments</Link>
+          <Link href="/admin/calendar">Calendar</Link>
+          <Link href="/admin/reports">Reports</Link>
+
           
 
         </nav>
