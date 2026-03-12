@@ -23,7 +23,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({
-      message:"Patient deleted successfully"
+     message: "Patient deleted successfully!"
     })
 
   }catch(error){
