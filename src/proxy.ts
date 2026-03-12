@@ -41,6 +41,10 @@ export function proxy(req: NextRequest) {
       return NextResponse.redirect(new URL("/login", req.url))
     }
 
+    if (pathname.startsWith("/receptionist") && role !== "receptionist") {
+      return NextResponse.redirect(new URL("/login", req.url))
+    }
+
     return NextResponse.next()
 
   } catch (err) {
@@ -56,6 +60,7 @@ export const config = {
   matcher: [
     "/doctor/:path*",
     "/patient/:path*",
-    "/admin/:path*"
+    "/admin/:path*",
+    "/receptionist/:path*"
   ]
 }

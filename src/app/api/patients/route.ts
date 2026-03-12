@@ -1,39 +1,33 @@
-import { prisma } from "../../../lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 
-export async function GET(){
+export async function GET() {
 
-try{
+  const patient = await prisma.patient.findFirst()
 
-const patients = await prisma.patient.findMany({
-
-orderBy:{
-createdAt:"desc"
-},
-
-select:{
-id:true,
-name:true,
-email:true,
-phone:true,
-gender:true,
-dob:true,
-bloodGroup:true
-}
-
-})
-
-return NextResponse.json(patients)
-
-}catch(err){
-
-console.log("GET PATIENTS ERROR:",err)
-
-return NextResponse.json(
-{ error:"Failed to fetch patients" },
-{ status:500 }
-)
+  return NextResponse.json(patient)
 
 }
+
+export async function PUT(req:Request){
+
+  const body = await req.json()
+
+  const updated = await prisma.patient.update({
+    where:{
+      email: body.email
+    },
+    data:{
+      name: body.name,
+      phone: body.phone,
+      gender: body.gender,
+      dob: body.dob,
+      bloodGroup: body.bloodGroup,
+      address: body.address,
+      emergencyContact: body.emergencyContact
+    }
+  })
+
+  return NextResponse.json(updated)
 
 }

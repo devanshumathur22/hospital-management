@@ -6,39 +6,39 @@ import bcrypt from "bcryptjs"
 
 /* -------- GET ALL DOCTORS -------- */
 
-export async function GET(){
+export async function GET() {
 
-try{
+  try {
 
-const doctors = await prisma.doctor.findMany({
+    const doctors = await prisma.doctor.findMany({
 
-orderBy:{ createdAt:"desc" },
+      orderBy: { createdAt: "desc" },
 
-select:{
-id:true,
-name:true,
-email:true,
-specialization:true,
-experience:true,
-degree:true,
-phone:true,
-createdAt:true
-}
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        specialization: true,
+        experience: true,
+        degree: true,
+        phone: true,
+        createdAt: true
+      }
 
-})
+    })
 
-return NextResponse.json(doctors)
+    return NextResponse.json(doctors)
 
-}catch(error){
+  } catch (error) {
 
-console.log("GET DOCTORS ERROR:",error)
+    console.log("GET DOCTORS ERROR:", error)
 
-return NextResponse.json(
-{ error:"Failed to fetch doctors" },
-{ status:500 }
-)
+    return NextResponse.json(
+      { error: "Failed to fetch doctors" },
+      { status: 500 }
+    )
 
-}
+  }
 
 }
 
@@ -46,102 +46,109 @@ return NextResponse.json(
 
 /* -------- CREATE DOCTOR -------- */
 
-export async function POST(req: Request){
+export async function POST(req: Request) {
 
-try{
+  try {
 
-const body = await req.json()
+    const body = await req.json()
 
-const {
-name,
-email,
-password,
-specialization,
-experience,
-degree,
-phone
-} = body
-
-
-
-/* VALIDATION */
-
-if(!name || !email || !password){
-
-return NextResponse.json(
-{ error:"Name, email and password required" },
-{ status:400 }
-)
-
-}
+    let {
+      name,
+      email,
+      password,
+      specialization,
+      experience,
+      degree,
+      phone
+    } = body
 
 
 
-/* CHECK EXISTING DOCTOR */
+    /* VALIDATION */
 
-const exist = await prisma.doctor.findUnique({
-where:{ email }
-})
+    if (!name || !email || !password) {
 
-if(exist){
+      return NextResponse.json(
+        { error: "Name, email and password required" },
+        { status: 400 }
+      )
 
-return NextResponse.json(
-{ error:"Doctor already exists" },
-{ status:400 }
-)
-
-}
+    }
 
 
 
-/* HASH PASSWORD */
+    /* NORMALIZE EMAIL */
 
-const hashedPassword = await bcrypt.hash(password,10)
-
-
-
-/* CREATE DOCTOR */
-
-const doctor = await prisma.doctor.create({
-
-data:{
-name,
-email,
-password: hashedPassword,
-specialization: specialization || "General",
-experience: Number(experience) || 0,
-degree: degree || null,
-phone: phone || null,
-role:"doctor"
-},
-
-select:{
-id:true,
-name:true,
-email:true,
-specialization:true,
-experience:true,
-degree:true,
-phone:true
-}
-
-})
+    email = email.toLowerCase().trim()
 
 
 
-return NextResponse.json(doctor)
+    /* CHECK EXISTING DOCTOR */
+
+    const exist = await prisma.doctor.findUnique({
+      where: { email }
+    })
+
+    if (exist) {
+
+      return NextResponse.json(
+        { error: "Doctor already exists" },
+        { status: 400 }
+      )
+
+    }
 
 
 
-}catch(error){
+    /* HASH PASSWORD */
 
-console.log("CREATE DOCTOR ERROR:",error)
+    const hashedPassword = await bcrypt.hash(password, 10)
 
-return NextResponse.json(
-{ error:"Failed to create doctor" },
-{ status:500 }
-)
 
-}
+
+    /* CREATE DOCTOR */
+
+    const doctor = await prisma.doctor.create({
+
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        specialization: specialization || "General",
+        experience: Number(experience) || 0,
+        degree: degree || null,
+        phone: phone || null,
+        role: "doctor"
+      },
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        specialization: true,
+        experience: true,
+        degree: true,
+        phone: true,
+        createdAt: true
+      }
+
+    })
+
+
+
+    return NextResponse.json(doctor, { status: 201 })
+
+
+
+  } catch (error) {
+
+    console.log("CREATE DOCTOR ERROR:", error)
+
+    return NextResponse.json(
+      { error: "Failed to create doctor" },
+      { status: 500 }
+    )
+
+  }
 
 }
