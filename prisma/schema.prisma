@@ -189,6 +189,14 @@ model Slot {
   @@index([doctorId])
 }
 
+model Receptionist {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String @unique
+  password  String
+}
+
+
 model Queue {
 
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
