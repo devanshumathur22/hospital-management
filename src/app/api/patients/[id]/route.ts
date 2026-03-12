@@ -4,37 +4,35 @@ import type { NextRequest } from "next/server"
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-){
+  { params }: { params: { id: string } }
+) {
+  try {
 
-  try{
+    const { id } = params
 
-    const { id } = await context.params
-
-    if(!id){
+    if (!id) {
       return NextResponse.json(
-        { error:"Invalid ID" },
-        { status:400 }
+        { error: "Invalid ID" },
+        { status: 400 }
       )
     }
 
     await prisma.patient.delete({
-      where:{ id }
+      where: { id }
     })
 
     return NextResponse.json({
-     message: "Patient deleted successfully!"
+      message: "Patient deleted successfully!"
     })
 
-  }catch(error){
+  } catch (error) {
 
-    console.log("DELETE PATIENT ERROR:",error)
+    console.log("DELETE PATIENT ERROR:", error)
 
     return NextResponse.json(
-      { error:"Failed to delete patient" },
-      { status:500 }
+      { error: "Failed to delete patient" },
+      { status: 500 }
     )
 
   }
-
 }
