@@ -23,6 +23,11 @@ role = "admin"
 }
 
 if(!user){
+user = await prisma.receptionist.findUnique({ where:{ email } })
+role = "receptionist"
+}
+
+if(!user){
 return NextResponse.json({error:"User not found"},{status:404})
 }
 

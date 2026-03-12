@@ -11,6 +11,7 @@ enum Role {
   admin
   doctor
   patient
+  receptionist
 }
 
 enum AppointmentStatus {
@@ -70,6 +71,8 @@ model Doctor {
   appointments   Appointment[]
   prescriptions  Prescription[]
   schedules      Schedule[]
+  slots          Slot[]
+  queues         Queue[]
 
   @@index([specialization])
 }
@@ -101,6 +104,7 @@ model Patient {
 
   appointments  Appointment[]
   prescriptions Prescription[]
+  queues        Queue[]
 }
 
 model Appointment {
@@ -126,7 +130,6 @@ model Appointment {
   @@index([doctorId])
   @@index([patientId])
 
-  // prevent double booking
   @@unique([doctorId, date, time])
 }
 
@@ -167,6 +170,41 @@ model Schedule {
 
   @@index([doctorId])
 
-  // doctor cannot add same day schedule twice
   @@unique([doctorId, day])
+}
+
+model Slot {
+
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  doctorId  String   @db.ObjectId
+
+  date      DateTime
+  time      String
+
+  isBooked  Boolean  @default(false)
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+}
+
+model Queue {
+
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  token     Int
+
+  doctorId  String   @db.ObjectId
+  patientId String   @db.ObjectId
+
+  status    String   @default("waiting")
+
+  createdAt DateTime @default(now())
+
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([patientId])
 }

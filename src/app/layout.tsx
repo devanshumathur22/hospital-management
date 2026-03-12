@@ -20,7 +20,8 @@ export default function RootLayout({
   const isDashboard =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/doctor") ||
-    pathname.startsWith("/patient");
+    pathname.startsWith("/patient") ||
+    pathname.startsWith("/receptionist");
 
   return (
     <html lang="en">

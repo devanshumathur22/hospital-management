@@ -91,6 +91,35 @@ export async function POST(req: Request) {
 
     }
 
+    // --------- RECEPTIONIST ----------
+    if (role === "receptionist") {
+
+      const exist = await prisma.receptionist.findUnique({
+        where: { email }
+      })
+
+      if (exist) {
+        return NextResponse.json(
+          { error: "Receptionist already exists" },
+          { status: 400 }
+        )
+      }
+
+      const receptionist = await prisma.receptionist.create({
+
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: "receptionist"
+        }
+
+      })
+
+      return NextResponse.json(receptionist)
+
+    }
+
     // ---------- ADMIN ----------
     if (role === "admin") {
 
