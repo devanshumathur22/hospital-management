@@ -6,12 +6,14 @@ export default function Appointments(){
 
 const [doctors,setDoctors] = useState<any[]>([])
 const [patients,setPatients] = useState<any[]>([])
+const [slots,setSlots] = useState<any[]>([])
 
 const [form,setForm] = useState({
 doctorId:"",
 patientId:"",
 date:"",
-time:""
+time:"",
+slotId:""
 })
 
 useEffect(()=>{
