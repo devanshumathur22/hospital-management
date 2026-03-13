@@ -1,105 +1,143 @@
 "use client"
 
 import { useEffect,useState } from "react"
+import { User, Mail, Phone, Search } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function Patients(){
 
 const [patients,setPatients] = useState<any[]>([])
+const [filtered,setFiltered] = useState<any[]>([])
 const [search,setSearch] = useState("")
-const [form,setForm] = useState({
-name:"",
-email:"",
-phone:""
-})
 
 useEffect(()=>{
 
 fetch("/api/patients")
 .then(res=>res.json())
-.then(setPatients)
+.then(data=>{
+setPatients(data || [])
+setFiltered(data || [])
+})
 
 },[])
 
-const register = async(e:any)=>{
 
-e.preventDefault()
 
-await fetch("/api/patients",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify(form)
-})
+useEffect(()=>{
 
-location.reload()
-
-}
-
-const filtered = patients.filter(p=>
+const f = patients.filter((p:any)=>
 p.name?.toLowerCase().includes(search.toLowerCase())
 )
 
+setFiltered(f)
+
+},[search,patients])
+
+
+
 return(
 
-<div className="space-y-10">
+<div className="max-w-7xl mx-auto px-4 py-10">
 
-<h1 className="text-2xl font-bold">
+{/* HEADER */}
+
+<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
+
+<h1 className="flex items-center gap-2 text-3xl font-bold">
+
+<User size={26}/>
+
 Patients
+
 </h1>
 
-{/* Register */}
 
-<form
-onSubmit={register}
-className="bg-white p-6 rounded-xl shadow space-y-4 max-w-md"
->
 
-<input
-placeholder="Name"
-className="border p-3 w-full"
-onChange={e=>setForm({...form,name:e.target.value})}
+{/* SEARCH */}
+
+<div className="relative w-full md:w-96">
+
+<Search
+size={18}
+className="absolute left-3 top-3 text-gray-400"
 />
 
 <input
-placeholder="Email"
-className="border p-3 w-full"
-onChange={e=>setForm({...form,email:e.target.value})}
+placeholder="Search patient..."
+value={search}
+onChange={(e)=>setSearch(e.target.value)}
+className="pl-10 pr-4 py-2 border rounded-lg w-full"
 />
 
-<input
-placeholder="Phone"
-className="border p-3 w-full"
-onChange={e=>setForm({...form,phone:e.target.value})}
-/>
+</div>
 
-<button className="bg-blue-600 text-white px-6 py-2 rounded">
-Register
-</button>
+</div>
 
-</form>
 
-{/* Search */}
 
-<input
-placeholder="Search patient"
-className="border p-3 w-full max-w-md"
-onChange={e=>setSearch(e.target.value)}
-/>
+{/* PATIENT GRID */}
 
-{/* List */}
-
-<div className="bg-white rounded-xl shadow">
+<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
 
 {filtered.map((p:any)=>(
 
-<div
+<motion.div
 key={p.id}
-className="p-4 border-b flex justify-between"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
 >
 
-<span>{p.name}</span>
-<span>{p.phone}</span>
+{/* PATIENT */}
+
+<div className="flex items-center gap-3 mb-4">
+
+<div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
+
+<User size={20}/>
 
 </div>
+
+<div>
+
+<p className="font-semibold">
+{p.name}
+</p>
+
+<p className="text-xs text-gray-500">
+Patient
+</p>
+
+</div>
+
+</div>
+
+
+
+{/* INFO */}
+
+<div className="space-y-2 text-sm text-gray-600">
+
+<div className="flex items-center gap-2">
+
+<Mail size={14}/>
+
+{p.email}
+
+</div>
+
+<div className="flex items-center gap-2">
+
+<Phone size={14}/>
+
+{p.phone}
+
+</div>
+
+</div>
+
+</motion.div>
 
 ))}
 

@@ -1,40 +1,64 @@
 import { prisma } from "@/lib/prisma"
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+type Context = {
+  params: Promise<{ id: string }>
+}
+
+
+// GET SINGLE PATIENT
+export async function GET(
+  req: NextRequest,
+  context: Context
 ) {
 
-  try {
+  const { id } = await context.params
 
-    const id = params.id
+  const patient = await prisma.patient.findUnique({
+    where: { id }
+  })
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "Invalid ID" },
-        { status: 400 }
-      )
+  return NextResponse.json(patient)
+}
+
+
+// UPDATE PATIENT
+export async function PUT(
+  req: NextRequest,
+  context: Context
+) {
+
+  const { id } = await context.params
+  const body = await req.json()
+
+  const updated = await prisma.patient.update({
+    where: { id },
+    data: {
+      name: body.name,
+      phone: body.phone,
+      gender: body.gender,
+      dob: body.dob ? new Date(body.dob) : null,
+      bloodGroup: body.bloodGroup,
+      address: body.address,
+      emergencyContact: body.emergencyContact
     }
+  })
 
-    await prisma.patient.delete({
-      where: { id }
-    })
+  return NextResponse.json(updated)
+}
 
-    return NextResponse.json({
-      message: "Patient deleted successfully"
-    })
 
-  } catch (error) {
+// DELETE
+export async function DELETE(
+  req: NextRequest,
+  context: Context
+) {
 
-    console.log("DELETE PATIENT ERROR:", error)
+  const { id } = await context.params
 
-    return NextResponse.json(
-      { error: "Failed to delete patient" },
-      { status: 500 }
-    )
+  await prisma.patient.delete({
+    where: { id }
+  })
 
-  }
-
+  return NextResponse.json({ message: "Deleted" })
 }

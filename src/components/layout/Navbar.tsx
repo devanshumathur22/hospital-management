@@ -14,6 +14,7 @@ const mainLinks = [
 {href:"/doctors",label:"Doctors"},
 {href:"/departments",label:"Departments"},
 {href:"/services",label:"Services"},
+{href:"/lab-tests",label:"Lab-Tests"},
 ]
 
 const moreLinks = [

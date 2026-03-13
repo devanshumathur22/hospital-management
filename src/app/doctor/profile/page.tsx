@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import {
+User,
+Mail,
+Stethoscope,
+Award,
+Edit,
+Save,
+X
+} from "lucide-react";
 
 export default function DoctorProfile(){
 
@@ -14,8 +24,6 @@ specialization:"",
 experience:"",
 email:""
 })
-
-
 
 useEffect(()=>{
 
@@ -40,9 +48,7 @@ email:data[0].email || ""
 }
 
 }catch(err){
-
 console.log("DOCTOR ERROR",err)
-
 }
 
 setLoading(false)
@@ -56,13 +62,11 @@ loadDoctor()
 
 
 if(loading){
-return <div className="p-10">Loading profile...</div>
+return <div className="p-10 text-center">Loading profile...</div>
 }
 
-
-
 if(!doctor){
-return <div className="p-10">Doctor not found</div>
+return <div className="p-10 text-center">Doctor not found</div>
 }
 
 
@@ -83,15 +87,11 @@ const saveProfile = async()=>{
 try{
 
 const res = await fetch(`/api/doctors/${doctor.id}`,{
-
 method:"PUT",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify(form)
-
 })
 
 const data = await res.json()
@@ -100,9 +100,7 @@ setDoctor(data)
 setEditing(false)
 
 }catch(err){
-
 console.log("UPDATE ERROR",err)
-
 }
 
 }
@@ -111,71 +109,95 @@ console.log("UPDATE ERROR",err)
 
 return(
 
-<div className="p-10 bg-gray-100 min-h-screen">
+<div className="max-w-6xl mx-auto px-4 py-10">
 
+<motion.div
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+className="bg-white border rounded-2xl shadow-sm p-8"
+>
 
+{/* HEADER */}
 
-{/* PROFILE CARD */}
+<div className="flex items-center gap-4 mb-8">
 
-<div className="max-w-3xl mx-auto bg-white shadow-xl rounded-xl p-8">
+<div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
 
-<h1 className="text-3xl font-bold mb-8">
-Doctor Profile
-</h1>
+<User size={24}/>
 
-
-
-<div className="grid md:grid-cols-2 gap-6">
+</div>
 
 <div>
 
+<h1 className="text-2xl font-bold">
+{doctor.name}
+</h1>
+
 <p className="text-sm text-gray-500">
-Name
+Doctor Profile
 </p>
 
-<p className="font-semibold">
-{doctor.name}
-</p>
+</div>
 
 </div>
 
 
 
+{/* INFO GRID */}
+
+<div className="grid md:grid-cols-2 gap-6">
+
+<div className="flex items-center gap-3">
+
+<Stethoscope size={18}/>
+
 <div>
 
-<p className="text-sm text-gray-500">
+<p className="text-xs text-gray-500">
 Specialization
 </p>
 
-<p className="font-semibold">
+<p className="font-medium">
 {doctor.specialization}
 </p>
 
 </div>
 
+</div>
 
+
+
+<div className="flex items-center gap-3">
+
+<Award size={18}/>
 
 <div>
 
-<p className="text-sm text-gray-500">
+<p className="text-xs text-gray-500">
 Experience
 </p>
 
-<p className="font-semibold">
+<p className="font-medium">
 {doctor.experience} years
 </p>
 
 </div>
 
+</div>
 
+
+
+<div className="flex items-center gap-3">
+
+<Mail size={18}/>
 
 <div>
 
-<p className="text-sm text-gray-500">
+<p className="text-xs text-gray-500">
 Email
 </p>
 
-<p className="font-semibold">
+<p className="font-medium">
 {doctor.email}
 </p>
 
@@ -183,20 +205,28 @@ Email
 
 </div>
 
+</div>
 
+
+
+{/* BUTTON */}
 
 <div className="mt-8">
 
 <button
 onClick={()=>setEditing(true)}
-className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
+className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg"
 >
+
+<Edit size={16}/>
+
 Edit Profile
+
 </button>
 
 </div>
 
-</div>
+</motion.div>
 
 
 
@@ -222,8 +252,6 @@ placeholder="Name"
 className="w-full border p-3 rounded mb-4"
 />
 
-
-
 <input
 name="specialization"
 value={form.specialization}
@@ -232,8 +260,6 @@ placeholder="Specialization"
 className="w-full border p-3 rounded mb-4"
 />
 
-
-
 <input
 name="experience"
 value={form.experience}
@@ -241,8 +267,6 @@ onChange={handleChange}
 placeholder="Experience (years)"
 className="w-full border p-3 rounded mb-4"
 />
-
-
 
 <input
 name="email"
@@ -258,16 +282,24 @@ className="w-full border p-3 rounded mb-6"
 
 <button
 onClick={()=>setEditing(false)}
-className="bg-gray-400 hover:bg-gray-500 text-white px-5 py-2 rounded"
+className="flex items-center gap-1 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
 >
+
+<X size={14}/>
+
 Cancel
+
 </button>
 
 <button
 onClick={saveProfile}
-className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded"
+className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
 >
+
+<Save size={14}/>
+
 Save
+
 </button>
 
 </div>

@@ -12,12 +12,19 @@ enum Role {
   doctor
   patient
   receptionist
+  nurse
 }
 
 enum AppointmentStatus {
   pending
   confirmed
   cancelled
+  completed
+}
+
+enum QueueStatus {
+  waiting
+  in_consultation
   completed
 }
 
@@ -31,73 +38,81 @@ enum Day {
   Sunday
 }
 
+//////////////////////////////
+// ADMIN
+//////////////////////////////
+
 model Admin {
-
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-
-  name      String
-  email     String   @unique
-  password  String
-
-  role      Role     @default(admin)
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(admin)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+//////////////////////////////
+// DOCTOR
+//////////////////////////////
+
 model Doctor {
-
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-
-  name           String
-  email          String   @unique
-  password       String
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  email    String @unique
+  password String
 
   specialization String
   experience     Int
 
-  degree         String?
-  phone          String?
-  image          String?
-  about          String?
+  degree String?
+  phone  String?
+  image  String?
+  about  String?
 
-  rating         Float?   @default(0)
+  rating       Float @default(0)
+  totalReviews Int   @default(0)
 
-  role           Role     @default(doctor)
+  role Role @default(doctor)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  appointments   Appointment[]
-  prescriptions  Prescription[]
-  schedules      Schedule[]
-  slots          Slot[]
-  queues         Queue[]
+  nurse Nurse?
+
+  appointments  Appointment[]
+  prescriptions Prescription[]
+  schedules     Schedule[]
+  slots         Slot[]
+  queues        Queue[]
 
   @@index([specialization])
 }
 
+//////////////////////////////
+// PATIENT
+//////////////////////////////
+
 model Patient {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  email    String @unique
+  password String
 
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  phone  String?
+  gender String?
+  dob    DateTime?
 
-  name      String
-  email     String   @unique
-  password  String
-
-  phone     String?
-  gender    String?
-  dob       DateTime?
-
-  address   String?
+  address String?
 
   bloodGroup       String?
   emergencyContact String?
 
-  allergies        String?
-  medicalHistory   String?
+  allergies      String?
+  medicalHistory String?
 
-  role      Role   @default(patient)
+  role Role @default(patient)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,19 +120,27 @@ model Patient {
   appointments  Appointment[]
   prescriptions Prescription[]
   queues        Queue[]
+  vitals        Vital[]
+
+  pharmacyBills PharmacyBill[] // 👈 ye line add karo
+
+  @@index([phone])
 }
 
+//////////////////////////////
+// APPOINTMENTS
+//////////////////////////////
+
 model Appointment {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId  String @db.ObjectId
+  patientId String @db.ObjectId
 
-  doctorId  String   @db.ObjectId
-  patientId String   @db.ObjectId
+  date DateTime
+  time String
 
-  date      DateTime
-  time      String
-
-  status    AppointmentStatus @default(pending)
+  status AppointmentStatus @default(pending)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -127,25 +150,27 @@ model Appointment {
 
   prescription Prescription?
 
+  @@unique([doctorId, date, time])
   @@index([doctorId])
   @@index([patientId])
-
-  @@unique([doctorId, date, time])
 }
 
+//////////////////////////////
+// PRESCRIPTIONS
+//////////////////////////////
+
 model Prescription {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId      String @db.ObjectId
+  patientId     String @db.ObjectId
+  appointmentId String @unique @db.ObjectId
 
-  doctorId      String   @db.ObjectId
-  patientId     String   @db.ObjectId
-  appointmentId String   @unique @db.ObjectId
+  medicine Json
+  notes    String?
 
-  medicine      Json
-  notes         String?
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -155,64 +180,161 @@ model Prescription {
   @@index([patientId])
 }
 
+//////////////////////////////
+// DOCTOR SCHEDULE
+//////////////////////////////
+
 model Schedule {
-
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-
-  doctorId  String @db.ObjectId
-
-  day       Day
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId String @db.ObjectId
+  day      Day
 
   startTime String
   endTime   String
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
-  @@index([doctorId])
-
   @@unique([doctorId, day])
+  @@index([doctorId])
 }
 
+//////////////////////////////
+// APPOINTMENT SLOTS
+//////////////////////////////
+
 model Slot {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId String   @db.ObjectId
+  date     DateTime
+  time     String
 
-  doctorId  String   @db.ObjectId
-
-  date      DateTime
-  time      String
-
-  isBooked  Boolean  @default(false)
+  isBooked Boolean @default(false)
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
+  @@unique([doctorId, date, time])
   @@index([doctorId])
 }
 
+//////////////////////////////
+// RECEPTIONIST
+//////////////////////////////
+
 model Receptionist {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  email     String @unique
-  password  String
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(receptionist)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+//////////////////////////////
+// NURSE
+//////////////////////////////
+
+model Nurse {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  email    String @unique
+  password String
+
+  role Role @default(nurse)
+
+  doctorId String? @unique @db.ObjectId
+  doctor   Doctor? @relation(fields: [doctorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vitals Vital[]
+}
+
+//////////////////////////////
+// PATIENT VITALS
+//////////////////////////////
+
+model Vital {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  patientId String @db.ObjectId
+  nurseId   String @db.ObjectId
+
+  bp          String?
+  temperature Float?
+  pulse       Int?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nurse   Nurse   @relation(fields: [nurseId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+//////////////////////////////
+// QUEUE
+//////////////////////////////
 
 model Queue {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  token Int
 
-  token     Int
+  doctorId  String @db.ObjectId
+  patientId String @db.ObjectId
 
-  doctorId  String   @db.ObjectId
-  patientId String   @db.ObjectId
-
-  status    String   @default("waiting")
+  status QueueStatus @default(waiting)
 
   createdAt DateTime @default(now())
 
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
+  @@unique([doctorId, token])
   @@index([doctorId])
+  @@index([patientId])
+}
+
+//////////////////////////////
+// PHARMACY MEDICINES
+//////////////////////////////
+
+model Medicine {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  name    String
+  company String
+  price   Float
+  stock   Int
+
+  expiry DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+//////////////////////////////
+// PHARMACY BILLING
+//////////////////////////////
+
+model PharmacyBill {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  patientId      String  @db.ObjectId
+  prescriptionId String? @db.ObjectId
+
+  medicines Json
+  total     Float
+
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
   @@index([patientId])
 }

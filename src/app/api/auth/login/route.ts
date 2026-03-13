@@ -28,6 +28,11 @@ role = "receptionist"
 }
 
 if(!user){
+user = await prisma.nurse.findUnique({ where:{ email } })
+role = "nurse"
+}    
+
+if(!user){
 return NextResponse.json({error:"User not found"},{status:404})
 }
 

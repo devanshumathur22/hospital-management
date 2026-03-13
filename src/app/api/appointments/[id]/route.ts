@@ -3,73 +3,83 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 
+/* ============================= */
+/* GET SINGLE APPOINTMENT */
+/* ============================= */
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ){
 
-  try{
+try{
 
-    const { id } = await params
+const { id } = await context.params
 
-    const appointment = await prisma.appointment.findFirst({
-      where:{ id },
-      include:{
-        doctor:true,
-        patient:true
-      }
-    })
+const appointment = await prisma.appointment.findUnique({
 
-    return NextResponse.json(appointment)
+where:{ id },
 
-  }catch(err){
+include:{
+doctor:true,
+patient:true
+}
 
-    console.log("GET ERROR:",err)
+})
 
-    return NextResponse.json(
-      { error:"Failed" },
-      { status:500 }
-    )
+return NextResponse.json(appointment)
 
-  }
+}catch(err){
+
+console.log("GET ERROR:",err)
+
+return NextResponse.json(
+{ error:"Failed" },
+{ status:500 }
+)
+
+}
 
 }
 
 
 
+/* ============================= */
+/* UPDATE APPOINTMENT STATUS */
+/* ============================= */
+
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ){
 
-  try{
+try{
 
-    const body = await req.json()
+const { id } = await context.params
 
-    const { id } = await params
+const body = await req.json()
 
-    const appointment = await prisma.appointment.update({
+const appointment = await prisma.appointment.update({
 
-      where:{ id },
+where:{ id },
 
-      data:{
-        status: body.status
-      }
+data:{
+status: body.status
+}
 
-    })
+})
 
-    return NextResponse.json(appointment)
+return NextResponse.json(appointment)
 
-  }catch(err){
+}catch(err){
 
-    console.log("UPDATE ERROR:",err)
+console.log("UPDATE ERROR:",err)
 
-    return NextResponse.json(
-      { error:"Update failed" },
-      { status:500 }
-    )
+return NextResponse.json(
+{ error:"Update failed" },
+{ status:500 }
+)
 
-  }
+}
 
 }

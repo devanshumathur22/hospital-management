@@ -6,59 +6,33 @@ export default function Queue(){
 
 const [queue,setQueue] = useState<any[]>([])
 
-const load = async()=>{
-
-const res = await fetch("/api/queue")
-const data = await res.json()
-
-setQueue(data)
-
-}
-
 useEffect(()=>{
 
-load()
-
-const interval = setInterval(load,3000)
-
-return ()=>clearInterval(interval)
+fetch("/api/queue")
+.then(res=>res.json())
+.then(setQueue)
 
 },[])
 
 return(
 
-<div className="p-8 space-y-6">
+<div className="p-6">
 
-<h1 className="text-3xl font-bold">
-Queue Board
+<h1 className="text-xl font-semibold mb-4">
+Queue
 </h1>
 
-<div className="bg-white rounded-xl shadow">
+{queue.map(q=>(
 
-{queue.map((q:any)=>(
+<div key={q.id} className="border p-4 mb-3 rounded">
 
-<div
-key={q.id}
-className="p-4 border-b flex justify-between"
->
-
-<span>
-Token #{q.token}
-</span>
-
-<span>
-{q.patient?.name}
-</span>
-
-<span>
-Dr {q.doctor?.name}
-</span>
+<p>Token: {q.token}</p>
+<p>Patient: {q.patient?.name}</p>
+<p>Status: {q.status}</p>
 
 </div>
 
 ))}
-
-</div>
 
 </div>
 

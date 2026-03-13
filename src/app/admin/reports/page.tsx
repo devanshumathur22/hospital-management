@@ -2,40 +2,40 @@
 
 import { useEffect,useState } from "react"
 import {
-BarChart,
-Bar,
-XAxis,
-YAxis,
-Tooltip,
-ResponsiveContainer
-} from "recharts"
+Users,
+UserPlus,
+Calendar,
+Activity
+} from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function AdminReports(){
 
-const [data,setData] = useState<any[]>([])
+const [stats,setStats] = useState<any>(null)
 
 useEffect(()=>{
 
 fetch("/api/stats")
 .then(res=>res.json())
-.then(stats=>{
-
-setData([
-{ name:"Doctors", value: stats.doctors },
-{ name:"Patients", value: stats.patients },
-{ name:"Appointments", value: stats.appointments },
-{ name:"Today", value: stats.today }
-])
-
+.then(data=>{
+setStats(data)
 })
 
 },[])
 
 
 
+if(!stats){
+return <div className="p-10 text-center">Loading reports...</div>
+}
+
+
+
 return(
 
-<div className="p-8 space-y-8">
+<div className="max-w-7xl mx-auto px-4 py-10 space-y-10">
+
+{/* TITLE */}
 
 <h1 className="text-3xl font-bold">
 Reports & Analytics
@@ -43,29 +43,115 @@ Reports & Analytics
 
 
 
-<div className="bg-white p-6 rounded-xl shadow">
+{/* STATS GRID */}
 
-<h2 className="text-xl font-semibold mb-4">
-Hospital Statistics
-</h2>
+<div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
 
-<div className="h-[400px]">
+{/* DOCTORS */}
 
-<ResponsiveContainer width="100%" height="100%">
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
 
-<BarChart data={data}>
+<div className="flex items-center gap-3 mb-3">
 
-<XAxis dataKey="name" />
-<YAxis />
-<Tooltip />
+<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+<Users size={18}/>
+</div>
 
-<Bar dataKey="value" fill="#3b82f6" />
-
-</BarChart>
-
-</ResponsiveContainer>
+<span className="text-sm text-gray-500">
+Doctors
+</span>
 
 </div>
+
+<p className="text-3xl font-bold">
+{stats.doctors}
+</p>
+
+</motion.div>
+
+
+
+{/* PATIENTS */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+<UserPlus size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Patients
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.patients}
+</p>
+
+</motion.div>
+
+
+
+{/* APPOINTMENTS */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+<Calendar size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Appointments
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.appointments}
+</p>
+
+</motion.div>
+
+
+
+{/* TODAY */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+<Activity size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Today
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.today}
+</p>
+
+</motion.div>
 
 </div>
 

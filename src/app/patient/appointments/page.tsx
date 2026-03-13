@@ -1,167 +1,171 @@
 "use client"
 
-import { useEffect,useState } from "react"
-import DatePicker from "react-datepicker"
-import "react-datepicker/dist/react-datepicker.css"
+import { useEffect, useState } from "react"
+import { Calendar, momentLocalizer } from "react-big-calendar"
+import moment from "moment"
+import "react-big-calendar/lib/css/react-big-calendar.css"
 
-export default function PatientAppointments(){
+const localizer = momentLocalizer(moment)
+
+export default function PatientAdvancedAppointments(){
 
 const [appointments,setAppointments] = useState<any[]>([])
-const [selected,setSelected] = useState<any>(null)
-
-const [date,setDate] = useState<Date | null>(null)
-const [time,setTime] = useState("")
-
-/* slots */
-
-function generateSlots(){
-
-const slots:string[] = []
-
-let hour = 9
-let minute = 0
-
-while(hour < 17){
-
-const h = hour.toString().padStart(2,"0")
-const m = minute.toString().padStart(2,"0")
-
-slots.push(`${h}:${m}`)
-
-minute += 15
-
-if(minute === 60){
-minute = 0
-hour++
-}
-
-}
-
-return slots
-
-}
-
-const timeSlots = generateSlots()
-
-
-/* fetch appointments */
+const [rating,setRating] = useState(0)
 
 useEffect(()=>{
 
 fetch("/api/appointments")
-
 .then(res=>res.json())
-
 .then(data=>{
-
-/* ACTIVE ONLY */
-
-const active = data.filter(
-(a:any)=>a.status !== "completed" && a.status !== "cancelled"
-)
-
-setAppointments(active)
-
+setAppointments(data)
 })
+
+Notification.requestPermission()
 
 },[])
 
 
-/* cancel */
 
-const cancelAppointment = async(id:string)=>{
+/* calendar events */
 
-await fetch(`/api/appointments/cancel/${id}`,{
-method:"DELETE"
+const events = appointments.map((a:any)=>({
+
+title:`Dr. ${a.doctor?.name}`,
+
+start:new Date(a.date),
+
+end:new Date(a.date)
+
+}))
+
+
+
+/* reminder */
+
+function sendReminder(){
+
+if(Notification.permission === "granted"){
+
+new Notification("Appointment Reminder",{
+body:"Your doctor appointment is coming soon"
 })
 
-setAppointments(prev => prev.filter(a=>a.id!==id))
+}
 
 }
 
 
-/* reschedule */
 
-const reschedule = async()=>{
+/* whatsapp */
 
-await fetch(`/api/appointments/reschedule/${selected.id}`,{
+function sendWhatsapp(a:any){
 
-method:"PUT",
+const phone = "919999999999"
 
-headers:{
-"Content-Type":"application/json"
-},
+const message = encodeURIComponent(
+`Appointment confirmed with Dr. ${a.doctor?.name} on ${new Date(a.date).toDateString()} at ${a.time}`
+)
 
-body:JSON.stringify({
-date,
-time
-})
-
-})
-
-alert("Appointment Updated")
-
-setSelected(null)
-
-location.reload()
+window.open(`https://wa.me/${phone}?text=${message}`)
 
 }
+
 
 
 return(
 
-<div className="max-w-6xl mx-auto px-8 py-10">
+<div className="max-w-7xl mx-auto px-6 py-10">
 
-<h1 className="text-3xl font-bold mb-8">
-My Appointments
+<h1 className="text-3xl font-bold mb-10">
+Appointments Dashboard
 </h1>
 
 
-{/* LIST */}
 
-<div className="grid md:grid-cols-2 gap-6">
+{/* CALENDAR */}
 
-{appointments.length === 0 && (
+<div className="bg-white rounded-xl shadow p-6 mb-10">
 
-<p className="text-gray-500">
-No active appointments
-</p>
+<h2 className="text-xl font-semibold mb-4">
+Appointment Calendar
+</h2>
 
-)}
+<div className="h-[500px]">
+
+<Calendar
+localizer={localizer}
+events={events}
+startAccessor="start"
+endAccessor="end"
+/>
+
+</div>
+
+</div>
+
+
+
+{/* APPOINTMENT LIST */}
+
+<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
 {appointments.map((a:any)=>(
 
 <div
 key={a.id}
-className="bg-white p-6 rounded-xl shadow"
+className="bg-white rounded-xl shadow p-6"
 >
 
-<h2 className="text-xl font-bold">
-👨‍⚕️ {a.doctor?.name}
+<h2 className="text-lg font-bold">
+👨‍⚕️ Dr. {a.doctor?.name}
 </h2>
 
-<p className="text-gray-600">
-Date: {new Date(a.date).toDateString()}
+<p className="text-gray-600 text-sm mt-1">
+📅 {new Date(a.date).toDateString()}
 </p>
 
-<p className="text-gray-600">
-Time: {a.time}
+<p className="text-gray-600 text-sm">
+⏰ {a.time}
 </p>
+
+
+
+{/* RATING */}
+
+<div className="flex gap-1 mt-3">
+
+{[1,2,3,4,5].map((r)=>(
+<button
+key={r}
+onClick={()=>setRating(r)}
+className={`text-xl ${
+r <= rating ? "text-yellow-400" : "text-gray-300"
+}`}
+>
+★
+</button>
+))}
+
+</div>
+
+
+
+{/* ACTION BUTTONS */}
 
 <div className="flex gap-3 mt-4">
 
 <button
-onClick={()=>setSelected(a)}
-className="bg-blue-600 text-white px-3 py-2 rounded"
+onClick={sendReminder}
+className="bg-blue-600 text-white px-3 py-2 rounded-lg"
 >
-Reschedule
+Reminder
 </button>
 
 <button
-onClick={()=>cancelAppointment(a.id)}
-className="bg-red-500 text-white px-3 py-2 rounded"
+onClick={()=>sendWhatsapp(a)}
+className="bg-green-500 text-white px-3 py-2 rounded-lg"
 >
-Cancel
+WhatsApp
 </button>
 
 </div>
@@ -174,54 +178,20 @@ Cancel
 
 
 
-{/* RESCHEDULE MODAL */}
+{/* CLINIC MAP */}
 
-{selected && (
+<div className="bg-white rounded-xl shadow p-6 mt-12">
 
-<div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-
-<div className="bg-white p-8 rounded-xl w-[400px]">
-
-<h2 className="text-xl font-bold mb-4">
-Reschedule Appointment
+<h2 className="text-xl font-semibold mb-4">
+Clinic Location
 </h2>
 
-<DatePicker
-selected={date}
-onChange={(d)=>setDate(d)}
-className="w-full border p-2 rounded mb-4"
+<iframe
+className="w-full h-[350px] rounded-xl"
+src="https://www.google.com/maps?q=Jaipur+Hospital&output=embed"
 />
 
-<div className="grid grid-cols-4 gap-2 mb-4">
-
-{timeSlots.map(slot=>(
-
-<button
-key={slot}
-onClick={()=>setTime(slot)}
-className={`p-2 border rounded
-${time===slot ? "bg-blue-600 text-white" : "bg-white"}
-`}
->
-{slot}
-</button>
-
-))}
-
 </div>
-
-<button
-onClick={reschedule}
-className="w-full bg-blue-600 text-white py-2 rounded"
->
-Update Appointment
-</button>
-
-</div>
-
-</div>
-
-)}
 
 </div>
 

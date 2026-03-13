@@ -1,39 +1,149 @@
 "use client"
 
-import Link from "next/link"
+import { useEffect,useState } from "react"
+import {
+Users,
+UserPlus,
+Calendar,
+Activity
+} from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function Dashboard(){
 
+const [stats,setStats] = useState<any>(null)
+
+useEffect(()=>{
+
+fetch("/api/stats")
+.then(res=>res.json())
+.then(setStats)
+
+},[])
+
+if(!stats){
+return <div className="p-10 text-center">Loading dashboard...</div>
+}
+
 return(
 
-<div className="space-y-8">
+<div className="max-w-7xl mx-auto px-4 py-10">
 
-<h1 className="text-3xl font-bold">
-Reception Dashboard
+<h1 className="text-3xl font-bold mb-10">
+Admin Dashboard
 </h1>
 
-<div className="grid md:grid-cols-3 gap-6">
 
-<Link
-href="/receptionist/patients"
-className="bg-white p-6 rounded-xl shadow hover:shadow-lg"
->
-Register Patient
-</Link>
 
-<Link
-href="/receptionist/appointments"
-className="bg-white p-6 rounded-xl shadow hover:shadow-lg"
->
-Book Appointment
-</Link>
+{/* STATS */}
 
-<Link
-href="/receptionist/queue"
-className="bg-white p-6 rounded-xl shadow hover:shadow-lg"
+<div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+{/* DOCTORS */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
 >
-Patient Queue
-</Link>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+<Users size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Doctors
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.doctors}
+</p>
+
+</motion.div>
+
+
+
+{/* PATIENTS */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+<UserPlus size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Patients
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.patients}
+</p>
+
+</motion.div>
+
+
+
+{/* APPOINTMENTS */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+<Calendar size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Appointments
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.appointments}
+</p>
+
+</motion.div>
+
+
+
+{/* TODAY */}
+
+<motion.div
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+<div className="flex items-center gap-3 mb-3">
+
+<div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+<Activity size={18}/>
+</div>
+
+<span className="text-sm text-gray-500">
+Today
+</span>
+
+</div>
+
+<p className="text-3xl font-bold">
+{stats.today}
+</p>
+
+</motion.div>
 
 </div>
 

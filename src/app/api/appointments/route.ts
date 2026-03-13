@@ -4,115 +4,9 @@ import jwt from "jsonwebtoken"
 import { cookies } from "next/headers"
 
 
-
-/* CREATE APPOINTMENT */
-
-export async function POST(req: Request){
-
-try{
-
-const body = await req.json()
-
-if(!body.doctorId || !body.date || !body.time){
-
-return NextResponse.json(
-{ error:"Missing required fields" },
-{ status:400 }
-)
-
-}
-
-
-const cookieStore = await cookies()
-const token = cookieStore.get("token")?.value
-
-if(!token){
-
-return NextResponse.json(
-{ error:"Unauthorized" },
-{ status:401 }
-)
-
-}
-
-
-let payload:any
-
-try{
-
-payload = jwt.verify(
-token,
-process.env.JWT_SECRET!
-)
-
-}catch{
-
-return NextResponse.json(
-{ error:"Invalid token" },
-{ status:401 }
-)
-
-}
-
-
-
-/* PREVENT DOUBLE BOOKING */
-
-const exists = await prisma.appointment.findFirst({
-
-where:{
-doctorId: body.doctorId,
-date: new Date(body.date),
-time: body.time
-}
-
-})
-
-if(exists){
-
-return NextResponse.json(
-{ error:"This time slot is already booked" },
-{ status:400 }
-)
-
-}
-
-
-
-/* CREATE APPOINTMENT */
-
-const appointment = await prisma.appointment.create({
-
-data:{
-doctorId: body.doctorId,
-patientId: payload.id,
-date: new Date(body.date),
-time: body.time,
-status:"pending"
-}
-
-})
-
-return NextResponse.json(appointment)
-
-
-
-}catch(err){
-
-console.log("CREATE APPOINTMENT ERROR:",err)
-
-return NextResponse.json(
-{ error:"Failed to create appointment" },
-{ status:500 }
-)
-
-}
-
-}
-
-
-
+/* ============================= */
 /* GET APPOINTMENTS */
+/* ============================= */
 
 export async function GET(){
 
@@ -122,11 +16,8 @@ const cookieStore = await cookies()
 const token = cookieStore.get("token")?.value
 
 if(!token){
-
 return NextResponse.json([])
-
 }
-
 
 let payload:any
 
@@ -146,12 +37,12 @@ return NextResponse.json(
 
 }
 
-
 let appointments:any[] = []
 
 
-
+/* ============================= */
 /* PATIENT VIEW */
+/* ============================= */
 
 if(payload.role === "patient"){
 
@@ -165,20 +56,21 @@ include:{
 doctor:true
 },
 
-orderBy:{
-createdAt:"desc"
-}
+orderBy:[
+{ date:"desc" },
+{ createdAt:"desc" }
+]
 
 })
 
 }
 
 
-
+/* ============================= */
 /* DOCTOR VIEW */
+/* ============================= */
 
 else if(payload.role === "doctor"){
-
 appointments = await prisma.appointment.findMany({
 
 where:{
@@ -186,23 +78,74 @@ doctorId: payload.id
 },
 
 include:{
-patient:true,
-doctor:true
+doctor:true,
+patient:{
+include:{
+vitals:true
+}
+}
 },
 
-orderBy:{
-createdAt:"desc"
-}
+orderBy:[
+{ date:"desc" },
+{ createdAt:"desc" }
+]
 
 })
 
 }
 
 
+/* ============================= */
+/* NURSE VIEW */
+/* ============================= */
 
-/* ADMIN VIEW */
+else if(payload.role === "nurse"){
 
-else if(payload.role === "admin"){
+const nurse = await prisma.nurse.findUnique({
+
+where:{
+id: payload.id
+},
+
+include:{
+doctor:true
+}
+
+})
+
+if(!nurse?.doctor){
+return NextResponse.json([])
+}
+
+/* doctor mil gaya */
+
+appointments = await prisma.appointment.findMany({
+
+where:{
+doctorId: nurse.doctor.id
+},
+
+include:{
+doctor:true,
+patient:true
+},
+
+orderBy:[
+{ date:"desc" },
+{ createdAt:"desc" }
+]
+
+})
+
+}
+
+
+/* ============================= */
+/* ADMIN + RECEPTION VIEW */
+/* ============================= */
+
+else if(payload.role === "admin" || payload.role === "receptionist"){
 
 appointments = await prisma.appointment.findMany({
 
@@ -211,18 +154,17 @@ doctor:true,
 patient:true
 },
 
-orderBy:{
-createdAt:"desc"
-}
+orderBy:[
+{ date:"desc" },
+{ createdAt:"desc" }
+]
 
 })
 
 }
 
 
-
 return NextResponse.json(appointments)
-
 
 
 }catch(err){

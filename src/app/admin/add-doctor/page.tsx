@@ -1,237 +1,208 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  User,
-  Stethoscope,
-  Briefcase,
-  Heart,
-  Brain,
-  Bone,
-  Sparkles,
-  Smile,
-  Baby,
-  Activity,
-  Scan
+User,
+Stethoscope,
+Briefcase,
+Heart,
+Brain,
+Bone,
+Sparkles,
+Smile,
+Baby,
+Activity,
+Scan
 } from "lucide-react";
 
 const specializations = [
-  { name: "Cardiologist", icon: Heart },
-  { name: "Neurologist", icon: Brain },
-  { name: "Orthopedic", icon: Bone },
-  { name: "Dermatologist", icon: Sparkles },
-  { name: "Dentist", icon: Smile },
-  { name: "Pediatrician", icon: Baby },
-  { name: "Psychiatrist", icon: Activity },
-  { name: "Radiologist", icon: Scan }
+{ name:"Cardiologist", icon:Heart },
+{ name:"Neurologist", icon:Brain },
+{ name:"Orthopedic", icon:Bone },
+{ name:"Dermatologist", icon:Sparkles },
+{ name:"Dentist", icon:Smile },
+{ name:"Pediatrician", icon:Baby },
+{ name:"Psychiatrist", icon:Activity },
+{ name:"Radiologist", icon:Scan }
 ];
 
-export default function AddDoctor() {
+export default function AddDoctor(){
 
-  const [loading,setLoading] = useState(false)
+const [loading,setLoading] = useState(false)
 
-  const [form,setForm] = useState({
-    name:"",
-    specialization:"",
-    experience:""
-  });
+const [form,setForm] = useState({
+name:"",
+specialization:"",
+experience:""
+})
 
-  const [suggestions,setSuggestions] = useState<any[]>([]);
+const handleSubmit = async(e:any)=>{
+e.preventDefault()
 
-  const handleSpecialization = (value:string)=>{
+setLoading(true)
 
-    setForm({...form,specialization:value});
+await fetch("/api/doctors",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify(form)
+})
 
-    const filtered = specializations.filter((item)=>
-      item.name.toLowerCase().includes(value.toLowerCase())
-    );
+setLoading(false)
 
-    setSuggestions(filtered);
-  };
+alert("Doctor Added Successfully")
 
-  const handleSubmit = async (e:any)=>{
-    e.preventDefault();
+setForm({
+name:"",
+specialization:"",
+experience:""
+})
 
-    setLoading(true)
+}
 
-    await fetch("/api/doctors",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify(form)
-    });
+return(
 
-    setLoading(false)
+<div className="p-10 flex justify-center bg-gray-50 min-h-screen">
 
-    alert("Doctor Added Successfully")
+<motion.div
+initial={{opacity:0,y:30}}
+animate={{opacity:1,y:0}}
+className="w-full max-w-xl bg-white shadow-xl rounded-2xl p-8 border"
+>
 
-    setForm({
-      name:"",
-      specialization:"",
-      experience:""
-    });
+<h1 className="text-2xl font-bold mb-8 flex items-center gap-2">
 
-    setSuggestions([]);
-  };
+<Stethoscope size={22}/>
 
-  return(
+Add Doctor
 
-    <div className="p-10 flex justify-center bg-gray-50 min-h-screen">
+</h1>
 
-      <motion.div
-        initial={{opacity:0, y:30}}
-        animate={{opacity:1, y:0}}
-        transition={{duration:0.4}}
-        className="w-full max-w-xl bg-white shadow-xl rounded-2xl p-8 border"
-      >
 
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Stethoscope size={22}/> Add Doctor
-        </h1>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6"
-        >
+<form onSubmit={handleSubmit} className="space-y-6">
 
-          {/* Doctor Name */}
+{/* NAME */}
 
-          <div>
+<div>
 
-            <label className="text-sm text-gray-500">
-              Doctor Name
-            </label>
+<label className="text-sm text-gray-500">
+Doctor Name
+</label>
 
-            <div className="relative mt-1">
+<div className="relative mt-1">
 
-              <User
-                size={18}
-                className="absolute left-3 top-3 text-gray-400"
-              />
+<User
+size={18}
+className="absolute left-3 top-3 text-gray-400"
+/>
 
-              <input
-                value={form.name}
-                onChange={(e)=>
-                  setForm({...form,name:e.target.value})
-                }
-                placeholder="Dr. John Smith"
-                className="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+<input
+value={form.name}
+onChange={(e)=>setForm({...form,name:e.target.value})}
+placeholder="Dr. John Smith"
+className="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-500 outline-none"
+/>
 
-            </div>
+</div>
 
-          </div>
+</div>
 
-          {/* Specialization */}
 
-          <div className="relative">
 
-            <label className="text-sm text-gray-500">
-              Specialization
-            </label>
+{/* SPECIALIZATION GRID */}
 
-            <div className="relative mt-1">
+<div>
 
-              <Stethoscope
-                size={18}
-                className="absolute left-3 top-3 text-gray-400"
-              />
+<label className="text-sm text-gray-500 mb-2 block">
+Specialization
+</label>
 
-              <input
-                value={form.specialization}
-                onChange={(e)=>
-                  handleSpecialization(e.target.value)
-                }
-                placeholder="Cardiologist"
-                className="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+<div className="grid grid-cols-2 gap-3">
 
-            </div>
+{specializations.map((item,i)=>{
 
-            <AnimatePresence>
+const Icon = item.icon
 
-            {suggestions.length > 0 && (
+return(
 
-              <motion.div
-                initial={{opacity:0, y:-10}}
-                animate={{opacity:1, y:0}}
-                exit={{opacity:0}}
-                className="absolute w-full bg-white border rounded-lg shadow mt-1 z-10"
-              >
+<div
+key={i}
+onClick={()=>setForm({...form,specialization:item.name})}
+className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition
 
-                {suggestions.map((item,i)=>{
+${form.specialization===item.name
+? "border-blue-500 bg-blue-50"
+: "hover:bg-gray-50"
+}
 
-                  const Icon = item.icon
+`}
+>
 
-                  return(
-                    <div
-                      key={i}
-                      onClick={()=>{
-                        setForm({...form,specialization:item.name})
-                        setSuggestions([])
-                      }}
-                      className="flex items-center gap-3 p-3 hover:bg-blue-50 cursor-pointer"
-                    >
+<Icon size={18} className="text-blue-600"/>
 
-                      <Icon size={18} className="text-blue-500"/>
+<span className="text-sm">
+{item.name}
+</span>
 
-                      {item.name}
+</div>
 
-                    </div>
-                  )
-                })}
+)
 
-              </motion.div>
+})}
 
-            )}
+</div>
 
-            </AnimatePresence>
+</div>
 
-          </div>
 
-          {/* Experience */}
 
-          <div>
+{/* EXPERIENCE */}
 
-            <label className="text-sm text-gray-500">
-              Experience
-            </label>
+<div>
 
-            <div className="relative mt-1">
+<label className="text-sm text-gray-500">
+Experience
+</label>
 
-              <Briefcase
-                size={18}
-                className="absolute left-3 top-3 text-gray-400"
-              />
+<div className="relative mt-1">
 
-              <input
-                value={form.experience}
-                onChange={(e)=>
-                  setForm({...form,experience:e.target.value})
-                }
-                placeholder="10 years"
-                className="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+<Briefcase
+size={18}
+className="absolute left-3 top-3 text-gray-400"
+/>
 
-            </div>
+<input
+value={form.experience}
+onChange={(e)=>setForm({...form,experience:e.target.value})}
+placeholder="10 years"
+className="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-500 outline-none"
+/>
 
-          </div>
+</div>
 
-          {/* Button */}
+</div>
 
-          <motion.button
-            whileTap={{scale:0.95}}
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg transition"
-          >
-            {loading ? "Adding..." : "Add Doctor"}
-          </motion.button>
 
-        </form>
 
-      </motion.div>
+{/* BUTTON */}
 
-    </div>
+<motion.button
+whileTap={{scale:0.95}}
+disabled={loading}
+className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg transition"
+>
 
-  );
+{loading ? "Adding..." : "Add Doctor"}
+
+</motion.button>
+
+</form>
+
+</motion.div>
+
+</div>
+
+)
+
 }

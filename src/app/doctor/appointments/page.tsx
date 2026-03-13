@@ -2,30 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+User,
+Calendar,
+Clock,
+CheckCircle,
+FileText,
+Search,
+Activity
+} from "lucide-react";
 
 export default function DoctorAppointments(){
 
 const router = useRouter()
 
 const [appointments,setAppointments] = useState<any[]>([])
-const [filtered,setFiltered] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 const [search,setSearch] = useState("")
 
-const fetchAppointments = async ()=>{
 
-try{
+const fetchAppointments = async ()=>{
 
 const res = await fetch("/api/appointments")
 const data = await res.json()
 
 setAppointments(data || [])
-setFiltered(data || [])
-
-}catch(err){
-console.log("APPOINTMENT ERROR",err)
-}
-
 setLoading(false)
 
 }
@@ -33,18 +35,6 @@ setLoading(false)
 useEffect(()=>{
 fetchAppointments()
 },[])
-
-
-
-useEffect(()=>{
-
-const f = appointments.filter((a:any)=>
-a.patient?.name?.toLowerCase().includes(search.toLowerCase())
-)
-
-setFiltered(f)
-
-},[search,appointments])
 
 
 
@@ -74,104 +64,111 @@ router.push(`/doctor/prescription/${id}`)
 
 
 
-if(loading){
-
-return(
-<div className="p-8">
-Loading appointments...
-</div>
+const filtered = appointments.filter((a:any)=>
+a.patient?.name?.toLowerCase().includes(search.toLowerCase())
 )
 
+
+
+if(loading){
+return <div className="p-10">Loading appointments...</div>
 }
 
 
 
 return(
 
-<div className="p-8 space-y-6">
+<div className="max-w-7xl mx-auto px-4 py-10">
 
-{/* TITLE */}
-
-<h1 className="text-3xl font-bold text-gray-800">
-Doctor Appointments
+<h1 className="text-3xl font-bold mb-8">
+Appointments
 </h1>
 
 
 
 {/* SEARCH */}
 
+<div className="relative w-full md:w-96 mb-10">
+
+<Search size={18} className="absolute left-3 top-3 text-gray-400"/>
+
 <input
-type="text"
 placeholder="Search patient..."
 value={search}
 onChange={(e)=>setSearch(e.target.value)}
-className="border px-4 py-2 rounded-lg w-full md:w-80"
+className="pl-10 pr-4 py-2 border rounded-lg w-full"
 />
 
-
-
-{/* TABLE */}
-
-<div className="bg-white shadow rounded-xl overflow-hidden">
-
-{filtered.length === 0 && (
-
-<div className="p-10 text-center text-gray-500">
-No appointments found
 </div>
 
-)}
 
 
+{/* CARDS */}
 
-{filtered.length > 0 && (
-
-<div className="overflow-x-auto">
-
-<table className="w-full">
-
-<thead className="bg-gray-100 text-sm text-gray-600">
-
-<tr>
-
-<th className="p-4 text-left">Patient</th>
-<th className="p-4 text-left">Date</th>
-<th className="p-4 text-left">Time</th>
-<th className="p-4 text-left">Status</th>
-<th className="p-4 text-left">Actions</th>
-
-</tr>
-
-</thead>
-
-
-
-<tbody>
+<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
 
 {filtered.map((a:any)=>(
 
-<tr key={a.id} className="border-t hover:bg-gray-50">
+<motion.div
+key={a.id}
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
 
-<td className="p-4 font-medium">
+{/* PATIENT */}
+
+<div className="flex items-center gap-3 mb-4">
+
+<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+<User size={18}/>
+</div>
+
+<div>
+
+<p className="font-semibold">
 {a.patient?.name || "Unknown"}
-</td>
+</p>
 
-<td className="p-4">
-{new Date(a.date).toLocaleDateString()}
-</td>
+<p className="text-xs text-gray-500">
+Patient
+</p>
 
-<td className="p-4">
-{a.time || "-"}
-</td>
+</div>
+
+</div>
 
 
 
-<td className="p-4">
+{/* DATE */}
 
-<span className={`px-3 py-1 rounded-full text-xs capitalize font-medium
+<div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+<Calendar size={15}/>
+{new Date(a.date).toDateString()}
+</div>
+
+
+
+{/* TIME */}
+
+<div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+<Clock size={15}/>
+{a.time}
+</div>
+
+
+
+{/* STATUS */}
+
+<div className="mb-4">
+
+<span className={`text-xs px-3 py-1 rounded-full
 
 ${a.status==="pending" && "bg-yellow-100 text-yellow-700"}
+
 ${a.status==="completed" && "bg-green-100 text-green-700"}
+
 ${a.status==="cancelled" && "bg-red-100 text-red-700"}
 
 `}>
@@ -180,49 +177,54 @@ ${a.status==="cancelled" && "bg-red-100 text-red-700"}
 
 </span>
 
-</td>
+</div>
 
 
 
-<td className="p-4 flex gap-2">
+{/* ACTIONS */}
+
+<div className="flex gap-2">
 
 {a.status !== "completed" && (
 
 <button
 onClick={()=>updateStatus(a.id,"completed")}
-className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded"
+className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm"
 >
 
+<CheckCircle size={14}/>
 Complete
 
 </button>
 
 )}
 
+<button
+onClick={()=>router.push(`/doctor/vitals/${a.id}`)}
+className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm"
+>
 
+<Activity size={14}/>
+Vitals
+
+</button>
 
 <button
 onClick={()=>openPrescription(a.id)}
-className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded"
+className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm"
 >
 
+<FileText size={14}/>
 Prescription
 
 </button>
 
-</td>
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
 
 </div>
 
-)}
+</motion.div>
+
+))}
 
 </div>
 

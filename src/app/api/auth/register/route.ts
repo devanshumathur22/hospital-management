@@ -105,6 +105,31 @@ if (role === "receptionist") {
   return NextResponse.json(receptionist)
 }
 
+// --------- NURSE ----------
+if (role === "nurse") {
+
+  const exist = await prisma.nurse.findUnique({
+    where: { email }
+  })
+
+  if (exist) {
+    return NextResponse.json(
+      { error: "Nurse already exists" },
+      { status: 400 }
+    )
+  }
+
+  const nurse = await prisma.nurse.create({
+    data: {
+      name,
+      email,
+      password: hashedPassword
+    }
+  })
+
+  return NextResponse.json(nurse)
+}
+
 // ---------- ADMIN ----------
 if (role === "admin") {
 

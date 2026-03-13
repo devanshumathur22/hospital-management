@@ -117,6 +117,7 @@ export default function Register(){
         >
           <option value="patient">🧑 Patient</option>
           <option value="doctor">👨‍⚕️ Doctor</option>
+          <option value="nurse">👩‍⚕️ Nurse</option>
           <option value="receptionist">📋 Receptionist</option>
           <option value="admin">🛠 Admin</option>
           

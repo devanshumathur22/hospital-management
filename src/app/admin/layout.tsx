@@ -19,11 +19,13 @@ export default function AdminLayout({
         <nav className="flex flex-col gap-4">
 
           <Link href="/admin/dashboard">Dashboard</Link>
-          <Link href="/admin/doctors">Doctors</Link>
           <Link href="/admin/add-doctor">Add Doctor</Link>
-          <Link href="/admin/patients">Patients</Link>
+          <Link href="/admin/doctors">Doctors</Link>
+          <Link href="/admin/assign-nurse">Assign Nurse</Link>
+          <Link href="/admin/nurses">Nurses</Link>
           <Link href="/admin/appointments">Appointments</Link>
-          <Link href="/admin/calendar">Calendar</Link>
+          <Link href="/admin/patients">Patients</Link>
+          <Link href="/admin/calendar">Calendar</Link>         
           <Link href="/admin/reports">Reports</Link>
 
           

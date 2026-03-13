@@ -54,6 +54,10 @@ if (data.role === "receptionist") {
   router.push("/receptionist/dashboard")
 }
 
+if (data.role === "nurse") {
+  router.push("/nurse/dashboard")
+}
+
 if (data.role === "admin") {
   router.push("/admin/dashboard")
 }

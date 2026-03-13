@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect,useState } from "react"
+import { User, Search, FileText, Printer, Calendar } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function DoctorPrescriptions(){
 
@@ -9,8 +11,6 @@ const [filtered,setFiltered] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 const [selected,setSelected] = useState<any>(null)
 const [search,setSearch] = useState("")
-
-
 
 useEffect(()=>{
 
@@ -44,7 +44,6 @@ const printWindow = window.open("", "", "width=700,height=700")
 
 printWindow?.document.write(`
 <h2>Prescription</h2>
-
 <p><b>Patient:</b> ${p.patient?.name}</p>
 <p><b>Date:</b> ${new Date(p.createdAt).toLocaleDateString()}</p>
 
@@ -53,7 +52,6 @@ printWindow?.document.write(`
 <ul>
 ${p.medicine?.map((m:any)=>`<li>${m.name} - ${m.dosage} (${m.timing})</li>`).join("")}
 </ul>
-
 `)
 
 printWindow?.document.close()
@@ -64,18 +62,17 @@ printWindow?.print()
 
 
 if(loading){
-return <div className="p-8">Loading prescriptions...</div>
+return <div className="p-10 text-center">Loading prescriptions...</div>
 }
 
 
 
 return(
 
-<div className="p-8 space-y-6">
+<div className="max-w-7xl mx-auto px-4 py-10 space-y-8">
 
-{/* TITLE */}
-
-<h1 className="text-3xl font-bold text-gray-800">
+<h1 className="flex items-center gap-2 text-3xl font-bold">
+<FileText size={26}/>
 Doctor Prescriptions
 </h1>
 
@@ -83,120 +80,122 @@ Doctor Prescriptions
 
 {/* SEARCH */}
 
+<div className="relative w-full md:w-96">
+
+<Search size={18} className="absolute left-3 top-3 text-gray-400"/>
+
 <input
-type="text"
 placeholder="Search patient..."
 value={search}
 onChange={(e)=>setSearch(e.target.value)}
-className="border px-4 py-2 rounded-lg w-full md:w-80"
+className="pl-10 pr-4 py-2 border rounded-lg w-full"
 />
 
-
-
-{/* TABLE */}
-
-<div className="bg-white shadow rounded-xl overflow-hidden">
-
-{filtered.length === 0 && (
-
-<div className="p-10 text-center text-gray-500">
-No prescriptions yet
 </div>
 
-)}
 
 
+{/* CARDS */}
 
-{filtered.length > 0 && (
-
-<div className="overflow-x-auto">
-
-<table className="w-full">
-
-<thead className="bg-gray-100 text-sm text-gray-600">
-
-<tr>
-
-<th className="p-4 text-left">Patient</th>
-<th className="p-4 text-left">Medicines</th>
-<th className="p-4 text-left">Date</th>
-<th className="p-4 text-left">Actions</th>
-
-</tr>
-
-</thead>
-
-
-
-<tbody>
+<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
 
 {filtered.map((p:any)=>(
 
-<tr key={p.id} className="border-t hover:bg-gray-50">
+<motion.div
+key={p.id}
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
 
-<td className="p-4 font-medium">
+{/* PATIENT */}
+
+<div className="flex items-center gap-3 mb-4">
+
+<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+<User size={18}/>
+</div>
+
+<div>
+
+<p className="font-semibold">
 {p.patient?.name}
-</td>
+</p>
+
+<p className="text-xs text-gray-500">
+Patient
+</p>
+
+</div>
+
+</div>
 
 
 
-<td className="p-4 text-sm">
+{/* DATE */}
+
+<div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+
+<Calendar size={14}/>
+
+{new Date(p.createdAt).toLocaleDateString()}
+
+</div>
+
+
+
+{/* MEDICINES */}
+
+<div className="text-sm mb-4 space-y-1">
 
 {Array.isArray(p.medicine)
-
 ? p.medicine.slice(0,2).map((m:any,i:number)=>(
 <div key={i}>
 {m.name} - {m.dosage}
 </div>
 ))
-
 : "-"}
 
 {p.medicine?.length > 2 && (
 <div className="text-gray-500 text-xs">
-+{p.medicine.length - 2} more
++{p.medicine.length - 2} more medicines
 </div>
 )}
 
-</td>
+</div>
 
 
 
-<td className="p-4 text-sm">
-{new Date(p.createdAt).toLocaleDateString()}
-</td>
+{/* ACTIONS */}
 
-
-
-<td className="p-4 flex gap-2">
+<div className="flex gap-2">
 
 <button
 onClick={()=>setSelected(p)}
-className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm"
 >
+
+<FileText size={14}/>
 View
+
 </button>
 
 <button
 onClick={()=>handlePrint(p)}
-className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm"
 >
+
+<Printer size={14}/>
 Print
+
 </button>
-
-</td>
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
 
 </div>
 
-)}
+</motion.div>
+
+))}
 
 </div>
 
@@ -210,8 +209,12 @@ Print
 
 <div className="bg-white p-6 rounded-xl w-[420px] shadow-xl">
 
-<h2 className="text-xl font-bold mb-4">
+<h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+
+<FileText size={18}/>
+
 Prescription
+
 </h2>
 
 
@@ -246,16 +249,21 @@ Medicines
 
 <button
 onClick={()=>handlePrint(selected)}
-className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm"
+className="flex items-center gap-1 bg-green-600 text-white px-4 py-2 rounded text-sm"
 >
+
+<Printer size={14}/>
 Print
+
 </button>
 
 <button
 onClick={()=>setSelected(null)}
-className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+className="bg-gray-500 text-white px-4 py-2 rounded text-sm"
 >
+
 Close
+
 </button>
 
 </div>

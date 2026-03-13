@@ -1,123 +1,199 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect,useState } from "react";
+import { User, Mail, Phone, Trash2, Search } from "lucide-react";
+import { motion } from "framer-motion";
 
-export default function AdminPatients() {
+export default function AdminPatients(){
 
-  const [patients,setPatients] = useState<any[]>([]);
-  const [loading,setLoading] = useState(true);
+const [patients,setPatients] = useState<any[]>([])
+const [filtered,setFiltered] = useState<any[]>([])
+const [loading,setLoading] = useState(true)
+const [search,setSearch] = useState("")
 
-  useEffect(()=>{
+useEffect(()=>{
 
-    const fetchPatients = async()=>{
+const fetchPatients = async()=>{
 
-      try{
+try{
 
-        const res = await fetch("/api/patients");
-        const data = await res.json();
+const res = await fetch("/api/patients")
+const data = await res.json()
 
-        console.log("PATIENTS:",data);
+setPatients(data || [])
+setFiltered(data || [])
 
-        setPatients(data || []);
+}catch(err){
+console.log("Fetch error:",err)
+}
 
-      }catch(err){
+setLoading(false)
 
-        console.log("Fetch error:",err);
+}
 
-      }
+fetchPatients()
 
-      setLoading(false);
-
-    }
-
-    fetchPatients();
-
-  },[])
-
-
-  const deletePatient = async(id:string)=>{
-
-    if(!confirm("Delete this patient?")) return;
-
-    await fetch(`/api/patients/${id}`,{
-      method:"DELETE"
-    })
-
-    setPatients(prev =>
-      prev.filter(p => p.id !== id)
-    )
-
-  }
+},[])
 
 
-  if(loading){
-    return <p className="p-8">Loading patients...</p>
-  }
+
+useEffect(()=>{
+
+const f = patients.filter((p:any)=>
+p.name?.toLowerCase().includes(search.toLowerCase())
+)
+
+setFiltered(f)
+
+},[search,patients])
 
 
-  return(
 
-    <div className="p-8">
+const deletePatient = async(id:string)=>{
 
-      <h1 className="text-3xl font-bold mb-8">
-        Patients
-      </h1>
+if(!confirm("Delete this patient?")) return
 
-      <div className="bg-white shadow rounded-xl overflow-hidden">
+await fetch(`/api/patients/${id}`,{
+method:"DELETE"
+})
 
-        <table className="w-full">
+setPatients(prev =>
+prev.filter(p => p.id !== id)
+)
 
-          <thead className="bg-gray-100">
+}
 
-            <tr>
 
-              <th className="p-4 text-left">Name</th>
-              <th className="p-4 text-left">Email</th>
-              <th className="p-4 text-left">Phone</th>
-              <th className="p-4 text-left">Age</th>
-              <th className="p-4 text-left">Actions</th>
 
-            </tr>
+if(loading){
+return <div className="p-10 text-center">Loading patients...</div>
+}
 
-          </thead>
 
-          <tbody>
 
-            {patients.map((p:any)=>(
+return(
 
-              <tr
-              key={p.id}
-              className="border-t hover:bg-gray-50"
-              >
+<div className="max-w-7xl mx-auto px-4 py-10">
 
-                <td className="p-4">{p.name}</td>
-                <td className="p-4">{p.email}</td>
-                <td className="p-4">{p.phone}</td>
-                <td className="p-4">{p.age}</td>
+{/* HEADER */}
 
-                <td className="p-4">
+<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
 
-                  <button
-                  onClick={()=>deletePatient(p.id)}
-                  className="text-red-600 hover:underline"
-                  >
-                    Delete
-                  </button>
+<h1 className="flex items-center gap-2 text-3xl font-bold">
 
-                </td>
+<User size={26}/>
 
-              </tr>
+Patients
 
-            ))}
+</h1>
 
-          </tbody>
 
-        </table>
 
-      </div>
+{/* SEARCH */}
 
-    </div>
+<div className="relative w-full md:w-96">
 
-  )
+<Search
+size={18}
+className="absolute left-3 top-3 text-gray-400"
+/>
+
+<input
+placeholder="Search patient..."
+value={search}
+onChange={(e)=>setSearch(e.target.value)}
+className="pl-10 pr-4 py-2 border rounded-lg w-full"
+/>
+
+</div>
+
+</div>
+
+
+
+{/* GRID */}
+
+<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+{filtered.map((p:any)=>(
+
+<motion.div
+key={p.id}
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+whileHover={{y:-4}}
+className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+>
+
+{/* PATIENT */}
+
+<div className="flex items-center gap-3 mb-4">
+
+<div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
+
+<User size={20}/>
+
+</div>
+
+<div>
+
+<p className="font-semibold">
+{p.name}
+</p>
+
+<p className="text-xs text-gray-500">
+Patient
+</p>
+
+</div>
+
+</div>
+
+
+
+{/* INFO */}
+
+<div className="space-y-2 text-sm text-gray-600 mb-4">
+
+<div className="flex items-center gap-2">
+<Mail size={14}/>
+{p.email}
+</div>
+
+<div className="flex items-center gap-2">
+<Phone size={14}/>
+{p.phone}
+</div>
+
+<div>
+Age: {p.age}
+</div>
+
+</div>
+
+
+
+{/* ACTION */}
+
+<button
+onClick={()=>deletePatient(p.id)}
+className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm"
+>
+
+<Trash2 size={14}/>
+
+Delete
+
+</button>
+
+</motion.div>
+
+))}
+
+</div>
+
+</div>
+
+)
 
 }

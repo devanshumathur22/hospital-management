@@ -3,17 +3,15 @@ import { NextResponse } from "next/server"
 
 export async function PUT(
   req: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ){
-
-  const { id } = await context.params
 
   const body = await req.json()
   const { date, time } = body
 
   const appointment = await prisma.appointment.update({
     where:{
-      id
+      id: params.id
     },
     data:{
       date: new Date(date),
@@ -22,4 +20,5 @@ export async function PUT(
   })
 
   return NextResponse.json(appointment)
+
 }

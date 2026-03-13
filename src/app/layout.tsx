@@ -21,7 +21,9 @@ export default function RootLayout({
     pathname.startsWith("/admin") ||
     pathname.startsWith("/doctor") ||
     pathname.startsWith("/patient") ||
-    pathname.startsWith("/receptionist");
+    pathname.startsWith("/receptionist") ||
+    pathname.startsWith("/nurse") ||
+    pathname.startsWith("/pharmacy");
 
   return (
     <html lang="en">
