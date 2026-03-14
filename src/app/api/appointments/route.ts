@@ -71,6 +71,7 @@ orderBy:[
 /* ============================= */
 
 else if(payload.role === "doctor"){
+
 appointments = await prisma.appointment.findMany({
 
 where:{
@@ -118,8 +119,6 @@ if(!nurse?.doctor){
 return NextResponse.json([])
 }
 
-/* doctor mil gaya */
-
 appointments = await prisma.appointment.findMany({
 
 where:{
@@ -163,9 +162,7 @@ orderBy:[
 
 }
 
-
 return NextResponse.json(appointments)
-
 
 }catch(err){
 
@@ -173,6 +170,94 @@ console.log("GET APPOINTMENTS ERROR:",err)
 
 return NextResponse.json(
 { error:"Failed to fetch appointments" },
+{ status:500 }
+)
+
+}
+
+}
+
+
+
+/* ============================= */
+/* CREATE APPOINTMENT */
+/* ============================= */
+
+export async function POST(req:Request){
+
+try{
+
+const body = await req.json()
+
+const appointment = await prisma.appointment.create({
+
+data:{
+doctorId: body.doctorId,
+patientId: body.patientId,
+date: new Date(body.date),
+time: body.time
+}
+
+})
+
+
+
+/* ============================= */
+/* SEND NOTIFICATION */
+/* ============================= */
+
+try{
+
+const patient = await prisma.patient.findUnique({
+where:{ id: body.patientId }
+})
+
+if(patient?.email){
+
+await fetch(`/api/notifications/send`,{
+
+method:"PUT",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+email: patient.email,
+
+subject:"Appointment Confirmed",
+
+message:`Hello ${patient.name},
+
+Your appointment has been confirmed.
+
+Date: ${body.date}
+Time: ${body.time}
+
+Thank you.`
+
+})
+
+})
+
+}
+
+}catch(e){
+
+console.log("NOTIFICATION ERROR:",e)
+
+}
+
+
+return NextResponse.json(appointment)
+
+}catch(err){
+
+console.log("CREATE APPOINTMENT ERROR:",err)
+
+return NextResponse.json(
+{ error:"Failed to create appointment" },
 { status:500 }
 )
 

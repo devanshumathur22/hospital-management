@@ -22,6 +22,8 @@ export async function GET() {
         experience: true,
         degree: true,
         phone: true,
+        image: true,
+        about: true,
         createdAt: true
       }
 
@@ -59,12 +61,12 @@ export async function POST(req: Request) {
       specialization,
       experience,
       degree,
-      phone
+      phone,
+      image,
+      about
     } = body
 
 
-
-    /* VALIDATION */
 
     if (!name || !email || !password) {
 
@@ -75,10 +77,6 @@ export async function POST(req: Request) {
 
     }
 
-
-
-    /* PASSWORD LENGTH */
-
     if (password.length < 6) {
 
       return NextResponse.json(
@@ -88,15 +86,9 @@ export async function POST(req: Request) {
 
     }
 
-
-
-    /* NORMALIZE EMAIL */
-
     email = email.toLowerCase().trim()
 
 
-
-    /* CHECK EXISTING DOCTOR */
 
     const exist = await prisma.doctor.findUnique({
       where: { email }
@@ -113,13 +105,9 @@ export async function POST(req: Request) {
 
 
 
-    /* HASH PASSWORD */
-
     const hashedPassword = await bcrypt.hash(password, 10)
 
 
-
-    /* CREATE DOCTOR */
 
     const doctor = await prisma.doctor.create({
 
@@ -131,6 +119,8 @@ export async function POST(req: Request) {
         experience: Number(experience) || 0,
         degree: degree || null,
         phone: phone || null,
+        image: image || null,
+        about: about || null,
         role: "doctor"
       },
 
@@ -142,16 +132,14 @@ export async function POST(req: Request) {
         experience: true,
         degree: true,
         phone: true,
+        image: true,
+        about: true,
         createdAt: true
       }
 
     })
 
-
-
     return NextResponse.json(doctor, { status: 201 })
-
-
 
   } catch (error) {
 
@@ -160,6 +148,112 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Failed to create doctor" },
       { status: 500 }
+    )
+
+  }
+
+}
+
+
+
+/* -------- UPDATE DOCTOR -------- */
+
+export async function PUT(req: Request) {
+
+  try {
+
+    const body = await req.json()
+
+    const { id, password, ...data } = body
+
+
+
+    if (!id) {
+
+      return NextResponse.json(
+        { error: "Doctor id required" },
+        { status: 400 }
+      )
+
+    }
+
+    if (data.experience) {
+      data.experience = Number(data.experience)
+    }
+
+    if (password) {
+      data.password = await bcrypt.hash(password, 10)
+    }
+
+    const updatedDoctor = await prisma.doctor.update({
+
+      where: { id },
+
+      data,
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        specialization: true,
+        experience: true,
+        degree: true,
+        phone: true,
+        image: true,
+        about: true,
+        createdAt: true
+      }
+
+    })
+
+    return NextResponse.json(updatedDoctor)
+
+  } catch (error) {
+
+    console.log("UPDATE DOCTOR ERROR:", error)
+
+    return NextResponse.json(
+      { error: "Failed to update doctor" },
+      { status: 500 }
+    )
+
+  }
+
+}
+
+
+
+/* -------- DELETE DOCTOR -------- */
+
+export async function DELETE(req: Request){
+
+  try{
+
+    const body = await req.json()
+    const { id } = body
+
+    if(!id){
+      return NextResponse.json(
+        { error:"Doctor id required" },
+        { status:400 }
+      )
+    }
+
+    await prisma.doctor.delete({
+      where:{ id }
+    })
+
+    return NextResponse.json({
+      message:"Doctor deleted successfully"
+    })
+
+  }catch(error){
+
+    console.log("DELETE DOCTOR ERROR:",error)
+
+    return NextResponse.json(
+      { error:"Failed to delete doctor" },
+      { status:500 }
     )
 
   }

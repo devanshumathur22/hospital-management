@@ -20,6 +20,8 @@ specialization:true,
 experience:true,
 degree:true,
 phone:true,
+image:true,
+about:true,
 createdAt:true
 }
 
@@ -50,7 +52,7 @@ try{
 
 const body = await req.json()
 
-let { name,email,password,specialization,experience,degree,phone } = body
+let { name,email,password,specialization,experience,degree,phone,image,about } = body
 
 if(!name || !email || !password){
 
@@ -88,6 +90,8 @@ specialization: specialization || "General",
 experience:Number(experience) || 0,
 degree: degree || null,
 phone: phone || null,
+image: image || null,
+about: about || null,
 role:"doctor"
 },
 
@@ -99,6 +103,8 @@ specialization:true,
 experience:true,
 degree:true,
 phone:true,
+image:true,
+about:true,
 createdAt:true
 }
 
@@ -112,6 +118,69 @@ console.log("CREATE DOCTOR ERROR:",error)
 
 return NextResponse.json(
 { error:"Failed to create doctor" },
+{ status:500 }
+)
+
+}
+
+}
+
+
+
+/* -------- UPDATE DOCTOR -------- */
+
+export async function PUT(req:Request){
+
+try{
+
+const body = await req.json()
+
+const { id, password, ...data } = body
+
+if(!id){
+
+return NextResponse.json(
+{ error:"Doctor id required" },
+{ status:400 }
+)
+
+}
+
+/* password update */
+
+if(password){
+data.password = await bcrypt.hash(password,10)
+}
+
+const updatedDoctor = await prisma.doctor.update({
+
+where:{ id },
+
+data,
+
+select:{
+id:true,
+name:true,
+email:true,
+specialization:true,
+experience:true,
+degree:true,
+phone:true,
+image:true,
+about:true,
+createdAt:true
+}
+
+})
+
+return NextResponse.json(updatedDoctor)
+
+}catch(error){
+
+console.log("UPDATE DOCTOR ERROR:",error)
+
+return NextResponse.json(
+{ error:"Failed to update doctor" },
 { status:500 }
 )
 

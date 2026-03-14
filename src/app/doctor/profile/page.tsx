@@ -91,7 +91,10 @@ method:"PUT",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify(form)
+body:JSON.stringify({
+id: doctor.id,   // 👈 ye add karo
+...form
+})
 })
 
 const data = await res.json()
@@ -262,6 +265,7 @@ className="w-full border p-3 rounded mb-4"
 
 <input
 name="experience"
+type="number"
 value={form.experience}
 onChange={handleChange}
 placeholder="Experience (years)"

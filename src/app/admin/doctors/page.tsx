@@ -7,18 +7,61 @@ import { User, Stethoscope, Trash2, Edit, Plus, Search } from "lucide-react";
 export default function AdminDoctors() {
 
 const [doctors,setDoctors] = useState<any[]>([])
-const [grouped,setGrouped] = useState<any>({})
 const [search,setSearch] = useState("")
+
+/* FETCH DOCTORS */
 
 useEffect(()=>{
 
 fetch("/api/doctors")
 .then(res=>res.json())
 .then(data=>{
-
 setDoctors(data || [])
+})
 
-const groupedData = data.reduce((acc:any,doc:any)=>{
+},[])
+
+
+
+/* DELETE DOCTOR */
+
+const deleteDoctor = async(id:string)=>{
+
+const confirmDelete = confirm("Delete this doctor?")
+
+if(!confirmDelete) return
+
+try{
+
+const res = await fetch(`/api/doctors/${id}`,{
+method:"DELETE"
+})
+
+if(!res.ok){
+throw new Error("Delete failed")
+}
+
+setDoctors(prev=>prev.filter(doc=>doc.id !== id))
+
+}catch(err){
+console.log("DELETE ERROR",err)
+}
+
+}
+
+
+
+/* SEARCH FILTER */
+
+const filteredDoctors = doctors.filter((d:any)=>
+d.name?.toLowerCase().includes(search.toLowerCase())
+)
+
+
+
+/* GROUP BY SPECIALIZATION */
+
+const grouped = filteredDoctors.reduce((acc:any,doc:any)=>{
 
 if(!acc[doc.specialization]){
 acc[doc.specialization] = []
@@ -28,31 +71,7 @@ acc[doc.specialization].push(doc)
 
 return acc
 
-},{});
-
-setGrouped(groupedData)
-
-})
-
-},[])
-
-
-
-const deleteDoctor = async(id:string)=>{
-
-await fetch(`/api/doctors/${id}`,{
-method:"DELETE"
-})
-
-setDoctors(prev=>prev.filter(doc=>doc.id !== id))
-
-}
-
-
-
-const filteredDoctors = doctors.filter((d:any)=>
-d.name?.toLowerCase().includes(search.toLowerCase())
-)
+},{})
 
 
 
@@ -113,7 +132,6 @@ Add Doctor
 <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
 
 <Stethoscope size={18}/>
-
 {specialization}
 
 </h2>

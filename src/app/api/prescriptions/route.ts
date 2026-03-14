@@ -41,6 +41,54 @@ export async function POST(req: Request){
 
     })
 
+
+    /* ============================= */
+    /* SEND NOTIFICATION */
+    /* ============================= */
+
+    try{
+
+      const patient = await prisma.patient.findUnique({
+        where:{ id: body.patientId }
+      })
+
+      if(patient?.email){
+
+        await fetch(`/api/notifications/send`,{
+
+          method:"PUT",
+
+          headers:{
+            "Content-Type":"application/json"
+          },
+
+          body:JSON.stringify({
+
+            email: patient.email,
+
+            subject:"Prescription Ready",
+
+            message:`Hello ${patient.name},
+
+Your prescription has been added by the doctor.
+
+Please login to view your prescription.
+
+Thank you.`
+
+          })
+
+        })
+
+      }
+
+    }catch(e){
+
+      console.log("NOTIFICATION ERROR:",e)
+
+    }
+
+
     return NextResponse.json(prescription)
 
   }catch(err){
