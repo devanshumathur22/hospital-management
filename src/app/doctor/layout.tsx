@@ -79,7 +79,12 @@ icon:FileText
 name:"Profile",
 href:"/doctor/profile",
 icon:User
-}
+},
+
+{name:"Admitted Patients",
+href:"/doctor/admitted-patients",
+icon:CalendarDays
+},
 
 ]
 
