@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, List, Receipt, Pill } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { LayoutDashboard, Package, List, Receipt, Pill, LogOut } from "lucide-react"
 
 export default function PharmacyLayout({
   children,
@@ -11,6 +11,18 @@ export default function PharmacyLayout({
 }) {
 
 const pathname = usePathname()
+const router = useRouter()
+
+/* 🔥 LOGOUT */
+const handleLogout = async (e:any)=>{
+  e.preventDefault()
+
+  await fetch("/api/auth/logout",{
+    method:"POST"
+  })
+
+  router.push("/login")
+}
 
 const linkClass = (path:string)=>
 `flex items-center gap-2 px-3 py-2 rounded ${
@@ -59,11 +71,22 @@ Billing
 Stock
 </Link>
 
+{/* 🔥 LOGOUT SAME STYLE */}
+
+<Link
+href="#"
+onClick={handleLogout}
+className="flex items-center gap-2 px-3 py-2 rounded text-red-300 hover:bg-red-500"
+>
+<LogOut size={18}/>
+Logout
+</Link>
+
 </nav>
 
 </aside>
 
-{/* Main Content */}
+{/* Main */}
 
 <main className="flex-1 bg-gray-50 p-8">
 {children}
@@ -72,5 +95,4 @@ Stock
 </div>
 
 )
-
 }

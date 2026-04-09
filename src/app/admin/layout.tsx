@@ -1,10 +1,27 @@
-import Link from "next/link";
+"use client"
+
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+
+  const router = useRouter()
+
+  /* 🔥 LOGOUT */
+  const handleLogout = async (e:any) => {
+    e.preventDefault()
+
+    await fetch("/api/auth/logout", {
+      method: "POST"
+    })
+
+    router.push("/login")
+  }
+
   return (
     <div className="flex min-h-screen">
 
@@ -28,7 +45,10 @@ export default function AdminLayout({
           <Link href="/admin/calendar">Calendar</Link>         
           <Link href="/admin/reports">Reports</Link>
 
-          
+          {/* 🔥 LOGOUT SAME LINK STYLE */}
+          <Link href="#" onClick={handleLogout} className="text-red-300">
+            Logout
+          </Link>
 
         </nav>
 

@@ -10,6 +10,7 @@ const [loading,setLoading] = useState(true)
 const [search,setSearch] = useState("")
 const [dateFilter,setDateFilter] = useState("")
 const [selectedDoctor,setSelectedDoctor] = useState<any>(null)
+const [selectedPrescription,setSelectedPrescription] = useState<any>(null)
 
 useEffect(()=>{
 
@@ -21,8 +22,6 @@ setLoading(false)
 })
 
 },[])
-
-
 
 const filtered = prescriptions.filter((p)=>{
 
@@ -38,28 +37,39 @@ return searchMatch && dateMatch
 
 })
 
+/* ✅ DOWNLOAD SINGLE PRESCRIPTION */
 
+function downloadPrescription(p:any){
 
-function downloadPDF(){
+const win = window.open("", "", "width=800,height=600")
 
-const content = document.getElementById("prescription-table")
-
-const win = window.open("", "", "width=900,height=700")
-
-if(win && content){
+if(win){
 
 win.document.write(`
 <html>
 <head>
-<title>Prescriptions</title>
+<title>Prescription</title>
 <style>
 body{font-family:sans-serif;padding:20px}
-table{width:100%;border-collapse:collapse}
-td,th{border:1px solid #ddd;padding:8px}
+h2{margin-bottom:10px}
 </style>
 </head>
 <body>
-${content.innerHTML}
+
+<h2>Hospital Prescription</h2>
+
+<p><b>Doctor:</b> ${p.doctor?.name}</p>
+<p><b>Date:</b> ${new Date(p.createdAt).toLocaleDateString()}</p>
+
+<h3>Medicines:</h3>
+<ul>
+${(Array.isArray(p.medicine)?p.medicine:[p.medicine]).map((m:any)=>`
+<li>${m.name} - ${m.dosage}</li>
+`).join("")}
+</ul>
+
+<p><b>Notes:</b> ${p.notes || "-"}</p>
+
 </body>
 </html>
 `)
@@ -71,13 +81,9 @@ win.print()
 
 }
 
-
-
 if(loading){
-return <div className="p-10 text-center">Loading prescriptions...</div>
+return <div className="p-10 text-center">Loading...</div>
 }
-
-
 
 return(
 
@@ -87,9 +93,7 @@ return(
 Prescriptions
 </h1>
 
-
-
-{/* SEARCH + FILTER */}
+{/* SEARCH */}
 
 <div className="flex flex-col md:flex-row gap-4 mb-8">
 
@@ -107,20 +111,11 @@ onChange={(e)=>setDateFilter(e.target.value)}
 className="border rounded-lg px-4 py-2"
 />
 
-<button
-onClick={downloadPDF}
-className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
->
-Download PDF
-</button>
-
 </div>
 
+{/* TABLE */}
 
-
-{/* DESKTOP TABLE */}
-
-<div id="prescription-table" className="hidden md:block bg-white rounded-xl shadow overflow-hidden">
+<div className="bg-white rounded-xl shadow overflow-hidden">
 
 <table className="w-full text-left">
 
@@ -128,8 +123,8 @@ Download PDF
 <tr>
 <th className="p-4">Doctor</th>
 <th className="p-4">Medicine</th>
-<th className="p-4">Notes</th>
 <th className="p-4">Date</th>
+<th className="p-4">Action</th>
 </tr>
 </thead>
 
@@ -158,31 +153,42 @@ return(
 <tr key={item.id} className="border-t hover:bg-gray-50">
 
 <td
-className="p-4 font-medium cursor-pointer text-blue-600"
+className="p-4 text-blue-600 cursor-pointer"
 onClick={()=>setSelectedDoctor(item.doctor)}
 >
-{item.doctor?.name || "Doctor"}
+{item.doctor?.name}
 </td>
 
-<td className="p-4 flex flex-wrap gap-2">
+<td className="p-4">
 
 {meds.map((m:any,i:number)=>(
-<span
-key={i}
-className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
->
-{m.name} {m.dosage}
-</span>
+<div key={i} className="text-sm">
+{m.name} ({m.dosage})
+</div>
 ))}
 
 </td>
 
 <td className="p-4">
-{item.notes || "-"}
+{new Date(item.createdAt).toLocaleDateString()}
 </td>
 
-<td className="p-4">
-{new Date(item.createdAt).toLocaleDateString()}
+<td className="p-4 flex gap-2">
+
+<button
+onClick={()=>setSelectedPrescription(item)}
+className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+>
+View
+</button>
+
+<button
+onClick={()=>downloadPrescription(item)}
+className="bg-green-500 text-white px-3 py-1 rounded text-sm"
+>
+Download
+</button>
+
 </td>
 
 </tr>
@@ -197,63 +203,59 @@ className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
 
 </div>
 
+{/* VIEW MODAL */}
 
+{selectedPrescription && (
 
-{/* MOBILE CARD VIEW */}
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-<div className="md:hidden flex flex-col gap-4">
+<div className="bg-white p-6 rounded-xl w-[400px] relative">
 
-{filtered.map((item:any)=>{
-
-let meds:any[] = []
-
-if(Array.isArray(item.medicine)){
-meds = item.medicine
-}else if(item.medicine){
-meds = [item.medicine]
-}
-
-return(
-
-<div key={item.id} className="bg-white p-4 rounded-xl shadow">
-
-<div
-className="font-semibold text-blue-600 cursor-pointer"
-onClick={()=>setSelectedDoctor(item.doctor)}
+<button
+onClick={()=>setSelectedPrescription(null)}
+className="absolute right-3 top-3"
 >
-{item.doctor?.name || "Doctor"}
-</div>
+✕
+</button>
 
-<div className="flex flex-wrap gap-2 mt-2">
+<h2 className="text-xl font-bold mb-4">
+Prescription
+</h2>
 
-{meds.map((m:any,i:number)=>(
-<span
-key={i}
-className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
->
-{m.name}
-</span>
+<p><b>Doctor:</b> {selectedPrescription.doctor?.name}</p>
+
+<p className="mt-2"><b>Date:</b> {new Date(selectedPrescription.createdAt).toLocaleDateString()}</p>
+
+<div className="mt-4">
+<b>Medicines:</b>
+
+<ul className="list-disc ml-5 mt-2">
+{(Array.isArray(selectedPrescription.medicine)
+? selectedPrescription.medicine
+: [selectedPrescription.medicine]
+).map((m:any,i:number)=>(
+<li key={i}>{m.name} - {m.dosage}</li>
 ))}
+</ul>
 
 </div>
 
-<div className="text-sm text-gray-500 mt-2">
-{item.notes}
-</div>
+<p className="mt-4">
+<b>Notes:</b> {selectedPrescription.notes || "-"}
+</p>
 
-<div className="text-xs text-gray-400 mt-1">
-{new Date(item.createdAt).toLocaleDateString()}
-</div>
-
-</div>
-
-)
-
-})}
+<button
+onClick={()=>downloadPrescription(selectedPrescription)}
+className="mt-4 w-full bg-green-600 text-white py-2 rounded"
+>
+Download PDF
+</button>
 
 </div>
 
+</div>
 
+)}
 
 {/* DOCTOR POPUP */}
 
@@ -265,7 +267,7 @@ className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
 
 <button
 onClick={()=>setSelectedDoctor(null)}
-className="absolute right-3 top-3 text-gray-500"
+className="absolute right-3 top-3"
 >
 ✕
 </button>

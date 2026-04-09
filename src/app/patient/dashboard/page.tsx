@@ -1,12 +1,23 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { CalendarDays, FileText, ClipboardList, User } from "lucide-react"
+import { CalendarDays, FileText, ClipboardList, User, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function PatientDashboard(){
 
 const router = useRouter()
+
+const handleLogout = async()=>{
+
+await fetch("/api/auth/logout",{
+method:"POST"
+})
+
+localStorage.removeItem("patient") // cleanup
+
+router.push("/login")
+}
 
 const cards = [
 
@@ -54,11 +65,12 @@ return(
 
 {/* HEADER */}
 
+<div className="flex justify-between items-center mb-12">
+
 <motion.div
 initial={{opacity:0,y:-20}}
 animate={{opacity:1,y:0}}
 transition={{duration:0.6}}
-className="mb-12"
 >
 
 <h1 className="text-4xl font-bold mb-2">
@@ -71,6 +83,21 @@ Manage your appointments, prescriptions and profile easily.
 
 </motion.div>
 
+{/* 🔥 LOGOUT BUTTON */}
+
+{/* <button
+onClick={handleLogout}
+className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 shadow"
+>
+
+<LogOut size={18}/>
+
+Logout
+
+</button> */}
+
+</div>
+
 
 {/* GRID */}
 
@@ -79,55 +106,28 @@ Manage your appointments, prescriptions and profile easily.
 {cards.map((card,i)=>(
 
 <motion.div
-
 key={i}
-
 initial={{opacity:0,y:40}}
 animate={{opacity:1,y:0}}
 transition={{duration:0.5,delay:i*0.1}}
-
-whileHover={{
-scale:1.05,
-y:-5
-}}
-
+whileHover={{scale:1.05,y:-5}}
 onClick={()=>router.push(card.link)}
-
 className="cursor-pointer relative overflow-hidden backdrop-blur-xl bg-white/50 border border-white/40 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all"
-
 >
-
-{/* glow */}
 
 <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-20 blur-3xl bg-gradient-to-r ${card.color}`}></div>
 
-
-{/* icon */}
-
 <div className={`w-14 h-14 flex items-center justify-center rounded-xl ${card.bg} mb-5 text-gray-700`}>
-
 {card.icon}
-
 </div>
 
-
-{/* title */}
-
 <h2 className="text-xl font-bold mb-2">
-
 {card.title}
-
 </h2>
 
-
-{/* description */}
-
 <p className="text-gray-600 text-sm">
-
 {card.desc}
-
 </p>
-
 
 </motion.div>
 
@@ -136,26 +136,20 @@ className="cursor-pointer relative overflow-hidden backdrop-blur-xl bg-white/50 
 </div>
 
 
-{/* floating appointment button */}
+{/* FLOAT BUTTON */}
 
 <motion.button
-
 initial={{opacity:0,y:60}}
 animate={{opacity:1,y:0}}
 transition={{delay:0.6}}
-
 onClick={()=>router.push("/patient/doctors")}
-
 className="fixed bottom-8 right-8 bg-blue-600 text-white px-6 py-3 rounded-full shadow-xl hover:bg-blue-700 flex items-center gap-2"
-
 >
 
 <CalendarDays size={18}/>
-
 Book Appointment
 
 </motion.button>
-
 
 </div>
 

@@ -1,10 +1,29 @@
-import { prisma } from "../../../../lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-
+import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
 
 /* ============================= */
-/* GET SINGLE APPOINTMENT */
+/* AUTH HELPER */
+/* ============================= */
+
+async function getUser(){
+
+  const cookieStore = await cookies()
+  const token = cookieStore.get("token")?.value
+
+  if(!token) return null
+
+  try{
+    return jwt.verify(token, process.env.JWT_SECRET!)
+  }catch{
+    return null
+  }
+}
+
+/* ============================= */
+/* GET SINGLE */
 /* ============================= */
 
 export async function GET(
@@ -12,40 +31,33 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ){
 
-try{
+  try{
 
-const { id } = await context.params
+    const { id } = await context.params
 
-const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointment.findUnique({
+      where:{ id },
+      include:{
+        doctor:true,
+        patient:true
+      }
+    })
 
-where:{ id },
+    return NextResponse.json(appointment)
 
-include:{
-doctor:true,
-patient:true
+  }catch(err){
+
+    console.log("GET ERROR:",err)
+
+    return NextResponse.json(
+      { error:"Failed" },
+      { status:500 }
+    )
+  }
 }
-
-})
-
-return NextResponse.json(appointment)
-
-}catch(err){
-
-console.log("GET ERROR:",err)
-
-return NextResponse.json(
-{ error:"Failed" },
-{ status:500 }
-)
-
-}
-
-}
-
-
 
 /* ============================= */
-/* UPDATE APPOINTMENT STATUS */
+/* UPDATE (RESCHEDULE / STATUS) */
 /* ============================= */
 
 export async function PUT(
@@ -53,33 +65,58 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ){
 
-try{
+  try{
 
-const { id } = await context.params
+    const user:any = await getUser()
 
-const body = await req.json()
+    if(!user){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+    }
 
-const appointment = await prisma.appointment.update({
+    const { id } = await context.params
+    const body = await req.json()
 
-where:{ id },
+    const appointment = await prisma.appointment.findUnique({
+      where:{ id }
+    })
 
-data:{
-status: body.status
-}
+    if(!appointment){
+      return NextResponse.json({ error:"Not found" },{ status:404 })
+    }
 
-})
+    // 🔒 SECURITY
+    if(
+      user.role === "patient" &&
+      appointment.patientId !== user.id
+    ){
+      return NextResponse.json({ error:"Forbidden" },{ status:403 })
+    }
 
-return NextResponse.json(appointment)
+    /* ============================= */
+    /* UPDATE LOGIC */
+    /* ============================= */
 
-}catch(err){
+    const updated = await prisma.appointment.update({
+      where:{ id },
+      data:{
+        // ✅ reschedule
+        date: body.date ? new Date(body.date) : undefined,
+        time: body.time || undefined,
 
-console.log("UPDATE ERROR:",err)
+        // ✅ cancel
+        status: body.status || undefined
+      }
+    })
 
-return NextResponse.json(
-{ error:"Update failed" },
-{ status:500 }
-)
+    return NextResponse.json(updated)
 
-}
+  }catch(err){
 
+    console.log("UPDATE ERROR:",err)
+
+    return NextResponse.json(
+      { error:"Update failed" },
+      { status:500 }
+    )
+  }
 }

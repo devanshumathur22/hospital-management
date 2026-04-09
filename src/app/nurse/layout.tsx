@@ -1,8 +1,27 @@
+"use client"
+
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+
 export default function NurseLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+
+  const router = useRouter()
+
+  /* 🔥 LOGOUT */
+  const handleLogout = async (e:any) => {
+    e.preventDefault()
+
+    await fetch("/api/auth/logout", {
+      method: "POST"
+    })
+
+    router.push("/login")
+  }
+
   return (
     <div className="flex min-h-screen">
 
@@ -14,11 +33,19 @@ export default function NurseLayout({
 
         <nav className="flex flex-col gap-4">
 
-          <a href="/nurse/dashboard">Dashboard</a>
+          <Link href="/nurse/dashboard">Dashboard</Link>
+          <Link href="/nurse/vitals">Patient Vitals</Link>
+          <Link href="/nurse/appointments">Appointments</Link>
+          <Link href="/nurse/patients">Patients</Link>
 
-          <a href="/nurse/vitals">Patient Vitals</a>
-          <a href="/nurse/appointments">Appointments</a>
-          <a href="/nurse/patients">Patients</a>
+          {/* 🔥 LOGOUT SAME STYLE */}
+          <Link
+            href="#"
+            onClick={handleLogout}
+            className="text-red-300 hover:text-red-400"
+          >
+            Logout
+          </Link>
 
         </nav>
 
