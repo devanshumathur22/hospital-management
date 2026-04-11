@@ -1,18 +1,40 @@
-import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma"
+import { NextResponse } from "next/server"
+import { getCurrentUser } from "@/lib/getUser"
 
 export async function GET() {
-  return NextResponse.json([
-    {
-      id: "1",
-      patient: { name: "Rahul Sharma" },
-      ward: { name: "ICU" },
-      bedId: "B12",
-    },
-    {
-      id: "2",
-      patient: { name: "Baby Aryan" },
-      ward: { name: "NICU" },
-      bedId: "N5",
-    },
-  ]);
+  try {
+
+    const user = await getCurrentUser()
+
+    if (!user || !user.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    const admissions = await prisma.admission.findMany({
+      where: {
+        doctorId: user.id
+      },
+      include: {
+        patient: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    })
+
+    return NextResponse.json(admissions)
+
+  } catch (error) {
+
+    console.log("GET ADMISSIONS ERROR:", error)
+
+    return NextResponse.json(
+      { error: "Failed to fetch admissions" },
+      { status: 500 }
+    )
+  }
 }

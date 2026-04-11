@@ -1,15 +1,21 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
 export default function Page() {
-  const [patients, setPatients] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([])
 
   useEffect(() => {
     fetch("/api/admissions")
       .then(res => res.json())
-      .then(data => setPatients(data));
-  }, []);
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPatients(data)
+        } else {
+          setPatients([]) // ✅ safe fallback
+        }
+      })
+  }, [])
 
   return (
     <div className="p-6">
@@ -24,11 +30,11 @@ export default function Page() {
             className="bg-white p-4 rounded-2xl shadow border"
           >
             <h2 className="font-semibold">
-              {p.patient.name}
+              {p.patient?.name}
             </h2>
 
             <p className="text-sm">
-              Ward: {p.ward.name}
+              Ward: {p.ward}
             </p>
 
             <p className="text-sm">
@@ -38,5 +44,5 @@ export default function Page() {
         ))}
       </div>
     </div>
-  );
+  )
 }

@@ -86,10 +86,10 @@ model Doctor {
   schedules     Schedule[]
   slots         Slot[]
   queues        Queue[]
+  admissions    Admission[]   // ✅ ADD THIS
 
   @@index([specialization])
 }
-
 //////////////////////////////
 // PATIENT
 //////////////////////////////
@@ -121,12 +121,12 @@ model Patient {
   prescriptions Prescription[]
   queues        Queue[]
   vitals        Vital[]
+  pharmacyBills PharmacyBill[]
 
-  pharmacyBills PharmacyBill[] // 👈 ye line add karo
+  admissions Admission[]   // ✅ ADD THIS
 
   @@index([phone])
 }
-
 //////////////////////////////
 // APPOINTMENTS
 //////////////////////////////
@@ -134,8 +134,8 @@ model Patient {
 model Appointment {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  doctorId  String @db.ObjectId
-  patientId String @db.ObjectId
+  doctorId  String  @db.ObjectId
+  patientId String? @db.ObjectId
 
   date DateTime
   time String
@@ -146,9 +146,10 @@ model Appointment {
   updatedAt DateTime @updatedAt
 
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  prescription Prescription?
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  prescription Prescription[]
 
   @@unique([doctorId, date, time])
   @@index([doctorId])
@@ -164,7 +165,7 @@ model Prescription {
 
   doctorId      String @db.ObjectId
   patientId     String @db.ObjectId
-  appointmentId String @unique @db.ObjectId
+  appointmentId String? @db.ObjectId
 
   medicine Json
   notes    String?
@@ -172,9 +173,10 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([doctorId])
   @@index([patientId])
@@ -337,4 +339,24 @@ model PharmacyBill {
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
+}
+
+///////////////////////////////
+//Admission
+//////////////////////////////
+model Admission {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  doctorId  String @db.ObjectId
+  patientId String @db.ObjectId
+
+  ward String
+  bedId String
+
+  createdAt DateTime @default(now())
+
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
 }
