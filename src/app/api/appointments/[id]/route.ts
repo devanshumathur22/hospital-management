@@ -92,27 +92,74 @@ export async function PUT(
       return NextResponse.json({ error:"Forbidden" },{ status:403 })
     }
 
+    const newDate = body.date ? new Date(body.date) : appointment.date
+    const newTime = body.time || appointment.time
+
     /* ============================= */
-    /* UPDATE LOGIC */
+    /* ✅ SAME DAY (DOCTOR-WISE) */
+    /* ============================= */
+
+    const existingSameDay = await prisma.appointment.findFirst({
+      where: {
+        patientId: appointment.patientId,
+        doctorId: appointment.doctorId, // 🔥 FIX
+        date: newDate,
+        NOT: { id }
+      }
+    })
+
+    if (existingSameDay) {
+      return NextResponse.json(
+        { error: "You already have an appointment with this doctor that day" },
+        { status: 400 }
+      )
+    }
+
+    /* ============================= */
+    /* ❌ SLOT CHECK */
+    /* ============================= */
+
+    const slotTaken = await prisma.appointment.findFirst({
+      where: {
+        doctorId: appointment.doctorId,
+        date: newDate,
+        time: newTime,
+        NOT: { id }
+      }
+    })
+
+    if (slotTaken) {
+      return NextResponse.json(
+        { error: "Slot already booked" },
+        { status: 400 }
+      )
+    }
+
+    /* ============================= */
+    /* UPDATE */
     /* ============================= */
 
     const updated = await prisma.appointment.update({
       where:{ id },
       data:{
-        // ✅ reschedule
-        date: body.date ? new Date(body.date) : undefined,
+        date: body.date ? newDate : undefined,
         time: body.time || undefined,
-
-        // ✅ cancel
         status: body.status || undefined
       }
     })
 
     return NextResponse.json(updated)
 
-  }catch(err){
+  }catch(err:any){
 
     console.log("UPDATE ERROR:",err)
+
+    if (err.code === "P2002") {
+      return NextResponse.json(
+        { error: "Duplicate booking not allowed" },
+        { status: 400 }
+      )
+    }
 
     return NextResponse.json(
       { error:"Update failed" },

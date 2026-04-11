@@ -43,7 +43,7 @@ function generateTimeSlots(){
 const timeSlots = generateTimeSlots()
 
 /* ============================= */
-/* FETCH FUNCTION */
+/* FETCH */
 /* ============================= */
 
 const fetchAppointments = async()=>{
@@ -55,16 +55,36 @@ const fetchAppointments = async()=>{
   }
 }
 
-/* ============================= */
-/* INITIAL LOAD */
-/* ============================= */
-
 useEffect(()=>{
   fetchAppointments()
 },[])
 
 /* ============================= */
-/* ❌ DELETE FROM DB */
+/* HELPERS */
+/* ============================= */
+
+// 🔥 slot booked check
+const isSlotBooked = (date: Date, time: string) => {
+  return appointments.some((a) => {
+    return (
+      new Date(a.date).toDateString() === date.toDateString() &&
+      a.time === time
+    )
+  })
+}
+
+// 🔥 FIXED same day (doctor-wise)
+const hasTodayAppointment = (doctorId?: string) => {
+  return appointments.some((a) => {
+    return (
+      new Date(a.date).toDateString() === new Date().toDateString() &&
+      (!doctorId || a.doctorId === doctorId)
+    )
+  })
+}
+
+/* ============================= */
+/* DELETE */
 /* ============================= */
 
 const cancelAppointment = async(id:string)=>{
@@ -79,14 +99,14 @@ const cancelAppointment = async(id:string)=>{
   const data = await res.json()
 
   if(data.success){
-    await fetchAppointments() // 🔥 IMPORTANT
+    await fetchAppointments()
   }else{
     alert("Delete failed")
   }
 }
 
 /* ============================= */
-/* OPEN RESCHEDULE */
+/* RESCHEDULE */
 /* ============================= */
 
 const openReschedule = (a:any)=>{
@@ -94,10 +114,6 @@ const openReschedule = (a:any)=>{
   setNewDate(new Date(a.date))
   setNewTime(a.time)
 }
-
-/* ============================= */
-/* SAVE RESCHEDULE */
-/* ============================= */
 
 const saveReschedule = async()=>{
 
@@ -114,7 +130,7 @@ const saveReschedule = async()=>{
   })
 
   setSelected(null)
-  await fetchAppointments() // 🔥 no reload needed
+  await fetchAppointments()
 }
 
 /* ============================= */
@@ -128,6 +144,13 @@ return(
 <h1 className="text-3xl font-bold mb-10">
 Appointments Dashboard
 </h1>
+
+{/* WARNING */}
+{hasTodayAppointment() && (
+  <p className="text-red-500 mb-6">
+    You already have an appointment today (different doctors allowed)
+  </p>
+)}
 
 {/* GRID */}
 
@@ -156,13 +179,16 @@ className="backdrop-blur-xl bg-white/60 border border-white/40 p-6 rounded-2xl s
 ⏰ {a.time}
 </p>
 
-{/* BUTTONS */}
-
 <div className="flex gap-3 mt-5">
 
 <button
 onClick={()=>openReschedule(a)}
-className="flex-1 bg-blue-600 text-white py-2 rounded-lg"
+disabled={hasTodayAppointment(a.doctorId)}
+className={`flex-1 py-2 rounded-lg text-white ${
+  hasTodayAppointment(a.doctorId)
+    ? "bg-gray-400 cursor-not-allowed"
+    : "bg-blue-600"
+}`}
 >
 Reschedule
 </button>
@@ -182,9 +208,7 @@ Cancel
 
 </div>
 
-{/* ============================= */
-/* MODAL */
-/* ============================= */}
+{/* MODAL */}
 
 {selected && (
 
@@ -196,15 +220,11 @@ Cancel
 Reschedule Appointment
 </h2>
 
-{/* DATE */}
-
 <DatePicker
 selected={newDate}
 onChange={(d)=>setNewDate(d)}
 className="w-full border p-3 rounded-lg mb-4"
 />
-
-{/* TIME */}
 
 <select
 value={newTime}
@@ -213,15 +233,22 @@ className="w-full border p-3 rounded-lg mb-4"
 >
 <option value="">Select Time</option>
 
-{timeSlots.map((slot)=>(
-<option key={slot} value={slot}>
-⏰ {slot}
-</option>
-))}
+{timeSlots.map((slot)=>{
+
+  const booked = newDate ? isSlotBooked(newDate, slot) : false
+
+  return (
+    <option
+      key={slot}
+      value={slot}
+      disabled={booked}
+    >
+      {booked ? "❌ Booked" : `⏰ ${slot}`}
+    </option>
+  )
+})}
 
 </select>
-
-{/* BUTTONS */}
 
 <div className="flex gap-3">
 

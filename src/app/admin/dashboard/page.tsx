@@ -28,14 +28,12 @@ useEffect(()=>{
 fetch("/api/stats")
 .then(res=>res.json())
 .then(data=>{
-
 setStats({
 doctors:data.doctors || 0,
 patients:data.patients || 0,
 appointments:data.appointments || 0,
 today:data.today || 0
 })
-
 })
 
 fetch("/api/appointments")
@@ -48,7 +46,38 @@ fetch("/api/doctors")
 
 },[])
 
+/* ============================= */
+/* STATUS UPDATE */
+/* ============================= */
 
+const updateStatus = async(id:string,status:string)=>{
+
+await fetch(`/api/appointments/${id}`,{
+method:"PUT",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({ status })
+})
+
+setRecentAppointments(prev =>
+prev.map(a => a.id === id ? {...a,status} : a)
+)
+
+}
+
+/* ============================= */
+/* STATUS COLOR */
+/* ============================= */
+
+const getStatusColor = (status:string)=>{
+
+switch(status){
+case "confirmed": return "bg-green-100 text-green-600"
+case "cancelled": return "bg-red-100 text-red-600"
+case "completed": return "bg-blue-100 text-blue-600"
+default: return "bg-yellow-100 text-yellow-600"
+}
+
+}
 
 const cards = [
 
@@ -82,8 +111,6 @@ color:"bg-orange-100 text-orange-600"
 
 ]
 
-
-
 return(
 
 <div className="p-8 space-y-10">
@@ -100,7 +127,7 @@ Admin Dashboard
 
 <Link
 href="/admin/add-doctor"
-className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
 >
 <UserPlus size={18}/>
 Add Doctor
@@ -108,7 +135,7 @@ Add Doctor
 
 <Link
 href="/admin/appointments"
-className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg"
 >
 <CalendarPlus size={18}/>
 Appointments
@@ -117,8 +144,6 @@ Appointments
 </div>
 
 </div>
-
-
 
 {/* STATS */}
 
@@ -132,7 +157,7 @@ return(
 
 <div
 key={i}
-className="p-6 bg-white rounded-xl shadow hover:shadow-lg transition border"
+className="p-6 bg-white rounded-xl shadow border"
 >
 
 <div className="flex justify-between items-center">
@@ -150,9 +175,7 @@ className="p-6 bg-white rounded-xl shadow hover:shadow-lg transition border"
 </div>
 
 <div className={`p-3 rounded-lg ${card.color}`}>
-
 <Icon size={22}/>
-
 </div>
 
 </div>
@@ -165,15 +188,11 @@ className="p-6 bg-white rounded-xl shadow hover:shadow-lg transition border"
 
 </div>
 
-
-
 {/* MAIN GRID */}
 
 <div className="grid md:grid-cols-2 gap-8">
 
-
-
-{/* RECENT APPOINTMENTS */}
+{/* APPOINTMENTS */}
 
 <div className="bg-white rounded-xl shadow p-6">
 
@@ -182,19 +201,19 @@ Recent Appointments
 </h2>
 
 {recentAppointments.length === 0 && (
-<p className="text-gray-500">
-No appointments yet
-</p>
+<p className="text-gray-500">No appointments yet</p>
 )}
 
-<div className="space-y-3">
+<div className="space-y-4">
 
 {recentAppointments.map((a:any)=>(
 
 <div
 key={a.id}
-className="flex justify-between border-b pb-2 text-sm"
+className="flex flex-col gap-2 border-b pb-3 text-sm"
 >
+
+<div className="flex justify-between">
 
 <span>
 {a.patient?.name || "Patient"}
@@ -206,15 +225,41 @@ className="flex justify-between border-b pb-2 text-sm"
 
 </div>
 
+<div className="flex justify-between items-center">
+
+<span className={`px-2 py-1 text-xs rounded ${getStatusColor(a.status)}`}>
+{a.status}
+</span>
+
+<div className="flex gap-2">
+
+<button
+onClick={()=>updateStatus(a.id,"confirmed")}
+className="text-green-600 text-xs"
+>
+Confirm
+</button>
+
+<button
+onClick={()=>updateStatus(a.id,"cancelled")}
+className="text-red-600 text-xs"
+>
+Cancel
+</button>
+
+</div>
+
+</div>
+
+</div>
+
 ))}
 
 </div>
 
 </div>
 
-
-
-{/* RECENT DOCTORS */}
+{/* DOCTORS */}
 
 <div className="bg-white rounded-xl shadow p-6">
 
@@ -223,9 +268,7 @@ New Doctors
 </h2>
 
 {recentDoctors.length === 0 && (
-<p className="text-gray-500">
-No doctors found
-</p>
+<p className="text-gray-500">No doctors found</p>
 )}
 
 <div className="space-y-3">
@@ -237,9 +280,7 @@ key={d.id}
 className="flex justify-between border-b pb-2 text-sm"
 >
 
-<span>
-{d.name}
-</span>
+<span>{d.name}</span>
 
 <span className="text-gray-500">
 {d.specialization}
@@ -253,11 +294,7 @@ className="flex justify-between border-b pb-2 text-sm"
 
 </div>
 
-
-
 </div>
-
-
 
 {/* QUICK ACTIONS */}
 
@@ -269,47 +306,12 @@ Quick Actions
 
 <div className="grid md:grid-cols-4 gap-4">
 
-<Link
-href="/admin/doctors"
-className="p-4 border rounded-lg hover:bg-gray-50"
->
-Manage Doctors
-</Link>
-
-<Link
-href="/admin/patients"
-className="p-4 border rounded-lg hover:bg-gray-50"
->
-View Patients
-</Link>
-
-<Link
-href="/admin/appointments"
-className="p-4 border rounded-lg hover:bg-gray-50"
->
-Appointments
-</Link>
-
-<Link
-href="/admin/calendar"
-className="p-4 border rounded-lg hover:bg-gray-50"
->
-Calendar
-</Link>
-
-<Link
-href="/admin/reports"
-className="p-4 border rounded-lg hover:bg-gray-50"
->
-Reports
-</Link>
-
-<Link
-href="/admin/add-doctor"
-className="p-4 border rounded-lg hover:bg-gray-50"
->
-Add Doctor
-</Link>
+<Link href="/admin/doctors" className="p-4 border rounded-lg">Manage Doctors</Link>
+<Link href="/admin/patients" className="p-4 border rounded-lg">View Patients</Link>
+<Link href="/admin/appointments" className="p-4 border rounded-lg">Appointments</Link>
+<Link href="/admin/calendar" className="p-4 border rounded-lg">Calendar</Link>
+<Link href="/admin/reports" className="p-4 border rounded-lg">Reports</Link>
+<Link href="/admin/add-doctor" className="p-4 border rounded-lg">Add Doctor</Link>
 
 </div>
 

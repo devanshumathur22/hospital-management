@@ -135,7 +135,7 @@ model Appointment {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   doctorId  String  @db.ObjectId
-  patientId String? @db.ObjectId
+  patientId String  @db.ObjectId   // ✅ make required
 
   date DateTime
   time String
@@ -147,11 +147,13 @@ model Appointment {
 
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
-  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   prescription Prescription[]
 
-  @@unique([doctorId, date, time])
+  @@unique([doctorId, date, time])   // slot block ✅
+  @@unique([patientId, date])        // same day block 🔥
+
   @@index([doctorId])
   @@index([patientId])
 }
