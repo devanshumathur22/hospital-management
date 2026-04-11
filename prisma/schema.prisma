@@ -165,7 +165,7 @@ model Prescription {
 
   doctorId      String @db.ObjectId
   patientId     String @db.ObjectId
-  appointmentId String? @db.ObjectId
+  appointmentId String? @unique @db.ObjectId   // ✅ FIX
 
   medicine Json
   notes    String?
@@ -176,7 +176,11 @@ model Prescription {
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  appointment Appointment? @relation(
+    fields: [appointmentId],
+    references: [id],
+    onDelete: SetNull
+  )
 
   @@index([doctorId])
   @@index([patientId])
