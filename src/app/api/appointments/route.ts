@@ -63,8 +63,15 @@ export async function GET() {
 
     } else if (payload.role === "admin" || payload.role === "receptionist") {
 
+      // 🔥 FIX: null patient avoid
       appointments = await prisma.appointment.findMany({
-        include: { doctor: true, patient: true },
+        where: {
+          patientId: { not: null } // ✅ MAIN FIX
+        },
+        include: {
+          doctor: true,
+          patient: true
+        },
         orderBy: [{ date: "desc" }, { createdAt: "desc" }]
       })
 
@@ -109,16 +116,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const selectedDate = new Date(body.date)
+    // 🔥 SAFE DATE
+    const selectedDate = body.date ? new Date(body.date) : null
+
+    if (!selectedDate) {
+      return NextResponse.json(
+        { error: "Invalid date" },
+        { status: 400 }
+      )
+    }
 
     /* ============================= */
-    /* ✅ SAME DAY (DOCTOR-WISE) */
+    /* SAME DAY (DOCTOR-WISE) */
     /* ============================= */
 
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
         patientId: payload.id,
-        doctorId: body.doctorId, // 🔥 FIX
+        doctorId: body.doctorId,
         date: selectedDate
       }
     })
@@ -131,7 +146,7 @@ export async function POST(req: Request) {
     }
 
     /* ============================= */
-    /* ❌ SLOT CHECK */
+    /* SLOT CHECK */
     /* ============================= */
 
     const slotTaken = await prisma.appointment.findFirst({
