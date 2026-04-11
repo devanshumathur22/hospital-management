@@ -1,259 +1,208 @@
-import { prisma } from "../../../lib/prisma"
-import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
-import { cookies } from "next/headers"
+import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+
+/* ============================= */
+/* HELPER */
+/* ============================= */
+
+async function getUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET!);
+  } catch {
+    return null;
+  }
+}
 
 /* ============================= */
 /* GET APPOINTMENTS */
 /* ============================= */
 
 export async function GET() {
-
   try {
-    const SECRET = process.env.JWT_SECRET!
+    const user: any = await getUser();
 
-    const cookieStore = await cookies()
-    const token = cookieStore.get("token")?.value
+    if (!user) return NextResponse.json([]);
 
-    if (!token) return NextResponse.json([])
+    let appointments: any[] = [];
 
-    let payload: any
-
-    try {
-      payload = jwt.verify(token, SECRET)
-    } catch {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    let appointments: any[] = []
-
-    if (payload.role === "patient") {
-
+    /* PATIENT */
+    if (user.role === "patient") {
       appointments = await prisma.appointment.findMany({
-        where: { patientId: payload.id },
-        include: { doctor: true },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }]
-      })
-
-    } else if (payload.role === "doctor") {
-
-      appointments = await prisma.appointment.findMany({
-        where: { doctorId: payload.id },
+        where: { patientId: user.id },
         include: {
           doctor: true,
-          patient: { include: { vitals: true } }
+          patient: { select: { id: true, name: true } },
         },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }]
-      })
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      });
+    }
 
-    } else if (payload.role === "nurse") {
+    /* DOCTOR */
+    else if (user.role === "doctor") {
+      appointments = await prisma.appointment.findMany({
+        where: { doctorId: user.id },
+        include: {
+          doctor: true,
+          patient: { select: { id: true, name: true } },
+        },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      });
+    }
 
+    /* NURSE */
+    else if (user.role === "nurse") {
       const nurse = await prisma.nurse.findUnique({
-        where: { id: payload.id },
-        include: { doctor: true }
-      })
+        where: { id: user.id },
+        include: { doctor: true },
+      });
 
-      if (!nurse?.doctor) return NextResponse.json([])
+      if (!nurse?.doctor?.id) return NextResponse.json([]);
 
       appointments = await prisma.appointment.findMany({
         where: { doctorId: nurse.doctor.id },
-        include: { doctor: true, patient: true },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }]
-      })
-
-    } else if (payload.role === "admin" || payload.role === "receptionist") {
-
-      // 🔥 FIX: null patient avoid
-      appointments = await prisma.appointment.findMany({
-        where: {
-          patientId: { not: null } // ✅ MAIN FIX
-        },
         include: {
           doctor: true,
-          patient: true
+          patient: { select: { id: true, name: true } },
         },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }]
-      })
-
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      });
     }
 
-    return NextResponse.json(appointments)
+    /* ADMIN / RECEPTIONIST - FIXED (No 'not: null') */
+    else if (user.role === "admin" || user.role === "receptionist") {
+      appointments = await prisma.appointment.findMany({
+        include: {
+          doctor: true,
+          patient: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: [
+          { date: "desc" },
+          { createdAt: "desc" },
+        ],
+      });
+    }
 
-  } catch (err) {
+    else {
+      return NextResponse.json({ error: "Unauthorized role" }, { status: 403 });
+    }
 
-    console.log("GET ERROR:", err)
+    return NextResponse.json(appointments);
 
+  } catch (err: any) {
+    console.error("GET Appointments Error:", err);
     return NextResponse.json(
       { error: "Failed to fetch appointments" },
       { status: 500 }
-    )
+    );
   }
 }
-
 
 /* ============================= */
 /* CREATE APPOINTMENT */
 /* ============================= */
 
 export async function POST(req: Request) {
-
   try {
+    const body = await req.json();
+    const user: any = await getUser();
 
-    const body = await req.json()
-
-    const cookieStore = await cookies()
-    const token = cookieStore.get("token")?.value
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let payload: any
+    const selectedDate = body.date ? new Date(body.date) : null;
 
-    try {
-      payload = jwt.verify(token, process.env.JWT_SECRET!)
-    } catch {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    if (!selectedDate || isNaN(selectedDate.getTime())) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
 
-    // 🔥 SAFE DATE
-    const selectedDate = body.date ? new Date(body.date) : null
-
-    if (!selectedDate) {
-      return NextResponse.json(
-        { error: "Invalid date" },
-        { status: 400 }
-      )
-    }
-
-    /* ============================= */
-    /* SAME DAY (DOCTOR-WISE) */
-    /* ============================= */
-
-    const existingAppointment = await prisma.appointment.findFirst({
+    /* SAME DOCTOR SAME DAY BLOCK */
+    const existing = await prisma.appointment.findFirst({
       where: {
-        patientId: payload.id,
+        patientId: user.id,
         doctorId: body.doctorId,
-        date: selectedDate
-      }
-    })
+        date: selectedDate,
+      },
+    });
 
-    if (existingAppointment) {
+    if (existing) {
       return NextResponse.json(
-        { error: "You already have an appointment with this doctor today" },
+        { error: "Already booked this doctor today" },
         { status: 400 }
-      )
+      );
     }
 
-    /* ============================= */
-    /* SLOT CHECK */
-    /* ============================= */
-
+    /* SLOT BLOCK */
     const slotTaken = await prisma.appointment.findFirst({
       where: {
         doctorId: body.doctorId,
         date: selectedDate,
-        time: body.time
-      }
-    })
+        time: body.time,
+      },
+    });
 
     if (slotTaken) {
       return NextResponse.json(
         { error: "Slot already booked" },
         { status: 400 }
-      )
+      );
     }
-
-    /* ============================= */
-    /* CREATE */
-    /* ============================= */
 
     const appointment = await prisma.appointment.create({
       data: {
         doctorId: body.doctorId,
-        patientId: payload.id,
+        patientId: user.id,
         date: selectedDate,
-        time: body.time
-      }
-    })
+        time: body.time,
+      },
+    });
 
-    return NextResponse.json(appointment)
+    return NextResponse.json(appointment);
 
   } catch (err: any) {
-
-    console.log("CREATE ERROR:", err)
-
-    if (err.code === "P2002") {
-      return NextResponse.json(
-        { error: "Duplicate booking not allowed" },
-        { status: 400 }
-      )
-    }
-
+    console.error("CREATE Appointment Error:", err);
     return NextResponse.json(
       { error: "Failed to create appointment" },
       { status: 500 }
-    )
+    );
   }
 }
-
 
 /* ============================= */
 /* DELETE APPOINTMENT */
 /* ============================= */
 
 export async function DELETE(req: Request) {
-
   try {
+    const body = await req.json();
 
-    const body = await req.json()
-    const { id } = body
-
-    const SECRET = process.env.JWT_SECRET!
-
-    const cookieStore = await cookies()
-    const token = cookieStore.get("token")?.value
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    let payload: any
-
-    try {
-      payload = jwt.verify(token, SECRET)
-    } catch {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const appointment = await prisma.appointment.findUnique({
-      where: { id }
-    })
-
-    if (!appointment) {
-      return NextResponse.json({ success: true })
-    }
-
-    if (
-      payload.role === "patient" &&
-      appointment.patientId !== payload.id
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!body?.id) {
+      return NextResponse.json({ error: "ID required" }, { status: 400 });
     }
 
     await prisma.appointment.delete({
-      where: { id }
-    })
+      where: { id: body.id },
+    });
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true });
 
-  } catch (err) {
-
-    console.log("DELETE ERROR:", err)
-
+  } catch (err: any) {
+    console.error("DELETE Appointment Error:", err);
     return NextResponse.json(
-      { error: "Delete failed" },
+      { error: "Failed to delete appointment" },
       { status: 500 }
-    )
+    );
   }
 }

@@ -132,32 +132,27 @@ model Patient {
 //////////////////////////////
 
 model Appointment {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId    String   @db.ObjectId
+  patientId   String   @db.ObjectId
+  date        DateTime
+  time        String
+  status      AppointmentStatus @default(pending)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  doctorId  String  @db.ObjectId
-  patientId String  @db.ObjectId   // ✅ make required
-
-  date DateTime
-  time String
-
-  status AppointmentStatus @default(pending)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  // ✅ Correct line for MongoDB
+  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction)
 
   prescription Prescription[]
 
-  @@unique([doctorId, date, time])   // slot block ✅
-  @@unique([patientId, date])        // same day block 🔥
-
+  @@unique([doctorId, date, time])
+  @@unique([patientId, doctorId, date])
   @@index([doctorId])
   @@index([patientId])
 }
-
 //////////////////////////////
 // PRESCRIPTIONS
 //////////////////////////////
