@@ -8,33 +8,36 @@ import bcrypt from "bcryptjs"
 
 export async function GET(){
 
-try{
+  try{
 
-const nurses = await prisma.nurse.findMany({
+    const nurses = await prisma.nurse.findMany({
 
-orderBy:{ createdAt:"desc" },
+      orderBy:{ createdAt:"desc" },
 
-select:{
-id:true,
-name:true,
-email:true,
-createdAt:true
-}
+      include:{
+        doctor:{
+          select:{
+            id:true,
+            name:true,
+            specialization:true
+          }
+        }
+      }
 
-})
+    })
 
-return NextResponse.json(nurses)
+    return NextResponse.json(nurses)
 
-}catch(err){
+  }catch(err){
 
-console.log("GET NURSES ERROR:",err)
+    console.log("GET NURSES ERROR:",err)
 
-return NextResponse.json(
-{ error:"Failed to fetch nurses" },
-{ status:500 }
-)
+    return NextResponse.json(
+      { error:"Failed to fetch nurses" },
+      { status:500 }
+    )
 
-}
+  }
 
 }
 

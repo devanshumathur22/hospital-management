@@ -2,118 +2,124 @@
 
 import { useEffect, useState } from "react"
 import {
-User,
-Stethoscope,
-Clock,
-Activity
+  User,
+  Stethoscope,
+  Clock,
+  Activity
 } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function NurseAppointments(){
 
-const [appointments,setAppointments] = useState<any[]>([])
+  const [appointments,setAppointments] = useState<any[]>([])
 
-useEffect(()=>{
+  useEffect(()=>{
+    loadAppointments()
+  },[])
 
-fetch("/api/appointments")
-.then(res=>res.json())
-.then(data=>{
+  const loadAppointments = async () => {
 
-/* TODAY ONLY */
+    const res = await fetch("/api/appointments")
+    const data = await res.json()
 
-const today = new Date().toLocaleDateString()
+    /* ✅ SAFE TODAY FILTER */
 
-const filtered = data.filter((a:any)=>
-new Date(a.date).toLocaleDateString() === today
-)
+    const now = new Date()
 
-setAppointments(filtered)
+    const filtered = data.filter((a:any)=>{
 
-})
+      const d = new Date(a.date)
 
-},[])
+      return (
+        d.getDate() === now.getDate() &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
+      )
 
+    })
 
+    setAppointments(filtered)
+  }
 
-return(
+  return(
 
-<div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-6 py-10">
 
-<h1 className="text-2xl font-semibold mb-8">
-Today's Appointments
-</h1>
+      <h1 className="text-2xl font-semibold mb-8">
+        Today's Appointments
+      </h1>
 
+      {appointments.length === 0 && (
+        <p className="text-gray-500 text-center">
+          No appointments for today
+        </p>
+      )}
 
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {appointments.map((a:any)=>(
 
-{appointments.map((a:any)=>(
+          <motion.div
+            key={a.id}
+            initial={{opacity:0,y:20}}
+            animate={{opacity:1,y:0}}
+            whileHover={{y:-4}}
+            className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+          >
 
-<motion.div
-key={a.id}
-initial={{opacity:0,y:20}}
-animate={{opacity:1,y:0}}
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition"
->
+            {/* PATIENT */}
+            <div className="flex items-center gap-2 text-sm mb-2">
+              <User size={15}/>
+              <span className="font-medium">
+                {a.patient?.name}
+              </span>
+            </div>
 
-{/* PATIENT */}
+            {/* PHONE */}
+            <p className="text-xs text-gray-500">
+              {a.patient?.phone || "-"}
+            </p>
 
-<div className="flex items-center gap-2 text-sm mb-2">
+            {/* DOCTOR */}
+            <div className="flex items-center gap-2 text-sm mt-2 mb-2">
+              <Stethoscope size={15}/>
+              {a.doctor?.name || "Doctor"}
+            </div>
 
-<User size={15}/>
+            {/* TIME */}
+            <div className="flex items-center gap-2 text-sm mb-3">
+              <Clock size={15}/>
+              {a.time}
+            </div>
 
-{a.patient?.name || "Patient"}
+            {/* STATUS */}
+            <p className="text-xs mb-3">
+              Status:{" "}
+              <span className={
+                a.status === "ready"
+                  ? "text-green-600"
+                  : "text-orange-500"
+              }>
+                {a.status}
+              </span>
+            </p>
 
-</div>
+            {/* BUTTON */}
+            <a
+              href={`/nurse/vitals?patient=${a.patientId}&appointment=${a.id}`}
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm"
+            >
+              <Activity size={16}/>
+              Add Vitals
+            </a>
 
+          </motion.div>
 
+        ))}
 
-{/* DOCTOR */}
+      </div>
 
-<div className="flex items-center gap-2 text-sm mb-2">
+    </div>
 
-<Stethoscope size={15}/>
-
-{a.doctor?.name || "Doctor"}
-
-</div>
-
-
-
-{/* TIME */}
-
-<div className="flex items-center gap-2 text-sm mb-4">
-
-<Clock size={15}/>
-
-{a.time}
-
-</div>
-
-
-
-{/* VITALS BUTTON */}
-
-<a
-href={`/nurse/vitals/${a.id}`}
-className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm"
->
-
-<Activity size={16}/>
-
-Add Vitals
-
-</a>
-
-</motion.div>
-
-))}
-
-</div>
-
-</div>
-
-)
-
+  )
 }

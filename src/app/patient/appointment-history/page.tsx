@@ -14,21 +14,23 @@ const [dateFilter,setDateFilter] = useState("")
 
 useEffect(()=>{
 
-fetch("/api/appointments")
+fetch("/api/appointments?type=history", {
+  credentials:"include"
+})
 .then(res=>res.json())
 .then(data=>{
 
-const history = data.filter(
-(a:any)=>a.status === "completed" || a.status === "cancelled"
-)
-
-setAppointments(history)
+setAppointments(Array.isArray(data) ? data : [])
 setLoading(false)
 
 })
 
 },[])
 
+
+/* ============================= */
+/* FILTER */
+/* ============================= */
 
 const filtered = appointments.filter((a)=>{
 
@@ -46,6 +48,10 @@ return searchMatch && dateMatch
 })
 
 
+/* ============================= */
+/* LOADING */
+/* ============================= */
+
 if(loading){
 return(
 <div className="p-10 text-center text-gray-500">
@@ -54,6 +60,10 @@ Loading history...
 )
 }
 
+
+/* ============================= */
+/* UI */
+/* ============================= */
 
 return(
 
@@ -85,7 +95,6 @@ className="border px-4 py-2 rounded-lg"
 </div>
 
 
-
 {/* HISTORY CARDS */}
 
 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -112,7 +121,7 @@ className="backdrop-blur-xl bg-white/80 border border-white/30 p-6 rounded-2xl s
 
 <h2 className="flex items-center gap-2 text-lg font-bold">
 <Stethoscope size={18}/>
-{a.doctor?.name}
+Dr. {a.doctor?.name}
 </h2>
 
 

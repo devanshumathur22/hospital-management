@@ -9,7 +9,6 @@ import { cookies } from "next/headers"
 /* ============================= */
 
 async function getUser(){
-
   const cookieStore = await cookies()
   const token = cookieStore.get("token")?.value
 
@@ -30,7 +29,6 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ){
-
   try{
 
     const { id } = await context.params
@@ -64,7 +62,6 @@ export async function PUT(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ){
-
   try{
 
     const user:any = await getUser()
@@ -84,11 +81,17 @@ export async function PUT(
       return NextResponse.json({ error:"Not found" },{ status:404 })
     }
 
-    // 🔒 SECURITY
-    if(
-      user.role === "patient" &&
-      appointment.patientId !== user.id
-    ){
+    /* ============================= */
+    /* 🔒 SECURITY */
+    /* ============================= */
+
+    // patient only own
+    if(user.role === "patient" && appointment.patientId !== user.id){
+      return NextResponse.json({ error:"Forbidden" },{ status:403 })
+    }
+
+    // doctor only own
+    if(user.role === "doctor" && appointment.doctorId !== user.id){
       return NextResponse.json({ error:"Forbidden" },{ status:403 })
     }
 
@@ -96,56 +99,63 @@ export async function PUT(
     const newTime = body.time || appointment.time
 
     /* ============================= */
-    /* ✅ SAME DAY (DOCTOR-WISE) */
+    /* SAME DAY CHECK */
     /* ============================= */
 
-    const existingSameDay = await prisma.appointment.findFirst({
-      where: {
-        patientId: appointment.patientId,
-        doctorId: appointment.doctorId, // 🔥 FIX
-        date: newDate,
-        NOT: { id }
-      }
-    })
+    if(body.date || body.time){
 
-    if (existingSameDay) {
-      return NextResponse.json(
-        { error: "You already have an appointment with this doctor that day" },
-        { status: 400 }
-      )
+      const existingSameDay = await prisma.appointment.findFirst({
+        where: {
+          patientId: appointment.patientId,
+          doctorId: appointment.doctorId,
+          date: newDate,
+          NOT: { id }
+        }
+      })
+
+      if (existingSameDay) {
+        return NextResponse.json(
+          { error: "You already have an appointment with this doctor that day" },
+          { status: 400 }
+        )
+      }
+
+      /* SLOT CHECK */
+
+      const slotTaken = await prisma.appointment.findFirst({
+        where: {
+          doctorId: appointment.doctorId,
+          date: newDate,
+          time: newTime,
+          NOT: { id }
+        }
+      })
+
+      if (slotTaken) {
+        return NextResponse.json(
+          { error: "Slot already booked" },
+          { status: 400 }
+        )
+      }
     }
 
     /* ============================= */
-    /* ❌ SLOT CHECK */
+    /* UPDATE DATA BUILD */
     /* ============================= */
 
-    const slotTaken = await prisma.appointment.findFirst({
-      where: {
-        doctorId: appointment.doctorId,
-        date: newDate,
-        time: newTime,
-        NOT: { id }
-      }
-    })
+    const updateData: any = {}
 
-    if (slotTaken) {
-      return NextResponse.json(
-        { error: "Slot already booked" },
-        { status: 400 }
-      )
+    if(body.date) updateData.date = newDate
+    if(body.time) updateData.time = newTime
+
+    // 🔥 STATUS UPDATE (IMPORTANT)
+    if(body.status){
+      updateData.status = body.status
     }
-
-    /* ============================= */
-    /* UPDATE */
-    /* ============================= */
 
     const updated = await prisma.appointment.update({
       where:{ id },
-      data:{
-        date: body.date ? newDate : undefined,
-        time: body.time || undefined,
-        status: body.status || undefined
-      }
+      data: updateData
     })
 
     return NextResponse.json(updated)

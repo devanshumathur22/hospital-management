@@ -2,21 +2,65 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/getUser"
 
+/* ============================= */
 /* GET */
+/* ============================= */
 
 export async function GET(req: Request) {
   try {
+
+    const user:any = await getCurrentUser()
+
+    if(!user){
+      return NextResponse.json([], { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
     const patientId = searchParams.get("patient")
 
-    const vitals = await prisma.vital.findMany({
-      where: {
-        patientId: patientId || undefined
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    })
+    let vitals = []
+
+    // 🔥 PATIENT → only own
+    if(user.role === "patient"){
+      vitals = await prisma.vital.findMany({
+        where: {
+          patientId: user.id
+        },
+        orderBy: { createdAt: "desc" }
+      })
+    }
+
+    // 🔥 DOCTOR → only their patients
+    else if(user.role === "doctor"){
+      vitals = await prisma.vital.findMany({
+        where: {
+          doctorId: user.id
+        },
+        orderBy: { createdAt: "desc" }
+      })
+    }
+
+    // 🔥 NURSE → only assigned doctor
+    else if(user.role === "nurse"){
+
+      const nurse = await prisma.nurse.findUnique({
+        where:{ id: user.id }
+      })
+
+      vitals = await prisma.vital.findMany({
+        where: {
+          doctorId: nurse?.doctorId
+        },
+        orderBy: { createdAt: "desc" }
+      })
+    }
+
+    // 🔥 ADMIN
+    else if(user.role === "admin"){
+      vitals = await prisma.vital.findMany({
+        orderBy: { createdAt: "desc" }
+      })
+    }
 
     return NextResponse.json(vitals)
 
@@ -27,7 +71,9 @@ export async function GET(req: Request) {
 }
 
 
+/* ============================= */
 /* POST */
+/* ============================= */
 
 export async function POST(req: Request) {
   try {
@@ -50,12 +96,19 @@ export async function POST(req: Request) {
       )
     }
 
+    // 🔥 MAIN FIX → get doctorId from nurse
+    const nurseData = await prisma.nurse.findUnique({
+      where:{ id: nurse.id }
+    })
+
     const vital = await prisma.vital.create({
       data: {
         patientId: body.patientId,
         nurseId: nurse.id,
+        doctorId: nurseData?.doctorId, // 🔥 IMPORTANT FIX
 
         bp: body.bp || null,
+
         temperature: body.temperature
           ? Number(body.temperature)
           : null,

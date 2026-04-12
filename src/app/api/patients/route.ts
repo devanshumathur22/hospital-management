@@ -10,148 +10,173 @@ import { cookies } from "next/headers"
 
 async function getUser(){
 
-const cookieStore = await cookies()
-const token = cookieStore.get("token")?.value
+  const cookieStore = await cookies()
+  const token = cookieStore.get("token")?.value
 
-if(!token) return null
+  if(!token) return null
 
-try{
-return jwt.verify(token,process.env.JWT_SECRET!)
-}catch{
-return null
-}
+  try{
+    return jwt.verify(token,process.env.JWT_SECRET!)
+  }catch{
+    return null
+  }
 
 }
 
 /* ============================= */
-/* GET PATIENTS */
+/* GET PATIENTS / PROFILE */
 /* ============================= */
 
 export async function GET(){
 
-try{
+  try{
 
-const user:any = await getUser()
+    const user:any = await getUser()
 
-if(!user){
-return NextResponse.json({error:"Unauthorized"},{status:401})
-}
+    if(!user){
+      return NextResponse.json({error:"Unauthorized"},{status:401})
+    }
 
-let patients:any = []
+    let patients:any = []
 
-/* ============================= */
-/* DOCTOR → own patients */
-/* ============================= */
+    /* ============================= */
+    /* 🔥 PATIENT → own profile */
+    /* ============================= */
 
-if(user.role === "doctor"){
+    if(user.role === "patient"){
 
-patients = await prisma.patient.findMany({
+      const patient = await prisma.patient.findUnique({
+        where:{ id:user.id },
+        select:{
+          id:true,
+          name:true,
+          email:true,
+          phone:true,
+          gender:true,
+          bloodGroup:true,
+          dob:true,
+          address:true,
+          emergencyContact:true
+        }
+      })
 
-where:{
-appointments:{
-some:{ doctorId:user.id }
-}
-},
+      return NextResponse.json(patient)
+    }
 
-orderBy:{ createdAt:"desc" },
+    /* ============================= */
+    /* DOCTOR → own patients */
+    /* ============================= */
 
-select:{
-id:true,
-name:true,
-email:true,
-phone:true,
-gender:true,
-bloodGroup:true,
-createdAt:true
-}
+    if(user.role === "doctor"){
 
-})
+      patients = await prisma.patient.findMany({
 
-}
+        where:{
+          appointments:{
+            some:{ doctorId:user.id }
+          }
+        },
 
-/* ============================= */
-/* NURSE → doctor ke patients */
-/* ============================= */
+        orderBy:{ createdAt:"desc" },
 
-else if(user.role === "nurse"){
+        select:{
+          id:true,
+          name:true,
+          email:true,
+          phone:true,
+          gender:true,
+          bloodGroup:true,
+          createdAt:true
+        }
 
-const nurse = await prisma.nurse.findUnique({
+      })
 
-where:{
-id:user.id
-},
+    }
 
-include:{
-doctor:true
-}
+    /* ============================= */
+    /* NURSE → doctor ke patients */
+    /* ============================= */
 
-})
+    else if(user.role === "nurse"){
 
-if(!nurse?.doctor){
-return NextResponse.json([])
-}
+      const nurse = await prisma.nurse.findUnique({
+        where:{ id:user.id },
+        include:{ doctor:true }
+      })
 
-patients = await prisma.patient.findMany({
+      if(!nurse?.doctor){
+        return NextResponse.json([])
+      }
 
-where:{
-appointments:{
-some:{
-doctorId:nurse.doctor.id
-}
-}
-},
+      patients = await prisma.patient.findMany({
 
-orderBy:{ createdAt:"desc" }
+        where:{
+          appointments:{
+            some:{
+              doctorId:nurse.doctor.id
+            }
+          }
+        },
 
-})
+        orderBy:{ createdAt:"desc" },
 
-}
+        select:{
+          id:true,
+          name:true,
+          email:true,
+          phone:true,
+          gender:true,
+          bloodGroup:true,
+          createdAt:true
+        }
 
-/* ============================= */
-/* ADMIN + RECEPTIONIST */
-/* ============================= */
+      })
 
-else if(user.role === "admin" || user.role === "receptionist"){
+    }
 
-patients = await prisma.patient.findMany({
+    /* ============================= */
+    /* ADMIN + RECEPTIONIST */
+    /* ============================= */
 
-orderBy:{ createdAt:"desc" },
+    else if(user.role === "admin" || user.role === "receptionist"){
 
-select:{
-id:true,
-name:true,
-email:true,
-phone:true,
-gender:true,
-bloodGroup:true,
-createdAt:true
-}
+      patients = await prisma.patient.findMany({
 
-})
+        orderBy:{ createdAt:"desc" },
 
-}
+        select:{
+          id:true,
+          name:true,
+          email:true,
+          phone:true,
+          gender:true,
+          bloodGroup:true,
+          createdAt:true
+        }
 
-else{
+      })
 
-return NextResponse.json(
-{error:"Forbidden"},
-{status:403}
-)
+    }
 
-}
+    else{
+      return NextResponse.json(
+        {error:"Forbidden"},
+        {status:403}
+      )
+    }
 
-return NextResponse.json(patients)
+    return NextResponse.json(patients)
 
-}catch(err){
+  }catch(err){
 
-console.log("GET PATIENTS ERROR:",err)
+    console.log("GET PATIENTS ERROR:",err)
 
-return NextResponse.json(
-{error:"Failed to fetch patients"},
-{status:500}
-)
+    return NextResponse.json(
+      {error:"Failed to fetch patients"},
+      {status:500}
+    )
 
-}
+  }
 
 }
 
@@ -161,103 +186,139 @@ return NextResponse.json(
 
 export async function POST(req:Request){
 
-try{
+  try{
 
-const user:any = await getUser()
+    const user:any = await getUser()
 
-if(!user){
-return NextResponse.json({error:"Unauthorized"},{status:401})
-}
+    if(!user){
+      return NextResponse.json({error:"Unauthorized"},{status:401})
+    }
 
-/* ROLE CHECK */
+    if(user.role !== "admin" && user.role !== "receptionist"){
+      return NextResponse.json(
+        {error:"Forbidden"},
+        {status:403}
+      )
+    }
 
-if(user.role !== "admin" && user.role !== "receptionist"){
+    const body = await req.json()
 
-return NextResponse.json(
-{error:"Forbidden"},
-{status:403}
-)
+    if(!body.name || !body.email){
+      return NextResponse.json(
+        {error:"Name and Email required"},
+        {status:400}
+      )
+    }
 
-}
+    const email = body.email.toLowerCase().trim()
 
-const body = await req.json()
+    const exist = await prisma.patient.findUnique({
+      where:{email}
+    })
 
-if(!body.name || !body.email){
+    if(exist){
+      return NextResponse.json(
+        {error:"Patient already exists"},
+        {status:400}
+      )
+    }
 
-return NextResponse.json(
-{error:"Name and Email required"},
-{status:400}
-)
+    const password = body.password || "123456"
+    const hashedPassword = await bcrypt.hash(password,10)
 
-}
+    const patient = await prisma.patient.create({
 
-const email = body.email.toLowerCase().trim()
+      data:{
+        name:body.name,
+        email,
+        password:hashedPassword,
+        phone:body.phone || null,
+        gender:body.gender || null,
+        dob:body.dob ? new Date(body.dob) : null,
+        address:body.address || null,
+        bloodGroup:body.bloodGroup || null,
+        emergencyContact:body.emergencyContact || null,
+        allergies:body.allergies || null,
+        medicalHistory:body.medicalHistory || null
+      },
 
-/* CHECK EXIST */
+      select:{
+        id:true,
+        name:true,
+        email:true,
+        phone:true,
+        gender:true,
+        bloodGroup:true,
+        createdAt:true
+      }
 
-const exist = await prisma.patient.findUnique({
-where:{email}
-})
+    })
 
-if(exist){
+    return NextResponse.json(patient,{status:201})
 
-return NextResponse.json(
-{error:"Patient already exists"},
-{status:400}
-)
+  }catch(err){
 
-}
+    console.log("CREATE PATIENT ERROR:",err)
 
-/* PASSWORD */
+    return NextResponse.json(
+      {error:"Failed to create patient"},
+      {status:500}
+    )
 
-const password = body.password || "123456"
-
-const hashedPassword = await bcrypt.hash(password,10)
-
-/* CREATE */
-
-const patient = await prisma.patient.create({
-
-data:{
-name:body.name,
-email,
-password:hashedPassword,
-
-phone:body.phone || null,
-gender:body.gender || null,
-dob:body.dob ? new Date(body.dob) : null,
-
-address:body.address || null,
-bloodGroup:body.bloodGroup || null,
-emergencyContact:body.emergencyContact || null,
-
-allergies:body.allergies || null,
-medicalHistory:body.medicalHistory || null
-},
-
-select:{
-id:true,
-name:true,
-email:true,
-phone:true,
-gender:true,
-bloodGroup:true,
-createdAt:true
-}
-
-})
-
-return NextResponse.json(patient,{status:201})
-
-}catch(err){
-
-console.log("CREATE PATIENT ERROR:",err)
-
-return NextResponse.json(
-{error:"Failed to create patient"},
-{status:500}
-)
+  }
 
 }
+
+/* ============================= */
+/* UPDATE PATIENT PROFILE */
+/* ============================= */
+
+export async function PUT(req:Request){
+
+  try{
+
+    const user:any = await getUser()
+
+    if(!user){
+      return NextResponse.json({error:"Unauthorized"},{status:401})
+    }
+
+    if(user.role !== "patient"){
+      return NextResponse.json(
+        {error:"Forbidden"},
+        {status:403}
+      )
+    }
+
+    const body = await req.json()
+
+    const updated = await prisma.patient.update({
+
+      where:{ id:user.id },
+
+      data:{
+        name: body.name || undefined,
+        phone: body.phone || null,
+        gender: body.gender || null,
+        dob: body.dob ? new Date(body.dob) : null,
+        address: body.address || null,
+        bloodGroup: body.bloodGroup || null,
+        emergencyContact: body.emergencyContact || null
+      }
+
+    })
+
+    return NextResponse.json(updated)
+
+  }catch(err){
+
+    console.log("UPDATE PATIENT ERROR:",err)
+
+    return NextResponse.json(
+      {error:"Failed to update profile"},
+      {status:500}
+    )
+
+  }
 
 }

@@ -2,88 +2,127 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { User, Phone, Search } from "lucide-react"
+import { User, Phone, Search, Mail } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function NursePatients(){
 
-const router = useRouter()
+  const router = useRouter()
 
-const [patients,setPatients] = useState<any[]>([])
-const [search,setSearch] = useState("")
+  const [patients,setPatients] = useState<any[]>([])
+  const [search,setSearch] = useState("")
 
-useEffect(()=>{
+  useEffect(()=>{
 
-fetch("/api/patients")
-.then(res=>res.json())
-.then(data=>{
-if(Array.isArray(data)){
-setPatients(data)
-}else{
-setPatients([])
-}
-})
+    loadPatients()
 
-},[])
+  },[])
 
-const filtered = patients.filter(p =>
-p.name?.toLowerCase().includes(search.toLowerCase())
-)
+  const loadPatients = async () => {
 
-return(
+    try{
 
-<div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+      // 🔥 get nurse
+      const me = await fetch("/api/auth/me")
+      const nurse = await me.json()
 
-<h1 className="text-2xl font-semibold">
-Patients
-</h1>
+      if(!nurse?.doctor?.id){
+        setPatients([])
+        return
+      }
 
-<div className="relative max-w-sm">
-<Search size={16} className="absolute left-3 top-3 text-gray-400"/>
+      // 🔥 get appointments (filtered by doctor automatically)
+      const res = await fetch("/api/appointments")
+      const data = await res.json()
 
-<input
-placeholder="Search patient..."
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-className="border rounded-lg h-10 pl-9 pr-3 w-full"
-/>
-</div>
+      // 🔥 extract patients
+      const uniquePatients = []
 
-<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+      const map = new Map()
 
-{filtered.map((p:any)=>(
+      data.forEach((a:any)=>{
+        if(a.patient && !map.has(a.patient.id)){
+          map.set(a.patient.id,a.patient)
+        }
+      })
 
-<motion.div
-key={p.id}
-onClick={()=>router.push(`/nurse/vitals/${p.id}`)}  // ✅ FIX
-initial={{opacity:0,y:20}}
-animate={{opacity:1,y:0}}
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-lg transition cursor-pointer"
->
+      setPatients(Array.from(map.values()))
 
-<div className="flex items-center gap-2 mb-2">
-<User size={16}/>
-<p className="font-medium">{p.name}</p>
-</div>
+    }catch(err){
+      console.log("PATIENT LOAD ERROR",err)
+    }
 
-<div className="flex items-center gap-2 text-sm text-gray-500">
-<Phone size={14}/>
-{p.phone || "-"}
-</div>
+  }
 
-</motion.div>
+  /* SEARCH */
 
-))}
+  const filtered = patients.filter(p =>
+    p.name?.toLowerCase().includes(search.toLowerCase())
+  )
 
-</div>
+  return(
 
-{filtered.length === 0 && (
-<p className="text-gray-500">
-No patients found
-</p>
-)}
+    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
 
-</div>
-)
+      <h1 className="text-2xl font-semibold">
+        Patients
+      </h1>
+
+      {/* SEARCH */}
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
+        <input
+          placeholder="Search patient..."
+          value={search}
+          onChange={(e)=>setSearch(e.target.value)}
+          className="border rounded-lg h-10 pl-9 pr-3 w-full"
+        />
+      </div>
+
+      {/* LIST */}
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+        {filtered.map((p:any)=>(
+
+          <motion.div
+            key={p.id}
+            onClick={()=>router.push(`/nurse/vitals/${p.id}`)}
+            initial={{opacity:0,y:20}}
+            animate={{opacity:1,y:0}}
+            whileHover={{y:-4}}
+            className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-lg transition cursor-pointer"
+          >
+
+            {/* NAME */}
+            <div className="flex items-center gap-2 mb-2">
+              <User size={16}/>
+              <p className="font-medium">{p.name}</p>
+            </div>
+
+            {/* PHONE */}
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Phone size={14}/>
+              {p.phone || "-"}
+            </div>
+
+            {/* 🔥 EMAIL */}
+            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+              <Mail size={14}/>
+              {p.email || "-"}
+            </div>
+
+          </motion.div>
+
+        ))}
+
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="text-gray-500">
+          No patients found
+        </p>
+      )}
+
+    </div>
+  )
 }

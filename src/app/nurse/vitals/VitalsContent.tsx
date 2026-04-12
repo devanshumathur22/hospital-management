@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import {
   User,
   HeartPulse,
@@ -11,10 +11,15 @@ import {
 } from "lucide-react"
 
 export default function VitalsContent() {
+
   const searchParams = useSearchParams()
+  const router = useRouter()
+
   const patientId = searchParams?.get("patient") ?? null
+  const appointmentId = searchParams?.get("appointment") ?? null // 🔥 ADD
 
   const [patient, setPatient] = useState<any>(null)
+
   const [form, setForm] = useState({
     patientId: "",
     bp: "",
@@ -24,6 +29,7 @@ export default function VitalsContent() {
   })
 
   useEffect(() => {
+
     if (!patientId) return
 
     fetch(`/api/patients/${patientId}`)
@@ -36,27 +42,51 @@ export default function VitalsContent() {
         }))
       })
       .catch(err => console.error("Patient fetch error:", err))
+
   }, [patientId])
 
+  /* ====================== */
+  /* SUBMIT */
+  /* ====================== */
+
   const submit = async () => {
+
     try {
+
       await fetch("/api/vitals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          appointmentId // 🔥 IMPORTANT
+        })
       })
-      alert("Vitals saved")
+
+      alert("Vitals saved ✅")
+
+      // 🔥 REDIRECT BACK
+      router.push("/nurse/dashboard")
+
     } catch (err) {
+
       alert("Error saving vitals")
       console.error(err)
+
     }
+
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <div className="bg-white border rounded-2xl p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold mb-6">Patient Vitals</h1>
 
+    <div className="max-w-3xl mx-auto px-6 py-10">
+
+      <div className="bg-white border rounded-2xl p-8 shadow-sm">
+
+        <h1 className="text-2xl font-semibold mb-6">
+          Patient Vitals
+        </h1>
+
+        {/* PATIENT INFO */}
         {patient && (
           <div className="mb-6 p-4 border rounded-lg bg-gray-50">
             <p className="font-semibold">Patient: {patient.name}</p>
@@ -65,6 +95,7 @@ export default function VitalsContent() {
         )}
 
         <div className="grid md:grid-cols-2 gap-5">
+
           {/* BP */}
           <div className="space-y-1">
             <label className="text-sm text-gray-500">Blood Pressure</label>
@@ -106,9 +137,10 @@ export default function VitalsContent() {
               />
             </div>
           </div>
+
         </div>
 
-        {/* Notes */}
+        {/* NOTES */}
         <div className="mt-5 space-y-1">
           <label className="text-sm text-gray-500">Notes</label>
           <div className="flex items-start border rounded-lg px-3 py-2">
@@ -122,13 +154,16 @@ export default function VitalsContent() {
           </div>
         </div>
 
+        {/* BUTTON */}
         <button
           onClick={submit}
           className="mt-6 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
         >
           Save Vitals
         </button>
+
       </div>
+
     </div>
   )
 }

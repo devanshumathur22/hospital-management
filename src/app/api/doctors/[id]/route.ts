@@ -2,18 +2,12 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 
-
-
 /* -------- GET ALL DOCTORS -------- */
 
 export async function GET() {
-
   try {
-
     const doctors = await prisma.doctor.findMany({
-
       orderBy: { createdAt: "desc" },
-
       select: {
         id: true,
         name: true,
@@ -26,30 +20,23 @@ export async function GET() {
         about: true,
         createdAt: true
       }
-
     })
 
     return NextResponse.json(doctors)
 
   } catch (error) {
-
     console.log("GET DOCTORS ERROR:", error)
 
     return NextResponse.json(
       { error: "Failed to fetch doctors" },
       { status: 500 }
     )
-
   }
-
 }
-
-
 
 /* -------- CREATE DOCTOR -------- */
 
 export async function POST(req: Request) {
-
   try {
 
     const body = await req.json()
@@ -66,51 +53,36 @@ export async function POST(req: Request) {
       about
     } = body
 
-
-
     if (!name || !email || !password) {
-
       return NextResponse.json(
         { error: "Name, email and password required" },
         { status: 400 }
       )
-
     }
 
     if (password.length < 6) {
-
       return NextResponse.json(
         { error: "Password must be at least 6 characters" },
         { status: 400 }
       )
-
     }
 
     email = email.toLowerCase().trim()
-
-
 
     const exist = await prisma.doctor.findUnique({
       where: { email }
     })
 
     if (exist) {
-
       return NextResponse.json(
         { error: "Doctor already exists" },
         { status: 400 }
       )
-
     }
-
-
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-
-
     const doctor = await prisma.doctor.create({
-
       data: {
         name,
         email,
@@ -123,7 +95,6 @@ export async function POST(req: Request) {
         about: about || null,
         role: "doctor"
       },
-
       select: {
         id: true,
         name: true,
@@ -136,45 +107,33 @@ export async function POST(req: Request) {
         about: true,
         createdAt: true
       }
-
     })
 
     return NextResponse.json(doctor, { status: 201 })
 
   } catch (error) {
-
     console.log("CREATE DOCTOR ERROR:", error)
 
     return NextResponse.json(
       { error: "Failed to create doctor" },
       { status: 500 }
     )
-
   }
-
 }
-
-
 
 /* -------- UPDATE DOCTOR -------- */
 
 export async function PUT(req: Request) {
-
   try {
 
     const body = await req.json()
-
     const { id, password, ...data } = body
 
-
-
     if (!id) {
-
       return NextResponse.json(
         { error: "Doctor id required" },
         { status: 400 }
       )
-
     }
 
     if (data.experience) {
@@ -186,11 +145,8 @@ export async function PUT(req: Request) {
     }
 
     const updatedDoctor = await prisma.doctor.update({
-
       where: { id },
-
       data,
-
       select: {
         id: true,
         name: true,
@@ -203,59 +159,51 @@ export async function PUT(req: Request) {
         about: true,
         createdAt: true
       }
-
     })
 
     return NextResponse.json(updatedDoctor)
 
   } catch (error) {
-
     console.log("UPDATE DOCTOR ERROR:", error)
 
     return NextResponse.json(
       { error: "Failed to update doctor" },
       { status: 500 }
     )
-
   }
-
 }
-
-
 
 /* -------- DELETE DOCTOR -------- */
 
-export async function DELETE(req: Request){
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
 
-  try{
+    const { id } = await params
 
-    const body = await req.json()
-    const { id } = body
-
-    if(!id){
+    if (!id) {
       return NextResponse.json(
-        { error:"Doctor id required" },
-        { status:400 }
+        { error: "Doctor id required" },
+        { status: 400 }
       )
     }
 
     await prisma.doctor.delete({
-      where:{ id }
+      where: { id }
     })
 
     return NextResponse.json({
-      message:"Doctor deleted successfully"
+      message: "Doctor deleted successfully"
     })
 
-  }catch(error){
-
-    console.log("DELETE DOCTOR ERROR:",error)
+  } catch (error) {
+    console.log("DELETE DOCTOR ERROR:", error)
 
     return NextResponse.json(
-      { error:"Failed to delete doctor" },
-      { status:500 }
+      { error: "Failed to delete doctor" },
+      { status: 500 }
     )
-
   }
-
 }

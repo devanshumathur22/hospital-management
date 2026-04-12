@@ -1,245 +1,210 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import {
-User,
-Phone,
-HeartPulse,
-Calendar,
-Droplet,
-MapPin,
-ShieldAlert,
-Edit,
-Save,
-X
-} from "lucide-react";
+import { useEffect, useState } from "react"
+import { User, Phone, Mail, Edit, Save, X } from "lucide-react"
 
-export default function PatientProfile() {
+export default function PatientProfile(){
 
-const [patient, setPatient] = useState<any>(null);
-const [editing, setEditing] = useState(false);
+  const [loading,setLoading] = useState(true)
+  const [editing,setEditing] = useState(false)
 
-const [form, setForm] = useState({
-name: "",
-phone: "",
-gender: "",
-dob: "",
-bloodGroup: "",
-address: "",
-emergencyContact: ""
-});
+  const [form,setForm] = useState({
+    name:"",
+    phone:"",
+    gender:"",
+    dob:"",
+    bloodGroup:"",
+    address:"",
+    emergencyContact:""
+  })
 
-useEffect(() => {
+  useEffect(()=>{
 
-const load = async () => {
+    const load = async()=>{
 
-const me = await fetch("/api/auth/me")
-const user = await me.json()
+      const res = await fetch("/api/patients")
+      const data = await res.json()
 
-if (!user?.user?.id) return
+      if(data){
+        setForm({
+          name: data.name || "",
+          phone: data.phone || "",
+          gender: data.gender || "",
+          dob: data.dob ? data.dob.split("T")[0] : "",
+          bloodGroup: data.bloodGroup || "",
+          address: data.address || "",
+          emergencyContact: data.emergencyContact || ""
+        })
+      }
 
-const res = await fetch(`/api/patients/${user.user.id}`)
-const data = await res.json()
+      setLoading(false)
+    }
 
-setPatient(data)
+    load()
 
-setForm({
-name: data?.name || "",
-phone: data?.phone || "",
-gender: data?.gender || "",
-dob: data?.dob ? data.dob.substring(0,10) : "",
-bloodGroup: data?.bloodGroup || "",
-address: data?.address || "",
-emergencyContact: data?.emergencyContact || ""
-})
+  },[])
 
-}
+  const handleChange = (e:any)=>{
+    setForm({
+      ...form,
+      [e.target.name]:e.target.value
+    })
+  }
 
-load()
+  const save = async()=>{
 
-}, [])
+    const res = await fetch("/api/patients",{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify(form)
+    })
 
+    if(res.ok){
+      setEditing(false)
+      alert("Updated ✅")
+    }
+  }
 
-const handleChange = (e:any) => {
+  if(loading){
+    return <div className="p-10 text-center">Loading...</div>
+  }
 
-setForm({
-...form,
-[e.target.name]: e.target.value
-})
+  return(
 
-}
+    <div className="max-w-4xl mx-auto px-6 py-10">
 
+      <div className="bg-white border rounded-2xl shadow-sm p-8">
 
-const handleSave = async () => {
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-6">
 
-const me = await fetch("/api/auth/me")
-const user = await me.json()
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+              <User size={22}/>
+            </div>
 
-const id = user.user.id
+            <div>
+              <h1 className="text-xl font-semibold">
+                {form.name}
+              </h1>
+              <p className="text-sm text-gray-500">
+                Patient Profile
+              </p>
+            </div>
+          </div>
 
-const res = await fetch(`/api/patients/${id}`,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(form)
-})
+          {!editing ? (
+            <button
+              onClick={()=>setEditing(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
+              <Edit size={16}/>
+              Edit
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={save}
+                className="flex items-center gap-1 bg-green-600 text-white px-4 py-2 rounded"
+              >
+                <Save size={14}/>
+                Save
+              </button>
 
-const data = await res.json()
+              <button
+                onClick={()=>setEditing(false)}
+                className="flex items-center gap-1 bg-gray-400 text-white px-4 py-2 rounded"
+              >
+                <X size={14}/>
+                Cancel
+              </button>
+            </div>
+          )}
 
-setPatient(data)
-setEditing(false)
+        </div>
 
-}
+        {/* INFO */}
+        <div className="grid md:grid-cols-2 gap-6">
 
+          {/* NAME */}
+          <div>
+            <p className="text-xs text-gray-500">Name</p>
+            {editing ? (
+              <input name="name" value={form.name} onChange={handleChange} className="border p-2 rounded w-full"/>
+            ) : (
+              <p className="font-medium">{form.name}</p>
+            )}
+          </div>
 
-return(
+          {/* PHONE */}
+          <div>
+            <p className="text-xs text-gray-500">Phone</p>
+            {editing ? (
+              <input name="phone" value={form.phone} onChange={handleChange} className="border p-2 rounded w-full"/>
+            ) : (
+              <p className="font-medium">{form.phone}</p>
+            )}
+          </div>
 
-<div className="max-w-5xl mx-auto px-4 py-10">
+          {/* GENDER */}
+          <div>
+            <p className="text-xs text-gray-500">Gender</p>
+            {editing ? (
+              <select name="gender" value={form.gender} onChange={handleChange} className="border p-2 rounded w-full">
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            ) : (
+              <p className="font-medium">{form.gender || "-"}</p>
+            )}
+          </div>
 
-<h1 className="text-3xl font-bold mb-8">
-Patient Profile
-</h1>
+          {/* DOB */}
+          <div>
+            <p className="text-xs text-gray-500">DOB</p>
+            {editing ? (
+              <input type="date" name="dob" value={form.dob} onChange={handleChange} className="border p-2 rounded w-full"/>
+            ) : (
+              <p className="font-medium">{form.dob || "-"}</p>
+            )}
+          </div>
 
+          {/* BLOOD */}
+          <div>
+            <p className="text-xs text-gray-500">Blood Group</p>
+            {editing ? (
+              <input name="bloodGroup" value={form.bloodGroup} onChange={handleChange} className="border p-2 rounded w-full"/>
+            ) : (
+              <p className="font-medium">{form.bloodGroup || "-"}</p>
+            )}
+          </div>
 
-<motion.div
-initial={{opacity:0,y:20}}
-animate={{opacity:1,y:0}}
-className="backdrop-blur-xl bg-white/80 border border-white/30 shadow-xl rounded-2xl p-8"
->
+          {/* EMERGENCY */}
+          <div>
+            <p className="text-xs text-gray-500">Emergency Contact</p>
+            {editing ? (
+              <input name="emergencyContact" value={form.emergencyContact} onChange={handleChange} className="border p-2 rounded w-full"/>
+            ) : (
+              <p className="font-medium">{form.emergencyContact || "-"}</p>
+            )}
+          </div>
 
-{patient && !editing ? (
+        </div>
 
-<div className="grid md:grid-cols-2 gap-6 text-sm">
+        {/* ADDRESS */}
+        <div className="mt-6">
+          <p className="text-xs text-gray-500">Address</p>
+          {editing ? (
+            <input name="address" value={form.address} onChange={handleChange} className="border p-2 rounded w-full"/>
+          ) : (
+            <p className="font-medium">{form.address || "-"}</p>
+          )}
+        </div>
 
-<p className="flex items-center gap-2">
-<User size={16}/> <b>Name:</b> {patient?.name}
-</p>
+      </div>
 
-<p className="flex items-center gap-2">
-<Phone size={16}/> <b>Phone:</b> {patient?.phone}
-</p>
+    </div>
 
-<p className="flex items-center gap-2">
-<HeartPulse size={16}/> <b>Gender:</b> {patient?.gender}
-</p>
-
-<p className="flex items-center gap-2">
-<Calendar size={16}/> <b>DOB:</b> {patient?.dob?.substring(0,10)}
-</p>
-
-<p className="flex items-center gap-2">
-<Droplet size={16}/> <b>Blood Group:</b> {patient?.bloodGroup}
-</p>
-
-<p className="flex items-center gap-2">
-<MapPin size={16}/> <b>Address:</b> {patient?.address}
-</p>
-
-<p className="flex items-center gap-2 md:col-span-2">
-<ShieldAlert size={16}/> <b>Emergency Contact:</b> {patient?.emergencyContact}
-</p>
-
-<button
-onClick={()=>setEditing(true)}
-className="flex items-center gap-2 w-fit mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
->
-<Edit size={16}/> Edit Profile
-</button>
-
-</div>
-
-):(
-
-
-<div className="grid gap-4">
-
-<input
-name="name"
-value={form.name}
-onChange={handleChange}
-placeholder="Full Name"
-className="border p-2 rounded-lg"
-/>
-
-<input
-name="phone"
-value={form.phone}
-onChange={handleChange}
-placeholder="Phone"
-className="border p-2 rounded-lg"
-/>
-
-<select
-name="gender"
-value={form.gender}
-onChange={handleChange}
-className="border p-2 rounded-lg"
->
-<option value="">Select Gender</option>
-<option>Male</option>
-<option>Female</option>
-</select>
-
-<input
-type="date"
-name="dob"
-value={form.dob}
-onChange={handleChange}
-className="border p-2 rounded-lg"
-/>
-
-<input
-name="bloodGroup"
-value={form.bloodGroup}
-onChange={handleChange}
-placeholder="Blood Group"
-className="border p-2 rounded-lg"
-/>
-
-<input
-name="address"
-value={form.address}
-onChange={handleChange}
-placeholder="Address"
-className="border p-2 rounded-lg"
-/>
-
-<input
-name="emergencyContact"
-value={form.emergencyContact}
-onChange={handleChange}
-placeholder="Emergency Contact"
-className="border p-2 rounded-lg"
-/>
-
-<div className="flex gap-3 mt-2">
-
-<button
-onClick={handleSave}
-className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
->
-<Save size={16}/> Save
-</button>
-
-<button
-onClick={()=>setEditing(false)}
-className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
->
-<X size={16}/> Cancel
-</button>
-
-</div>
-
-</div>
-
-)}
-
-</motion.div>
-
-</div>
-
-)
-
+  )
 }

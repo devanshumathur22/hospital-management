@@ -1,132 +1,142 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
 export default function VitalsPage(){
 
-const { id } = useParams()
+  const params = useSearchParams()
 
-const [vitals,setVitals] = useState<any[]>([])
-const [form,setForm] = useState({
-bp:"",
-temperature:"",
-pulse:"",
-notes:""
-})
+  const patientId = params.get("patient")
+  const appointmentId = params.get("appointment")
 
-/* FETCH VITALS */
+  const [vitals,setVitals] = useState<any[]>([])
+  const [form,setForm] = useState({
+    bp:"",
+    temperature:"",
+    pulse:"",
+    notes:""
+  })
 
-useEffect(()=>{
+  /* ====================== */
+  /* FETCH VITALS */
+  /* ====================== */
 
-fetch(`/api/vitals?patient=${id}`)
-.then(res=>res.json())
-.then(data=>{
-if(Array.isArray(data)){
-setVitals(data)
-}else{
-setVitals([])
-}
-})
+  useEffect(()=>{
 
-},[id])
+    if(!patientId) return
 
+    loadVitals()
 
-/* ADD VITAL */
+  },[patientId])
 
-const handleSubmit = async(e:any)=>{
-e.preventDefault()
+  const loadVitals = async () => {
 
-await fetch("/api/vitals",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-...form,
-patientId:id
-})
-})
+    const res = await fetch(`/api/vitals?patient=${patientId}`)
+    const data = await res.json()
 
-setForm({
-bp:"",
-temperature:"",
-pulse:"",
-notes:""
-})
+    if(Array.isArray(data)){
+      setVitals(data)
+    }else{
+      setVitals([])
+    }
 
-/* reload */
-const res = await fetch(`/api/vitals?patient=${id}`)
-const data = await res.json()
-setVitals(data)
-}
+  }
 
-return(
+  /* ====================== */
+  /* ADD VITAL */
+  /* ====================== */
 
-<div className="p-6 max-w-3xl mx-auto space-y-6">
+  const handleSubmit = async(e:any)=>{
+    e.preventDefault()
 
-<h1 className="text-xl font-semibold">
-Patient Vitals
-</h1>
+    await fetch("/api/vitals",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        ...form,
+        patientId,
+        appointmentId // 🔥 IMPORTANT
+      })
+    })
 
-{/* FORM */}
+    /* reset */
+    setForm({
+      bp:"",
+      temperature:"",
+      pulse:"",
+      notes:""
+    })
 
-<form onSubmit={handleSubmit} className="space-y-3">
+    await loadVitals()
+  }
 
-<input
-placeholder="BP"
-value={form.bp}
-onChange={(e)=>setForm({...form,bp:e.target.value})}
-className="border p-2 w-full rounded"
-/>
+  return(
 
-<input
-placeholder="Temperature"
-value={form.temperature}
-onChange={(e)=>setForm({...form,temperature:e.target.value})}
-className="border p-2 w-full rounded"
-/>
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
 
-<input
-placeholder="Pulse"
-value={form.pulse}
-onChange={(e)=>setForm({...form,pulse:e.target.value})}
-className="border p-2 w-full rounded"
-/>
+      <h1 className="text-xl font-semibold">
+        Patient Vitals
+      </h1>
 
-<textarea
-placeholder="Notes"
-value={form.notes}
-onChange={(e)=>setForm({...form,notes:e.target.value})}
-className="border p-2 w-full rounded"
-/>
+      {/* FORM */}
+      <form onSubmit={handleSubmit} className="space-y-3">
 
-<button className="bg-blue-600 text-white px-4 py-2 rounded">
-Add Vital
-</button>
+        <input
+          placeholder="BP"
+          value={form.bp}
+          onChange={(e)=>setForm({...form,bp:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
 
-</form>
+        <input
+          placeholder="Temperature"
+          value={form.temperature}
+          onChange={(e)=>setForm({...form,temperature:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
 
+        <input
+          placeholder="Pulse"
+          value={form.pulse}
+          onChange={(e)=>setForm({...form,pulse:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
 
-{/* LIST */}
+        <textarea
+          placeholder="Notes"
+          value={form.notes}
+          onChange={(e)=>setForm({...form,notes:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
 
-<div className="space-y-3">
+        <button className="bg-blue-600 text-white px-4 py-2 rounded">
+          Add Vital
+        </button>
 
-{vitals.map((v:any)=>(
+      </form>
 
-<div key={v.id} className="border p-3 rounded">
+      {/* LIST */}
+      <div className="space-y-3">
 
-<p>BP: {v.bp || "-"}</p>
-<p>Temp: {v.temperature || "-"}</p>
-<p>Pulse: {v.pulse || "-"}</p>
-<p className="text-sm text-gray-500">
-{v.notes}
-</p>
+        {vitals.map((v:any)=>(
 
-</div>
+          <div key={v.id} className="border p-3 rounded">
 
-))}
+            <p>BP: {v.bp || "-"}</p>
+            <p>Temp: {v.temperature || "-"}</p>
+            <p>Pulse: {v.pulse || "-"}</p>
 
-</div>
+            <p className="text-sm text-gray-500">
+              {v.notes}
+            </p>
 
-</div>
-)
+          </div>
+
+        ))}
+
+      </div>
+
+    </div>
+  )
 }

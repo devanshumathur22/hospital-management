@@ -24,72 +24,135 @@ async function getUser() {
 /* GET APPOINTMENTS */
 /* ============================= */
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const user: any = await getUser();
-
     if (!user) return NextResponse.json([]);
+
+    const url = new URL(req.url);
+    const type = url.searchParams.get("type");
+
+    const status = type === "history" ? "completed" : "pending";
 
     let appointments: any[] = [];
 
+    /* ===================== */
     /* PATIENT */
+    /* ===================== */
+
     if (user.role === "patient") {
       appointments = await prisma.appointment.findMany({
-        where: { patientId: user.id },
-        include: {
-          doctor: true,
-          patient: { select: { id: true, name: true } },
+        where: {
+          patientId: user.id,
+          status
+          // ❌ doctorId filter hata diya (unnecessary)
         },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      });
-    }
-
-    /* DOCTOR */
-    else if (user.role === "doctor") {
-      appointments = await prisma.appointment.findMany({
-        where: { doctorId: user.id },
         include: {
-          doctor: true,
-          patient: { select: { id: true, name: true } },
-        },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      });
-    }
-
-    /* NURSE */
-    else if (user.role === "nurse") {
-      const nurse = await prisma.nurse.findUnique({
-        where: { id: user.id },
-        include: { doctor: true },
-      });
-
-      if (!nurse?.doctor?.id) return NextResponse.json([]);
-
-      appointments = await prisma.appointment.findMany({
-        where: { doctorId: nurse.doctor.id },
-        include: {
-          doctor: true,
-          patient: { select: { id: true, name: true } },
-        },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      });
-    }
-
-    /* ADMIN / RECEPTIONIST - FIXED (No 'not: null') */
-    else if (user.role === "admin" || user.role === "receptionist") {
-      appointments = await prisma.appointment.findMany({
-        include: {
-          doctor: true,
-          patient: {
+          doctor: {
             select: {
               id: true,
-              name: true,
-            },
-          },
+              name: true
+            }
+          }
         },
         orderBy: [
           { date: "desc" },
-          { createdAt: "desc" },
+          { createdAt: "desc" }
+        ],
+      });
+    }
+
+    /* ===================== */
+    /* DOCTOR */
+    /* ===================== */
+
+    else if (user.role === "doctor") {
+      appointments = await prisma.appointment.findMany({
+        where: {
+          doctorId: user.id,
+          status,
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [
+          { date: "desc" },
+          { createdAt: "desc" }
+        ],
+      });
+    }
+
+    /* ===================== */
+    /* NURSE */
+    /* ===================== */
+
+  else if (user.role === "nurse") {
+  const nurse = await prisma.nurse.findUnique({
+    where: { id: user.id },
+    include: { doctor: true },
+  });
+
+  if (!nurse?.doctor?.id) return NextResponse.json([]);
+
+  appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId: nurse.doctor.id,
+      status,
+    },
+    include: {
+      patient: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true
+        }
+      },
+      doctor: {   // 🔥 ADD THIS (missing tha)
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    orderBy: [
+      { date: "desc" },
+      { createdAt: "desc" }
+    ],
+  });
+}
+
+    /* ===================== */
+    /* ADMIN / RECEPTIONIST */
+    /* ===================== */
+
+    else if (user.role === "admin" || user.role === "receptionist") {
+      appointments = await prisma.appointment.findMany({
+        where: {
+          status
+        },
+        include: {
+          doctor: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          patient: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [
+          { date: "desc" },
+          { createdAt: "desc" }
         ],
       });
     }
@@ -102,10 +165,7 @@ export async function GET() {
 
   } catch (err: any) {
     console.error("GET Appointments Error:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch appointments" },
-      { status: 500 }
-    );
+    return NextResponse.json([], { status: 200 });
   }
 }
 
@@ -122,13 +182,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const selectedDate = body.date ? new Date(body.date) : null;
+    const selectedDate = new Date(body.date);
 
-    if (!selectedDate || isNaN(selectedDate.getTime())) {
+    if (isNaN(selectedDate.getTime())) {
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
 
-    /* SAME DOCTOR SAME DAY BLOCK */
     const existing = await prisma.appointment.findFirst({
       where: {
         patientId: user.id,
@@ -144,7 +203,6 @@ export async function POST(req: Request) {
       );
     }
 
-    /* SLOT BLOCK */
     const slotTaken = await prisma.appointment.findFirst({
       where: {
         doctorId: body.doctorId,
@@ -166,6 +224,7 @@ export async function POST(req: Request) {
         patientId: user.id,
         date: selectedDate,
         time: body.time,
+        status: "pending",
       },
     });
 

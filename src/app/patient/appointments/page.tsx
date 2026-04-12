@@ -12,7 +12,7 @@ const [newDate,setNewDate] = useState<Date | null>(null)
 const [newTime,setNewTime] = useState("")
 
 /* ============================= */
-/* GENERATE 15 MIN SLOTS */
+/* GENERATE SLOTS */
 /* ============================= */
 
 function generateTimeSlots(){
@@ -47,7 +47,11 @@ const timeSlots = generateTimeSlots()
 /* ============================= */
 
 const fetchAppointments = async()=>{
-  const res = await fetch("/api/appointments",{ credentials:"include" })
+
+  const res = await fetch("/api/appointments?type=pending", {
+    credentials:"include"
+  })
+
   const data = await res.json()
 
   if(Array.isArray(data)){
@@ -63,7 +67,6 @@ useEffect(()=>{
 /* HELPERS */
 /* ============================= */
 
-// 🔥 slot booked check
 const isSlotBooked = (date: Date, time: string) => {
   return appointments.some((a) => {
     return (
@@ -73,7 +76,6 @@ const isSlotBooked = (date: Date, time: string) => {
   })
 }
 
-// 🔥 FIXED same day (doctor-wise)
 const hasTodayAppointment = (doctorId?: string) => {
   return appointments.some((a) => {
     return (
@@ -148,11 +150,9 @@ Appointments Dashboard
 {/* WARNING */}
 {hasTodayAppointment() && (
   <p className="text-red-500 mb-6">
-    You already have an appointment today (different doctors allowed)
+    You already have an appointment today
   </p>
 )}
-
-{/* GRID */}
 
 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
@@ -164,19 +164,23 @@ Appointments Dashboard
 
 <div
 key={a.id}
-className="backdrop-blur-xl bg-white/60 border border-white/40 p-6 rounded-2xl shadow-lg hover:shadow-xl transition"
+className="bg-white p-6 rounded-2xl shadow-lg"
 >
 
-<h2 className="text-lg font-bold text-gray-800">
-👨‍⚕️ Dr. {a.doctor?.name}
+<h2 className="text-lg font-bold">
+Dr. {a.doctor?.name}
 </h2>
 
-<p className="text-gray-600 text-sm mt-1">
+<p className="text-sm mt-1">
 📅 {new Date(a.date).toDateString()}
 </p>
 
-<p className="text-gray-600 text-sm">
+<p className="text-sm">
 ⏰ {a.time}
+</p>
+
+<p className="text-xs text-gray-500 mt-2">
+Status: {a.status}
 </p>
 
 <div className="flex gap-3 mt-5">
@@ -186,7 +190,7 @@ onClick={()=>openReschedule(a)}
 disabled={hasTodayAppointment(a.doctorId)}
 className={`flex-1 py-2 rounded-lg text-white ${
   hasTodayAppointment(a.doctorId)
-    ? "bg-gray-400 cursor-not-allowed"
+    ? "bg-gray-400"
     : "bg-blue-600"
 }`}
 >
@@ -195,7 +199,7 @@ Reschedule
 
 <button
 onClick={()=>cancelAppointment(a.id)}
-className="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600"
+className="flex-1 bg-red-500 text-white py-2 rounded-lg"
 >
 Cancel
 </button>
@@ -212,7 +216,7 @@ Cancel
 
 {selected && (
 
-<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center">
 
 <div className="bg-white p-6 rounded-2xl w-[350px]">
 
@@ -238,12 +242,8 @@ className="w-full border p-3 rounded-lg mb-4"
   const booked = newDate ? isSlotBooked(newDate, slot) : false
 
   return (
-    <option
-      key={slot}
-      value={slot}
-      disabled={booked}
-    >
-      {booked ? "❌ Booked" : `⏰ ${slot}`}
+    <option key={slot} value={slot} disabled={booked}>
+      {booked ? "❌ Booked" : slot}
     </option>
   )
 })}

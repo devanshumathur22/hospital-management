@@ -76,20 +76,23 @@ model Doctor {
 
   role Role @default(doctor)
 
+  nurses Nurse[] @relation("DoctorNurses") // 🔥 ADD NAME
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  nurse Nurse?
 
   appointments  Appointment[]
   prescriptions Prescription[]
   schedules     Schedule[]
   slots         Slot[]
   queues        Queue[]
-  admissions    Admission[]   // ✅ ADD THIS
+  admissions    Admission[]
+
+  vitals Vital[]
 
   @@index([specialization])
 }
+
 //////////////////////////////
 // PATIENT
 //////////////////////////////
@@ -123,28 +126,29 @@ model Patient {
   vitals        Vital[]
   pharmacyBills PharmacyBill[]
 
-  admissions Admission[]   // ✅ ADD THIS
+  admissions Admission[] // ✅ ADD THIS
 
   @@index([phone])
 }
+
 //////////////////////////////
 // APPOINTMENTS
 //////////////////////////////
 
 model Appointment {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  doctorId    String   @db.ObjectId
-  patientId   String   @db.ObjectId
-  date        DateTime
-  time        String
-  status      AppointmentStatus @default(pending)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId  String            @db.ObjectId
+  patientId String            @db.ObjectId
+  date      DateTime
+  time      String
+  status    AppointmentStatus @default(pending)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 
-  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
   // ✅ Correct line for MongoDB
-  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction)
 
   prescription Prescription[]
 
@@ -153,6 +157,7 @@ model Appointment {
   @@index([doctorId])
   @@index([patientId])
 }
+
 //////////////////////////////
 // PRESCRIPTIONS
 //////////////////////////////
@@ -160,8 +165,8 @@ model Appointment {
 model Prescription {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  doctorId      String @db.ObjectId
-  patientId     String @db.ObjectId
+  doctorId      String? @db.ObjectId   // ✅ OPTIONAL
+  patientId     String  @db.ObjectId
   appointmentId String? @unique @db.ObjectId
 
   medicine Json
@@ -170,7 +175,7 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor  Doctor? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
@@ -178,6 +183,7 @@ model Prescription {
   @@index([doctorId])
   @@index([patientId])
 }
+
 //////////////////////////////
 // DOCTOR SCHEDULE
 //////////////////////////////
@@ -242,13 +248,13 @@ model Nurse {
 
   role Role @default(nurse)
 
-  doctorId String? @unique @db.ObjectId
-  doctor   Doctor? @relation(fields: [doctorId], references: [id])
+  doctorId String? @db.ObjectId
+  doctor   Doctor? @relation("DoctorNurses", fields: [doctorId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vitals Vital[]
+  vitals Vital[]   // 🔥 MUST ADD THIS
 }
 
 //////////////////////////////
@@ -260,6 +266,7 @@ model Vital {
 
   patientId String @db.ObjectId
   nurseId   String @db.ObjectId
+  doctorId  String @db.ObjectId // 🔥 ADD THIS
 
   bp          String?
   temperature Float?
@@ -271,8 +278,10 @@ model Vital {
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   nurse   Nurse   @relation(fields: [nurseId], references: [id], onDelete: Cascade)
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade) // 🔥 ADD
 
   @@index([patientId])
+  @@index([doctorId]) // 🔥 ADD
 }
 
 //////////////////////////////
@@ -346,7 +355,7 @@ model Admission {
   doctorId  String @db.ObjectId
   patientId String @db.ObjectId
 
-  ward String
+  ward  String
   bedId String
 
   createdAt DateTime @default(now())

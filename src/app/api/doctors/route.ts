@@ -5,44 +5,50 @@ import bcrypt from "bcryptjs"
 /* -------- GET ALL DOCTORS -------- */
 
 export async function GET(){
+  try{
 
-try{
+    const doctors = await prisma.doctor.findMany({
 
-const doctors = await prisma.doctor.findMany({
+      orderBy:{ createdAt:"desc" },
 
-orderBy:{ createdAt:"desc" },
+      select:{
+        id:true,
+        name:true,
+        email:true,
+        specialization:true,
+        experience:true,
+        degree:true,
+        phone:true,
+        image:true,
+        about:true,
+        createdAt:true,
 
-select:{
-id:true,
-name:true,
-email:true,
-specialization:true,
-experience:true,
-degree:true,
-phone:true,
-image:true,
-about:true,
-createdAt:true
+        // 🔥 ADD THIS
+        nurses:{
+          select:{
+            id:true,
+            name:true,
+            email:true
+          }
+        }
+
+      }
+
+    })
+
+    return NextResponse.json(doctors)
+
+  }catch(error){
+
+    console.log("GET DOCTORS ERROR:",error)
+
+    return NextResponse.json(
+      { error:"Failed to fetch doctors" },
+      { status:500 }
+    )
+
+  }
 }
-
-})
-
-return NextResponse.json(doctors)
-
-}catch(error){
-
-console.log("GET DOCTORS ERROR:",error)
-
-return NextResponse.json(
-{ error:"Failed to fetch doctors" },
-{ status:500 }
-)
-
-}
-
-}
-
-
 
 /* -------- CREATE DOCTOR -------- */
 

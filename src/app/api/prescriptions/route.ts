@@ -1,142 +1,145 @@
-import { prisma } from "../../../lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
 
+const SECRET = process.env.JWT_SECRET!
 
+/* ====================== */
+/* GET USER */
+/* ====================== */
 
-/* CREATE PRESCRIPTION */
+async function getUser(){
+  const cookieStore = await cookies()
+  const token = cookieStore.get("token")?.value
+
+  if(!token) return null
+
+  try{
+    return jwt.verify(token, SECRET)
+  }catch{
+    return null
+  }
+}
+
+/* ====================== */
+/* CREATE */
+/* ====================== */
 
 export async function POST(req: Request){
 
   try{
 
     const body = await req.json()
+    const user:any = await getUser()
 
-    if(!body.appointmentId){
-      return NextResponse.json(
-        { error:"Appointment ID required" },
-        { status:400 }
-      )
+    if(!user || user.role !== "doctor"){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
     }
 
-    // check existing prescription
-    const existing = await prisma.prescription.findUnique({
-      where:{
-        appointmentId: body.appointmentId
-      }
+    if(!body.appointmentId){
+      return NextResponse.json({ error:"Appointment required" },{ status:400 })
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where:{ id: body.appointmentId }
     })
 
-    if(existing){
-      return NextResponse.json(existing)
+    if(!appointment){
+      return NextResponse.json({ error:"Invalid appointment" },{ status:400 })
+    }
+
+    /* prevent duplicate */
+
+    const exist = await prisma.prescription.findUnique({
+      where:{ appointmentId: body.appointmentId }
+    })
+
+    if(exist){
+      return NextResponse.json(exist)
     }
 
     const prescription = await prisma.prescription.create({
-
       data:{
-        doctorId: body.doctorId,
-        patientId: body.patientId,
+        doctorId: user.id,
+        patientId: appointment.patientId,
         appointmentId: body.appointmentId,
         medicine: body.medicine,
-        notes: body.notes
+        notes: body.notes || ""
       }
-
     })
-
-
-    /* ============================= */
-    /* SEND NOTIFICATION */
-    /* ============================= */
-
-    try{
-
-      const patient = await prisma.patient.findUnique({
-        where:{ id: body.patientId }
-      })
-
-      if(patient?.email){
-
-        await fetch(`/api/notifications/send`,{
-
-          method:"PUT",
-
-          headers:{
-            "Content-Type":"application/json"
-          },
-
-          body:JSON.stringify({
-
-            email: patient.email,
-
-            subject:"Prescription Ready",
-
-            message:`Hello ${patient.name},
-
-Your prescription has been added by the doctor.
-
-Please login to view your prescription.
-
-Thank you.`
-
-          })
-
-        })
-
-      }
-
-    }catch(e){
-
-      console.log("NOTIFICATION ERROR:",e)
-
-    }
-
 
     return NextResponse.json(prescription)
 
   }catch(err){
-
-    console.log("PRESCRIPTION ERROR:",err)
-
-    return NextResponse.json(
-      { error:"Failed to save prescription" },
-      { status:500 }
-    )
-
+    console.log("CREATE ERROR:",err)
+    return NextResponse.json({ error:"Failed" },{ status:500 })
   }
-
 }
 
-
-
-/* GET PRESCRIPTIONS */
+/* ====================== */
+/* GET */
+/* ====================== */
 
 export async function GET(){
 
   try{
 
-    const prescriptions = await prisma.prescription.findMany({
+    const user:any = await getUser()
 
-      include:{
-        doctor:true,
-        patient:true,
-        appointment:true
-      },
+    if(!user){
+      return NextResponse.json([])
+    }
 
-      orderBy:{
-        createdAt:"desc"
-      }
+    let prescriptions:any = []
 
-    })
+    /* PATIENT */
+    if(user.role === "patient"){
+      prescriptions = await prisma.prescription.findMany({
+        where:{ patientId: user.id },
+        include:{
+          doctor:{
+            select:{
+              id:true,
+              name:true,
+              specialization:true,
+              experience:true
+            }
+          },
+          appointment:true
+        },
+        orderBy:{ createdAt:"desc" }
+      })
+    }
+
+    /* DOCTOR */
+    else if(user.role === "doctor"){
+      prescriptions = await prisma.prescription.findMany({
+        where:{ doctorId: user.id },
+        include:{
+          patient:true,
+          appointment:true
+        },
+        orderBy:{ createdAt:"desc" }
+      })
+    }
+
+    /* ADMIN */
+    else if(user.role === "admin"){
+      prescriptions = await prisma.prescription.findMany({
+        include:{
+          doctor:true,
+          patient:true,
+          appointment:true
+        },
+        orderBy:{ createdAt:"desc" }
+      })
+    }
 
     return NextResponse.json(prescriptions)
 
   }catch(err){
-
-    console.log("GET PRESCRIPTIONS ERROR:",err)
-
-    return NextResponse.json(
-      { error:"Failed to fetch prescriptions" },
-      { status:500 }
-    )
-
+    console.log("GET ERROR:",err)
+    return NextResponse.json({ error:"Failed" },{ status:500 })
   }
-
 }

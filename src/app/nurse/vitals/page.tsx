@@ -12,6 +12,3 @@ export default function VitalsPage() {
     </Suspense>
   )
 }
-
-// Optional: agar pura route dynamic chahiye to yeh add kar sakte ho
-// export const dynamic = 'force-dynamic'
