@@ -315,7 +315,7 @@ model Queue {
 model PharmacyBill {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  patientId String @db.ObjectId
+  patientId String  @db.ObjectId
   patient   Patient @relation(fields: [patientId], references: [id])
 
   total Float
@@ -328,10 +328,10 @@ model PharmacyBill {
 model PharmacyBillItem {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  billId String @db.ObjectId
+  billId String       @db.ObjectId
   bill   PharmacyBill @relation(fields: [billId], references: [id])
 
-  medicineId String @db.ObjectId
+  medicineId String   @db.ObjectId
   medicine   Medicine @relation(fields: [medicineId], references: [id])
 
   quantity Int
@@ -356,7 +356,6 @@ model Medicine {
 
   billItems PharmacyBillItem[] // 🔥 IMPORTANT
 }
-
 
 ///////////////////////////////
 //Admission
