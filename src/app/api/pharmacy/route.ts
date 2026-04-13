@@ -37,7 +37,7 @@ export async function POST(req:Request){
 
     const body = await req.json()
 
-    const { patientId, items, total } = body
+    const { patientId, items } = body
 
     if(!patientId || !items || items.length === 0){
       return NextResponse.json(
@@ -46,14 +46,16 @@ export async function POST(req:Request){
       )
     }
 
+    let total = 0
+
     /* ============================= */
-    /* STOCK CHECK + UPDATE */
+    /* STOCK CHECK */
     /* ============================= */
 
     for(const item of items){
 
       const med = await prisma.medicine.findUnique({
-        where:{ id:item.id }
+        where:{ id:item.medicineId } // ✅ FIX
       })
 
       if(!med){
@@ -70,9 +72,43 @@ export async function POST(req:Request){
         )
       }
 
-      // 🔥 reduce stock
+      total += med.price * item.quantity
+    }
+
+    /* ============================= */
+    /* CREATE BILL (NEW SCHEMA) */
+    /* ============================= */
+
+    const bill = await prisma.pharmacyBill.create({
+      data:{
+        patientId,
+        total,
+        items:{
+          create: items.map((item:any)=>({
+            medicineId: item.medicineId,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        }
+      },
+      include:{
+        items:{
+          include:{
+            medicine:true
+          }
+        },
+        patient:true
+      }
+    })
+
+    /* ============================= */
+    /* UPDATE STOCK */
+    /* ============================= */
+
+    for(const item of items){
+
       await prisma.medicine.update({
-        where:{ id:item.id },
+        where:{ id:item.medicineId },
         data:{
           stock:{
             decrement: item.quantity
@@ -80,18 +116,6 @@ export async function POST(req:Request){
         }
       })
     }
-
-    /* ============================= */
-    /* CREATE BILL */
-    /* ============================= */
-
-    const bill = await prisma.pharmacyBill.create({
-      data:{
-        patientId,
-        medicines: items, // 🔥 FIXED (NOT items)
-        total
-      }
-    })
 
     return NextResponse.json(bill)
 
@@ -126,7 +150,12 @@ export async function GET(){
       orderBy:{ createdAt:"desc" },
 
       include:{
-        patient:true
+        patient:true,
+        items:{
+          include:{
+            medicine:true
+          }
+        }
       }
 
     })
