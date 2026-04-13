@@ -3,7 +3,9 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { cookies } from "next/headers"
 
-const SECRET = process.env.JWT_SECRET!
+/* ============================= */
+/* AUTH HELPER */
+/* ============================= */
 
 async function getUser(){
   const cookieStore = await cookies()
@@ -12,52 +14,65 @@ async function getUser(){
   if(!token) return null
 
   try{
-    return jwt.verify(token, SECRET)
+    return jwt.verify(token, process.env.JWT_SECRET!)
   }catch{
     return null
   }
 }
 
-/* ================= CREATE BILL ================= */
+/* ============================= */
+/* CREATE BILL */
+/* ============================= */
 
-export async function POST(req: Request){
+export async function POST(req:Request){
 
   try{
 
     const user:any = await getUser()
 
-    // 🔐 only admin / receptionist
-    if(!user || (user.role !== "admin" && user.role !== "receptionist")){
+    // 🔒 only admin / receptionist
+    if(!user || !["admin","receptionist"].includes(user.role)){
       return NextResponse.json({ error:"Unauthorized" },{ status:401 })
     }
 
     const body = await req.json()
 
-    const { patientId, items } = body
+    const { patientId, items, total } = body
 
-    // items = [{ medicineId, quantity }]
+    if(!patientId || !items || items.length === 0){
+      return NextResponse.json(
+        { error:"Invalid data" },
+        { status:400 }
+      )
+    }
 
-    let total = 0
+    /* ============================= */
+    /* STOCK CHECK + UPDATE */
+    /* ============================= */
 
     for(const item of items){
 
-      const medicine = await prisma.medicine.findUnique({
-        where:{ id: item.medicineId }
+      const med = await prisma.medicine.findUnique({
+        where:{ id:item.id }
       })
 
-      if(!medicine){
-        return NextResponse.json({ error:"Medicine not found" },{ status:404 })
+      if(!med){
+        return NextResponse.json(
+          { error:`Medicine not found` },
+          { status:404 }
+        )
       }
 
-      if(medicine.stock < item.quantity){
-        return NextResponse.json({ error:`Low stock for ${medicine.name}` },{ status:400 })
+      if(med.stock < item.quantity){
+        return NextResponse.json(
+          { error:`${med.name} out of stock` },
+          { status:400 }
+        )
       }
-
-      total += medicine.price * item.quantity
 
       // 🔥 reduce stock
       await prisma.medicine.update({
-        where:{ id: item.medicineId },
+        where:{ id:item.id },
         data:{
           stock:{
             decrement: item.quantity
@@ -66,11 +81,14 @@ export async function POST(req: Request){
       })
     }
 
-    // 🔥 create bill
+    /* ============================= */
+    /* CREATE BILL */
+    /* ============================= */
+
     const bill = await prisma.pharmacyBill.create({
       data:{
         patientId,
-        items,
+        medicines: items, // 🔥 FIXED (NOT items)
         total
       }
     })
@@ -81,11 +99,17 @@ export async function POST(req: Request){
 
     console.log("PHARMACY ERROR:",err)
 
-    return NextResponse.json({ error:"Failed" },{ status:500 })
+    return NextResponse.json(
+      { error:"Failed to create bill" },
+      { status:500 }
+    )
   }
+
 }
 
-/* ================= GET BILLS ================= */
+/* ============================= */
+/* GET ALL BILLS */
+/* ============================= */
 
 export async function GET(){
 
@@ -94,38 +118,30 @@ export async function GET(){
     const user:any = await getUser()
 
     if(!user){
-      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+      return NextResponse.json([], { status:401 })
     }
 
-    let bills:any = []
+    const bills = await prisma.pharmacyBill.findMany({
 
-    // 👑 admin
-    if(user.role === "admin" || user.role === "receptionist"){
-      bills = await prisma.pharmacyBill.findMany({
-        orderBy:{ createdAt:"desc" }
-      })
-    }
+      orderBy:{ createdAt:"desc" },
 
-    // 👤 patient
-    else if(user.role === "patient"){
+      include:{
+        patient:true
+      }
 
-      const patient = await prisma.patient.findFirst({
-        where:{ userId:user.id }
-      })
-
-      bills = await prisma.pharmacyBill.findMany({
-        where:{ patientId: patient?.id },
-        orderBy:{ createdAt:"desc" }
-      })
-    }
-
-    else{
-      return NextResponse.json({ error:"Forbidden" },{ status:403 })
-    }
+    })
 
     return NextResponse.json(bills)
 
-  }catch{
-    return NextResponse.json({ error:"Failed" },{ status:500 })
+  }catch(err){
+
+    console.log("GET BILL ERROR:",err)
+
+    return NextResponse.json(
+      { error:"Failed to fetch bills" },
+      { status:500 }
+    )
+
   }
+
 }

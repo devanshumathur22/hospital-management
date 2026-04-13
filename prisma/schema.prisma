@@ -43,7 +43,7 @@ enum Day {
 //////////////////////////////
 
 model Admin {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
   userId String? @db.ObjectId
 
   user User? @relation("UserAdmins", fields: [userId], references: [id])
@@ -59,7 +59,7 @@ model Admin {
 //////////////////////////////
 
 model Doctor {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
   userId String? @db.ObjectId
 
   user User? @relation("UserDoctors", fields: [userId], references: [id])
@@ -93,12 +93,13 @@ model Doctor {
 
   @@index([specialization])
 }
+
 //////////////////////////////
 // PATIENT
 //////////////////////////////
 
 model Patient {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
   userId String? @db.ObjectId
 
   user User? @relation("UserPatients", fields: [userId], references: [id])
@@ -129,6 +130,7 @@ model Patient {
 
   @@index([phone])
 }
+
 //////////////////////////////
 // APPOINTMENTS
 //////////////////////////////
@@ -163,7 +165,7 @@ model Appointment {
 model Prescription {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  doctorId      String? @db.ObjectId   // ✅ OPTIONAL
+  doctorId      String? @db.ObjectId // ✅ OPTIONAL
   patientId     String  @db.ObjectId
   appointmentId String? @unique @db.ObjectId
 
@@ -224,7 +226,7 @@ model Slot {
 //////////////////////////////
 
 model Receptionist {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
   userId String? @db.ObjectId
 
   user User? @relation("UserReceptionists", fields: [userId], references: [id])
@@ -234,12 +236,13 @@ model Receptionist {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 //////////////////////////////
 // NURSE
 //////////////////////////////
 
 model Nurse {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
   userId String? @db.ObjectId
 
   user User? @relation("UserNurses", fields: [userId], references: [id])
@@ -307,8 +310,36 @@ model Queue {
 }
 
 //////////////////////////////
-// PHARMACY MEDICINES
-//////////////////////////////
+//pharmacyBills
+/////////////////////////////
+model PharmacyBill {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  patientId String @db.ObjectId
+  patient   Patient @relation(fields: [patientId], references: [id])
+
+  total Float
+
+  items PharmacyBillItem[] // 🔥 relation
+
+  createdAt DateTime @default(now())
+}
+
+model PharmacyBillItem {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  billId String @db.ObjectId
+  bill   PharmacyBill @relation(fields: [billId], references: [id])
+
+  medicineId String @db.ObjectId
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+
+  quantity Int
+  price    Float
+
+  @@index([billId])
+  @@index([medicineId])
+}
 
 model Medicine {
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -322,26 +353,10 @@ model Medicine {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  billItems PharmacyBillItem[] // 🔥 IMPORTANT
 }
-//////////////////////////////
-// PHARMACY BILLING
-//////////////////////////////
 
-model PharmacyBill {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  patientId      String  @db.ObjectId
-  prescriptionId String? @db.ObjectId
-
-  medicines Json
-  total     Float
-
-  createdAt DateTime @default(now())
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-}
 
 ///////////////////////////////
 //Admission
