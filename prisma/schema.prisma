@@ -43,11 +43,12 @@ enum Day {
 //////////////////////////////
 
 model Admin {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String
-  email    String @unique
-  password String
-  role     Role   @default(admin)
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String? @db.ObjectId
+
+  user User? @relation("UserAdmins", fields: [userId], references: [id])
+
+  name String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -58,10 +59,12 @@ model Admin {
 //////////////////////////////
 
 model Doctor {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String
-  email    String @unique
-  password String
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String? @db.ObjectId
+
+  user User? @relation("UserDoctors", fields: [userId], references: [id])
+
+  name String
 
   specialization String
   experience     Int
@@ -74,9 +77,7 @@ model Doctor {
   rating       Float @default(0)
   totalReviews Int   @default(0)
 
-  role Role @default(doctor)
-
-  nurses Nurse[] @relation("DoctorNurses") // 🔥 ADD NAME
+  nurses Nurse[] @relation("DoctorNurses")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -92,16 +93,17 @@ model Doctor {
 
   @@index([specialization])
 }
-
 //////////////////////////////
 // PATIENT
 //////////////////////////////
 
 model Patient {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String
-  email    String @unique
-  password String
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String? @db.ObjectId
+
+  user User? @relation("UserPatients", fields: [userId], references: [id])
+
+  name String
 
   phone  String?
   gender String?
@@ -115,8 +117,6 @@ model Patient {
   allergies      String?
   medicalHistory String?
 
-  role Role @default(patient)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -125,12 +125,10 @@ model Patient {
   queues        Queue[]
   vitals        Vital[]
   pharmacyBills PharmacyBill[]
-
-  admissions Admission[] // ✅ ADD THIS
+  admissions    Admission[]
 
   @@index([phone])
 }
-
 //////////////////////////////
 // APPOINTMENTS
 //////////////////////////////
@@ -226,27 +224,27 @@ model Slot {
 //////////////////////////////
 
 model Receptionist {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String
-  email    String @unique
-  password String
-  role     Role   @default(receptionist)
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String? @db.ObjectId
+
+  user User? @relation("UserReceptionists", fields: [userId], references: [id])
+
+  name String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
 //////////////////////////////
 // NURSE
 //////////////////////////////
 
 model Nurse {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String
-  email    String @unique
-  password String
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String? @db.ObjectId
 
-  role Role @default(nurse)
+  user User? @relation("UserNurses", fields: [userId], references: [id])
+
+  name String
 
   doctorId String? @db.ObjectId
   doctor   Doctor? @relation("DoctorNurses", fields: [doctorId], references: [id])
@@ -254,7 +252,7 @@ model Nurse {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vitals Vital[]   // 🔥 MUST ADD THIS
+  vitals Vital[]
 }
 
 //////////////////////////////
@@ -325,7 +323,6 @@ model Medicine {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
 //////////////////////////////
 // PHARMACY BILLING
 //////////////////////////////
@@ -364,4 +361,27 @@ model Admission {
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([doctorId])
+}
+
+////////////////////////////////
+//USer
+///////////////////////////////
+model User {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  email    String @unique
+  password String
+  role     Role
+
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ✅ MATCHED RELATIONS (IMPORTANT)
+  admins        Admin[]        @relation("UserAdmins")
+  doctors       Doctor[]       @relation("UserDoctors")
+  patients      Patient[]      @relation("UserPatients")
+  receptionists Receptionist[] @relation("UserReceptionists")
+  nurses        Nurse[]        @relation("UserNurses")
 }

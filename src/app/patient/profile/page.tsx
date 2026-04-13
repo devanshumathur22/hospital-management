@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { User, Phone, Mail, Edit, Save, X } from "lucide-react"
+import { User, Edit, Save, X } from "lucide-react"
 
 export default function PatientProfile(){
 
@@ -18,31 +18,60 @@ export default function PatientProfile(){
     emergencyContact:""
   })
 
-  useEffect(()=>{
+  /* ================= AGE CALCULATE ================= */
 
-    const load = async()=>{
+  const getAge = (dob:string)=>{
+    if(!dob) return "-"
 
-      const res = await fetch("/api/patients")
+    const birth = new Date(dob)
+    const today = new Date()
+
+    let age = today.getFullYear() - birth.getFullYear()
+    const m = today.getMonth() - birth.getMonth()
+
+    if(m < 0 || (m === 0 && today.getDate() < birth.getDate())){
+      age--
+    }
+
+    return age
+  }
+
+  /* ================= LOAD USER ================= */
+
+  const load = async()=>{
+
+    try{
+
+      const res = await fetch("/api/auth/me",{
+        cache:"no-store"
+      })
+
       const data = await res.json()
 
-      if(data){
+      if(data.user){
         setForm({
-          name: data.name || "",
-          phone: data.phone || "",
-          gender: data.gender || "",
-          dob: data.dob ? data.dob.split("T")[0] : "",
-          bloodGroup: data.bloodGroup || "",
-          address: data.address || "",
-          emergencyContact: data.emergencyContact || ""
+          name: data.user.name || "",
+          phone: data.user.phone || "",
+          gender: data.user.gender || "",
+          dob: data.user.dob ? data.user.dob.split("T")[0] : "",
+          bloodGroup: data.user.bloodGroup || "",
+          address: data.user.address || "",
+          emergencyContact: data.user.emergencyContact || ""
         })
       }
 
-      setLoading(false)
+    }catch(err){
+      console.log("LOAD ERROR:",err)
     }
 
-    load()
+    setLoading(false)
+  }
 
+  useEffect(()=>{
+    load()
   },[])
+
+  /* ================= HANDLE CHANGE ================= */
 
   const handleChange = (e:any)=>{
     setForm({
@@ -51,18 +80,35 @@ export default function PatientProfile(){
     })
   }
 
+  /* ================= SAVE ================= */
+
   const save = async()=>{
 
-    const res = await fetch("/api/patients",{
-      method:"PUT",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify(form)
-    })
+    try{
 
-    if(res.ok){
+      const res = await fetch("/api/profile",{
+        method:"PUT",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify(form)
+      })
+
+      const data = await res.json()
+
+      if(!res.ok){
+        alert(data.error || "Update failed")
+        return
+      }
+
       setEditing(false)
+      await load()
+
       alert("Updated ✅")
+
+    }catch(err){
+      console.log(err)
+      alert("Error updating profile")
     }
+
   }
 
   if(loading){
@@ -85,7 +131,7 @@ export default function PatientProfile(){
 
             <div>
               <h1 className="text-xl font-semibold">
-                {form.name}
+                {form.name || "Patient"}
               </h1>
               <p className="text-sm text-gray-500">
                 Patient Profile
@@ -112,7 +158,10 @@ export default function PatientProfile(){
               </button>
 
               <button
-                onClick={()=>setEditing(false)}
+                onClick={()=>{
+                  setEditing(false)
+                  load()
+                }}
                 className="flex items-center gap-1 bg-gray-400 text-white px-4 py-2 rounded"
               >
                 <X size={14}/>
@@ -132,7 +181,7 @@ export default function PatientProfile(){
             {editing ? (
               <input name="name" value={form.name} onChange={handleChange} className="border p-2 rounded w-full"/>
             ) : (
-              <p className="font-medium">{form.name}</p>
+              <p className="font-medium">{form.name || "-"}</p>
             )}
           </div>
 
@@ -142,7 +191,7 @@ export default function PatientProfile(){
             {editing ? (
               <input name="phone" value={form.phone} onChange={handleChange} className="border p-2 rounded w-full"/>
             ) : (
-              <p className="font-medium">{form.phone}</p>
+              <p className="font-medium">{form.phone || "-"}</p>
             )}
           </div>
 
@@ -168,6 +217,14 @@ export default function PatientProfile(){
             ) : (
               <p className="font-medium">{form.dob || "-"}</p>
             )}
+          </div>
+
+          {/* ✅ AGE (NEW) */}
+          <div>
+            <p className="text-xs text-gray-500">Age</p>
+            <p className="font-medium">
+              {getAge(form.dob)}
+            </p>
           </div>
 
           {/* BLOOD */}

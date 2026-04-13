@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { prisma } from "@/lib/prisma"
+import { cookies } from "next/headers"
 
-export async function GET(req: Request){
+export async function GET(){
 
   try {
 
-    const cookie = req.headers.get("cookie")
-
-    if(!cookie){
-      return NextResponse.json(null)
-    }
-
-    const token = cookie
-      .split(";")
-      .find(c => c.trim().startsWith("token="))
-      ?.split("=")[1]
+    const cookieStore = await cookies()
+    const token = cookieStore.get("token")?.value
 
     if(!token){
       return NextResponse.json(null)
@@ -23,15 +16,15 @@ export async function GET(req: Request){
 
     const decoded:any = jwt.verify(token, process.env.JWT_SECRET!)
 
-    // 🔥 FIX: doctor include kar
-    const nurse = await prisma.nurse.findUnique({
-      where:{ id: decoded.id },
+    // 🔥 correct mapping
+    const nurse = await prisma.nurse.findFirst({
+      where:{ userId: decoded.id },
       include: {
+        user:{ select:{ email:true } },
         doctor: {
           select: {
             id: true,
             name: true,
-            email: true,
             specialization: true
           }
         }

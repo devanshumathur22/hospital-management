@@ -11,13 +11,18 @@ const [filtered,setFiltered] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 const [search,setSearch] = useState("")
 
+/* ================= FETCH ================= */
+
 useEffect(()=>{
 
 const fetchPatients = async()=>{
 
 try{
 
-const res = await fetch("/api/patients")
+const res = await fetch("/api/patients",{
+credentials:"include" // 🔥 IMPORTANT
+})
+
 const data = await res.json()
 
 setPatients(data || [])
@@ -35,7 +40,7 @@ fetchPatients()
 
 },[])
 
-
+/* ================= SEARCH ================= */
 
 useEffect(()=>{
 
@@ -47,29 +52,30 @@ setFiltered(f)
 
 },[search,patients])
 
-
+/* ================= DELETE ================= */
 
 const deletePatient = async(id:string)=>{
 
 if(!confirm("Delete this patient?")) return
 
-await fetch(`/api/patients/${id}`,{
-method:"DELETE"
+const res = await fetch(`/api/patients/${id}`,{
+method:"DELETE",
+credentials:"include" // 🔥 IMPORTANT
 })
 
-setPatients(prev =>
-prev.filter(p => p.id !== id)
-)
+if(res.ok){
+setPatients(prev => prev.filter(p => p.id !== id))
+}else{
+alert("Delete failed")
+}
 
 }
 
-
+/* ================= UI ================= */
 
 if(loading){
 return <div className="p-10 text-center">Loading patients...</div>
 }
-
-
 
 return(
 
@@ -86,8 +92,6 @@ return(
 Patients
 
 </h1>
-
-
 
 {/* SEARCH */}
 
@@ -109,8 +113,6 @@ className="pl-10 pr-4 py-2 border rounded-lg w-full"
 
 </div>
 
-
-
 {/* GRID */}
 
 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -130,48 +132,36 @@ className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
 <div className="flex items-center gap-3 mb-4">
 
 <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
-
 <User size={20}/>
-
 </div>
 
 <div>
-
-<p className="font-semibold">
-{p.name}
-</p>
-
-<p className="text-xs text-gray-500">
-Patient
-</p>
-
+<p className="font-semibold">{p.name}</p>
+<p className="text-xs text-gray-500">Patient</p>
 </div>
 
 </div>
-
-
 
 {/* INFO */}
 
 <div className="space-y-2 text-sm text-gray-600 mb-4">
 
+{/* ✅ EMAIL FIX */}
 <div className="flex items-center gap-2">
 <Mail size={14}/>
-{p.email}
+{p.user?.email || "No email"}
 </div>
 
 <div className="flex items-center gap-2">
 <Phone size={14}/>
-{p.phone}
+{p.phone || "No phone"}
 </div>
 
 <div>
-Age: {p.age}
+Age: {p.age || "-"}
 </div>
 
 </div>
-
-
 
 {/* ACTION */}
 
@@ -181,7 +171,6 @@ className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm"
 >
 
 <Trash2 size={14}/>
-
 Delete
 
 </button>

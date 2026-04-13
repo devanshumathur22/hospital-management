@@ -2,9 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/getUser"
 
-/* ============================= */
-/* GET */
-/* ============================= */
+/* ================= GET ================= */
 
 export async function GET(req: Request) {
   try {
@@ -15,50 +13,56 @@ export async function GET(req: Request) {
       return NextResponse.json([], { status: 401 })
     }
 
-    const { searchParams } = new URL(req.url)
-    const patientId = searchParams.get("patient")
+    let vitals:any = []
 
-    let vitals = []
+    /* ================= PATIENT ================= */
 
-    // 🔥 PATIENT → only own
     if(user.role === "patient"){
+
+      const patient = await prisma.patient.findFirst({
+        where:{ userId: user.id }
+      })
+
       vitals = await prisma.vital.findMany({
-        where: {
-          patientId: user.id
-        },
-        orderBy: { createdAt: "desc" }
+        where:{ patientId: patient?.id },
+        orderBy:{ createdAt:"desc" }
       })
     }
 
-    // 🔥 DOCTOR → only their patients
+    /* ================= DOCTOR ================= */
+
     else if(user.role === "doctor"){
+
+      const doctor = await prisma.doctor.findFirst({
+        where:{ userId: user.id }
+      })
+
       vitals = await prisma.vital.findMany({
-        where: {
-          doctorId: user.id
-        },
-        orderBy: { createdAt: "desc" }
+        where:{ doctorId: doctor?.id },
+        orderBy:{ createdAt:"desc" }
       })
     }
 
-    // 🔥 NURSE → only assigned doctor
+    /* ================= NURSE ================= */
+
     else if(user.role === "nurse"){
 
-      const nurse = await prisma.nurse.findUnique({
-        where:{ id: user.id }
+      const nurse = await prisma.nurse.findFirst({
+        where:{ userId: user.id }
       })
 
       vitals = await prisma.vital.findMany({
-        where: {
-          doctorId: nurse?.doctorId
-        },
-        orderBy: { createdAt: "desc" }
+        where:{ doctorId: nurse?.doctorId },
+        orderBy:{ createdAt:"desc" }
       })
     }
 
-    // 🔥 ADMIN
+    /* ================= ADMIN ================= */
+
     else if(user.role === "admin"){
+
       vitals = await prisma.vital.findMany({
-        orderBy: { createdAt: "desc" }
+        orderBy:{ createdAt:"desc" }
       })
     }
 
@@ -71,16 +75,14 @@ export async function GET(req: Request) {
 }
 
 
-/* ============================= */
-/* POST */
-/* ============================= */
+/* ================= POST ================= */
 
 export async function POST(req: Request) {
   try {
 
-    const nurse: any = await getCurrentUser()
+    const user:any = await getCurrentUser()
 
-    if (!nurse || nurse.role !== "nurse") {
+    if (!user || user.role !== "nurse") {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -96,16 +98,16 @@ export async function POST(req: Request) {
       )
     }
 
-    // 🔥 MAIN FIX → get doctorId from nurse
-    const nurseData = await prisma.nurse.findUnique({
-      where:{ id: nurse.id }
+    // 🔥 FIX → correct nurse
+    const nurse = await prisma.nurse.findFirst({
+      where:{ userId: user.id }
     })
 
     const vital = await prisma.vital.create({
       data: {
         patientId: body.patientId,
-        nurseId: nurse.id,
-        doctorId: nurseData?.doctorId, // 🔥 IMPORTANT FIX
+        nurseId: nurse?.id,
+        doctorId: nurse?.doctorId,
 
         bp: body.bp || null,
 

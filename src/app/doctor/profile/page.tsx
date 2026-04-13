@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react"
+import { motion } from "framer-motion"
 import {
   User,
   Mail,
@@ -10,7 +10,7 @@ import {
   Edit,
   Save,
   X
-} from "lucide-react";
+} from "lucide-react"
 
 export default function DoctorProfile(){
 
@@ -21,9 +21,10 @@ export default function DoctorProfile(){
   const [form,setForm] = useState({
     name:"",
     specialization:"",
-    experience:"",
-    email:""
+    experience:""
   })
+
+  /* ================= LOAD ================= */
 
   useEffect(()=>{
 
@@ -31,9 +32,8 @@ export default function DoctorProfile(){
 
       try{
 
-        // ✅ FIXED API (logged-in user)
-        const res = await fetch("/api/auth/me", {
-          cache: "no-store"
+        const res = await fetch("/api/auth/me",{
+          cache:"no-store"
         })
 
         const data = await res.json()
@@ -45,8 +45,7 @@ export default function DoctorProfile(){
           setForm({
             name:data.user.name || "",
             specialization:data.user.specialization || "",
-            experience:data.user.experience || "",
-            email:data.user.email || ""
+            experience:data.user.experience || ""
           })
 
         }
@@ -63,28 +62,16 @@ export default function DoctorProfile(){
 
   },[])
 
-
-
-  if(loading){
-    return <div className="p-10 text-center">Loading profile...</div>
-  }
-
-  if(!doctor){
-    return <div className="p-10 text-center">Doctor not found</div>
-  }
-
-
+  /* ================= CHANGE ================= */
 
   const handleChange = (e:any)=>{
-
     setForm({
       ...form,
       [e.target.name]:e.target.value
     })
-
   }
 
-
+  /* ================= SAVE ================= */
 
   const saveProfile = async()=>{
 
@@ -92,16 +79,19 @@ export default function DoctorProfile(){
 
       const res = await fetch(`/api/doctors/${doctor.id}`,{
         method:"PUT",
+        credentials:"include",
         headers:{
           "Content-Type":"application/json"
         },
-        body:JSON.stringify({
-          id: doctor.id,
-          ...form
-        })
+        body:JSON.stringify(form)
       })
 
       const data = await res.json()
+
+      if(!res.ok){
+        alert(data.error || "Update failed")
+        return
+      }
 
       setDoctor(data)
       setEditing(false)
@@ -112,7 +102,15 @@ export default function DoctorProfile(){
 
   }
 
+  /* ================= UI ================= */
 
+  if(loading){
+    return <div className="p-10 text-center">Loading profile...</div>
+  }
+
+  if(!doctor){
+    return <div className="p-10 text-center">Doctor not found</div>
+  }
 
   return(
 
@@ -142,8 +140,7 @@ export default function DoctorProfile(){
 
         </div>
 
-
-        {/* INFO GRID */}
+        {/* INFO */}
         <div className="grid md:grid-cols-2 gap-6">
 
           <div className="flex items-center gap-3">
@@ -162,16 +159,18 @@ export default function DoctorProfile(){
             </div>
           </div>
 
+          {/* ✅ EMAIL FIXED */}
           <div className="flex items-center gap-3">
             <Mail size={18}/>
             <div>
               <p className="text-xs text-gray-500">Email</p>
-              <p className="font-medium">{doctor.email}</p>
+              <p className="font-medium">
+                {doctor.user?.email}
+              </p>
             </div>
           </div>
 
         </div>
-
 
         {/* BUTTON */}
         <div className="mt-8">
@@ -187,7 +186,6 @@ export default function DoctorProfile(){
         </div>
 
       </motion.div>
-
 
       {/* EDIT MODAL */}
       {editing && (
@@ -222,17 +220,10 @@ export default function DoctorProfile(){
               value={form.experience}
               onChange={handleChange}
               placeholder="Experience (years)"
-              className="w-full border p-3 rounded mb-4"
-            />
-
-            <input
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Email"
               className="w-full border p-3 rounded mb-6"
             />
 
+            {/* ❌ EMAIL REMOVED (IMPORTANT) */}
 
             <div className="flex justify-end gap-3">
 
@@ -263,5 +254,4 @@ export default function DoctorProfile(){
     </div>
 
   )
-
 }

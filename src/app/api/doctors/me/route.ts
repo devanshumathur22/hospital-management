@@ -1,56 +1,95 @@
-// /api/auth/me/route.ts
-
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
 
-export async function GET(req: Request){
+export async function GET(){
 
   try{
 
-    const cookie = req.headers.get("cookie")
-
-    if(!cookie){
-      return NextResponse.json(null)
-    }
-
-    const token = cookie
-      .split(";")
-      .find(c => c.trim().startsWith("token="))
-      ?.split("=")[1]
+    const cookieStore = await cookies()
+    const token = cookieStore.get("token")?.value
 
     if(!token){
-      return NextResponse.json(null)
+      return NextResponse.json({ user:null })
     }
 
     const decoded:any = jwt.verify(token, process.env.JWT_SECRET!)
 
     let user = null
 
-    // 🔥 ROLE BASED FETCH
+    /* ===================== */
+    /* DOCTOR */
+    /* ===================== */
+
     if(decoded.role === "doctor"){
-      user = await prisma.doctor.findUnique({
-        where:{ id: decoded.id }
+      user = await prisma.doctor.findFirst({
+        where:{ userId: decoded.id },
+        include:{
+          user:{ select:{ email:true } }
+        }
       })
     }
+
+    /* ===================== */
+    /* PATIENT */
+    /* ===================== */
 
     else if(decoded.role === "patient"){
-      user = await prisma.patient.findUnique({
-        where:{ id: decoded.id }
+      user = await prisma.patient.findFirst({
+        where:{ userId: decoded.id },
+        include:{
+          user:{ select:{ email:true } }
+        }
       })
     }
 
+    /* ===================== */
+    /* NURSE */
+    /* ===================== */
+
     else if(decoded.role === "nurse"){
-      user = await prisma.nurse.findUnique({
-        where:{ id: decoded.id },
-        include:{ doctor:true }
+      user = await prisma.nurse.findFirst({
+        where:{ userId: decoded.id },
+        include:{
+          doctor:true,
+          user:{ select:{ email:true } }
+        }
+      })
+    }
+
+    /* ===================== */
+    /* ADMIN */
+    /* ===================== */
+
+    else if(decoded.role === "admin"){
+      user = await prisma.admin.findFirst({
+        where:{ userId: decoded.id },
+        include:{
+          user:{ select:{ email:true } }
+        }
+      })
+    }
+
+    /* ===================== */
+    /* RECEPTIONIST */
+    /* ===================== */
+
+    else if(decoded.role === "receptionist"){
+      user = await prisma.receptionist.findFirst({
+        where:{ userId: decoded.id },
+        include:{
+          user:{ select:{ email:true } }
+        }
       })
     }
 
     return NextResponse.json({ user })
 
-  }catch{
-    return NextResponse.json(null)
-  }
+  }catch(err){
 
+    console.log("ME ERROR:", err)
+
+    return NextResponse.json({ user:null })
+  }
 }

@@ -91,19 +91,17 @@ const hasTodayAppointment = (doctorId?: string) => {
 
 const cancelAppointment = async(id:string)=>{
 
-  const res = await fetch("/api/appointments",{
+  const res = await fetch(`/api/appointments/${id}`,{
     method:"DELETE",
-    credentials:"include",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ id })
+    credentials:"include"
   })
 
   const data = await res.json()
 
-  if(data.success){
+  if(res.ok){
     await fetchAppointments()
   }else{
-    alert("Delete failed")
+    alert(data.error || "Delete failed")
   }
 }
 

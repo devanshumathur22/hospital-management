@@ -6,27 +6,47 @@ import { User, Mail, Stethoscope } from "lucide-react"
 export default function NurseProfile(){
 
   const [nurse,setNurse] = useState<any>(null)
+  const [loading,setLoading] = useState(true)
 
   useEffect(()=>{
 
     const loadProfile = async () => {
 
-      const res = await fetch("/api/auth/me")
-      const data = await res.json()
+      try{
 
-      // ✅ IMPORTANT FIX
-      setNurse(data.user)
+        const res = await fetch("/api/auth/me",{
+          cache:"no-store"
+        })
 
+        const data = await res.json()
+
+        setNurse(data.user)
+
+      }catch(err){
+        console.log("PROFILE ERROR",err)
+      }
+
+      setLoading(false)
     }
 
     loadProfile()
 
   },[])
 
+  /* ================= UI ================= */
+
+  if(loading){
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Loading profile...
+      </div>
+    )
+  }
+
   if(!nurse){
     return (
       <div className="p-10 text-center text-gray-500">
-        Loading...
+        Nurse not found
       </div>
     )
   }
@@ -42,7 +62,7 @@ export default function NurseProfile(){
         </h1>
 
         {/* PROFILE */}
-        <div className="space-y-4">
+        <div className="space-y-5">
 
           {/* NAME */}
           <div className="flex items-center gap-3">
@@ -52,11 +72,11 @@ export default function NurseProfile(){
             </p>
           </div>
 
-          {/* EMAIL */}
+          {/* ✅ EMAIL FIX */}
           <div className="flex items-center gap-3">
             <Mail size={18}/>
             <p className="text-gray-600">
-              {nurse.email || "-"}
+              {nurse.user?.email || "No email"}
             </p>
           </div>
 

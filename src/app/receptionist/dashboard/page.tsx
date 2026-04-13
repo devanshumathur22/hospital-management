@@ -2,153 +2,133 @@
 
 import { useEffect,useState } from "react"
 import {
-Users,
-UserPlus,
-Calendar,
-Activity
+  Users,
+  UserPlus,
+  Calendar,
+  Activity
 } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function Dashboard(){
 
-const [stats,setStats] = useState<any>(null)
+  const [stats,setStats] = useState<any>(null)
+  const [loading,setLoading] = useState(true)
+  const [error,setError] = useState("")
 
-useEffect(()=>{
+  /* ================= LOAD ================= */
 
-fetch("/api/stats")
-.then(res=>res.json())
-.then(setStats)
+  useEffect(()=>{
 
-},[])
+    const load = async()=>{
 
-if(!stats){
-return <div className="p-10 text-center">Loading dashboard...</div>
-}
+      try{
 
-return(
+        const res = await fetch("/api/stats",{
+          credentials:"include" // 🔥 IMPORTANT
+        })
 
-<div className="max-w-7xl mx-auto px-4 py-10">
+        const data = await res.json()
 
-<h1 className="text-3xl font-bold mb-10">
-Admin Dashboard
-</h1>
+        if(!res.ok){
+          setError(data.error || "Failed to load")
+        }else{
+          setStats(data)
+        }
 
+      }catch(err){
+        console.log(err)
+        setError("Something went wrong")
+      }
 
+      setLoading(false)
+    }
 
-{/* STATS */}
+    load()
 
-<div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+  },[])
 
-{/* DOCTORS */}
+  /* ================= UI ================= */
 
-<motion.div
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
->
+  if(loading){
+    return <div className="p-10 text-center">Loading dashboard...</div>
+  }
 
-<div className="flex items-center gap-3 mb-3">
+  if(error){
+    return <div className="p-10 text-center text-red-500">{error}</div>
+  }
 
-<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-<Users size={18}/>
-</div>
+  return(
 
-<span className="text-sm text-gray-500">
-Doctors
-</span>
+    <div className="max-w-7xl mx-auto px-4 py-10">
 
-</div>
+      <h1 className="text-3xl font-bold mb-10">
+        Admin Dashboard
+      </h1>
 
-<p className="text-3xl font-bold">
-{stats.doctors}
-</p>
+      {/* STATS */}
 
-</motion.div>
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
 
+        {/* CARD COMPONENT */}
+        {[
+          {
+            title:"Doctors",
+            value:stats.doctors,
+            icon:<Users size={18}/>,
+            bg:"bg-blue-100"
+          },
+          {
+            title:"Patients",
+            value:stats.patients,
+            icon:<UserPlus size={18}/>,
+            bg:"bg-green-100"
+          },
+          {
+            title:"Appointments",
+            value:stats.appointments,
+            icon:<Calendar size={18}/>,
+            bg:"bg-purple-100"
+          },
+          {
+            title:"Today",
+            value:stats.today,
+            icon:<Activity size={18}/>,
+            bg:"bg-orange-100"
+          }
+        ].map((card,i)=>(
 
+          <motion.div
+            key={i}
+            initial={{opacity:0,y:20}}
+            animate={{opacity:1,y:0}}
+            transition={{delay:i*0.1}}
+            whileHover={{y:-6,scale:1.02}}
+            className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-xl transition"
+          >
 
-{/* PATIENTS */}
+            <div className="flex items-center gap-3 mb-4">
 
-<motion.div
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
->
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${card.bg}`}>
+                {card.icon}
+              </div>
 
-<div className="flex items-center gap-3 mb-3">
+              <span className="text-sm text-gray-500">
+                {card.title}
+              </span>
 
-<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-<UserPlus size={18}/>
-</div>
+            </div>
 
-<span className="text-sm text-gray-500">
-Patients
-</span>
+            <p className="text-3xl font-bold">
+              {card.value}
+            </p>
 
-</div>
+          </motion.div>
 
-<p className="text-3xl font-bold">
-{stats.patients}
-</p>
+        ))}
 
-</motion.div>
+      </div>
 
+    </div>
 
-
-{/* APPOINTMENTS */}
-
-<motion.div
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
->
-
-<div className="flex items-center gap-3 mb-3">
-
-<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-<Calendar size={18}/>
-</div>
-
-<span className="text-sm text-gray-500">
-Appointments
-</span>
-
-</div>
-
-<p className="text-3xl font-bold">
-{stats.appointments}
-</p>
-
-</motion.div>
-
-
-
-{/* TODAY */}
-
-<motion.div
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
->
-
-<div className="flex items-center gap-3 mb-3">
-
-<div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-<Activity size={18}/>
-</div>
-
-<span className="text-sm text-gray-500">
-Today
-</span>
-
-</div>
-
-<p className="text-3xl font-bold">
-{stats.today}
-</p>
-
-</motion.div>
-
-</div>
-
-</div>
-
-)
-
+  )
 }

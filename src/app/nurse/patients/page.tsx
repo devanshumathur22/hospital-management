@@ -11,33 +11,39 @@ export default function NursePatients(){
 
   const [patients,setPatients] = useState<any[]>([])
   const [search,setSearch] = useState("")
+  const [loading,setLoading] = useState(true)
 
   useEffect(()=>{
-
     loadPatients()
-
   },[])
+
+  /* ================= LOAD ================= */
 
   const loadPatients = async () => {
 
     try{
 
       // 🔥 get nurse
-      const me = await fetch("/api/auth/me")
+      const me = await fetch("/api/auth/me",{
+        cache:"no-store"
+      })
+
       const nurse = await me.json()
 
-      if(!nurse?.doctor?.id){
+      if(!nurse?.user?.doctor?.id){
         setPatients([])
+        setLoading(false)
         return
       }
 
-      // 🔥 get appointments (filtered by doctor automatically)
-      const res = await fetch("/api/appointments")
+      // 🔥 get appointments
+      const res = await fetch("/api/appointments",{
+        credentials:"include"
+      })
+
       const data = await res.json()
 
-      // 🔥 extract patients
-      const uniquePatients = []
-
+      // 🔥 unique patients
       const map = new Map()
 
       data.forEach((a:any)=>{
@@ -52,13 +58,20 @@ export default function NursePatients(){
       console.log("PATIENT LOAD ERROR",err)
     }
 
+    setLoading(false)
   }
 
-  /* SEARCH */
+  /* ================= SEARCH ================= */
 
   const filtered = patients.filter(p =>
     p.name?.toLowerCase().includes(search.toLowerCase())
   )
+
+  /* ================= UI ================= */
+
+  if(loading){
+    return <div className="p-10 text-center">Loading patients...</div>
+  }
 
   return(
 
@@ -78,6 +91,13 @@ export default function NursePatients(){
           className="border rounded-lg h-10 pl-9 pr-3 w-full"
         />
       </div>
+
+      {/* EMPTY */}
+      {filtered.length === 0 && (
+        <p className="text-gray-500">
+          No patients found
+        </p>
+      )}
 
       {/* LIST */}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -105,10 +125,10 @@ export default function NursePatients(){
               {p.phone || "-"}
             </div>
 
-            {/* 🔥 EMAIL */}
+            {/* ✅ EMAIL FIX */}
             <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
               <Mail size={14}/>
-              {p.email || "-"}
+              {p.user?.email || "No email"}
             </div>
 
           </motion.div>
@@ -117,12 +137,7 @@ export default function NursePatients(){
 
       </div>
 
-      {filtered.length === 0 && (
-        <p className="text-gray-500">
-          No patients found
-        </p>
-      )}
-
     </div>
+
   )
 }

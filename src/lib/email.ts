@@ -8,13 +8,23 @@ const transporter = nodemailer.createTransport({
   }
 })
 
-export async function sendEmail(to:string,subject:string,text:string){
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+){
+  try {
+    await transporter.sendMail({
+      from: `"Hospital App" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html
+    })
 
-await transporter.sendMail({
-from: process.env.EMAIL_USER,
-to,
-subject,
-text
-})
+    console.log("✅ Email sent to:", to)
 
+  } catch (err) {
+    console.log("❌ Email error:", err)
+    throw err
+  }
 }

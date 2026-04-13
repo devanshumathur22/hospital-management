@@ -1,195 +1,122 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
 
-/* -------- GET ALL DOCTORS -------- */
+const SECRET = process.env.JWT_SECRET!
+
+/* 🔐 AUTH */
+async function getUser(){
+  const cookieStore = await cookies()
+  const token = cookieStore.get("token")?.value
+
+  if(!token) return null
+
+  try{
+    return jwt.verify(token, SECRET)
+  }catch{
+    return null
+  }
+}
+
+/* -------- GET -------- */
 
 export async function GET(){
   try{
 
     const doctors = await prisma.doctor.findMany({
-
       orderBy:{ createdAt:"desc" },
-
-      select:{
-        id:true,
-        name:true,
-        email:true,
-        specialization:true,
-        experience:true,
-        degree:true,
-        phone:true,
-        image:true,
-        about:true,
-        createdAt:true,
-
-        // 🔥 ADD THIS
+      include:{
+        user:{ select:{ email:true } },
         nurses:{
           select:{
             id:true,
             name:true,
-            email:true
+            user:{ select:{ email:true } }
           }
         }
-
       }
-
     })
 
     return NextResponse.json(doctors)
 
   }catch(error){
-
-    console.log("GET DOCTORS ERROR:",error)
-
-    return NextResponse.json(
-      { error:"Failed to fetch doctors" },
-      { status:500 }
-    )
-
+    return NextResponse.json({ error:"Failed" },{ status:500 })
   }
 }
 
-/* -------- CREATE DOCTOR -------- */
+/* -------- CREATE -------- */
 
 export async function POST(req:Request){
+  try{
 
-try{
+    const admin:any = await getUser()
 
-const body = await req.json()
+    if(!admin || admin.role !== "admin"){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+    }
 
-let { name,email,password,specialization,experience,degree,phone,image,about } = body
+    const body = await req.json()
+    let { name,email,password,specialization,experience } = body
 
-if(!name || !email || !password){
+    email = email.toLowerCase().trim()
 
-return NextResponse.json(
-{ error:"Name email password required" },
-{ status:400 }
-)
+    const exist = await prisma.user.findUnique({ where:{ email } })
 
+    if(exist){
+      return NextResponse.json({ error:"User exists" },{ status:400 })
+    }
+
+    const hashed = await bcrypt.hash(password,10)
+
+    const user = await prisma.user.create({
+      data:{ email,password:hashed,role:"doctor" }
+    })
+
+    const doctor = await prisma.doctor.create({
+      data:{
+        userId:user.id,
+        name,
+        specialization: specialization || "General",
+        experience:Number(experience) || 0
+      },
+      include:{
+        user:{ select:{ email:true } }
+      }
+    })
+
+    return NextResponse.json(doctor)
+
+  }catch{
+    return NextResponse.json({ error:"Failed" },{ status:500 })
+  }
 }
 
-email = email.toLowerCase().trim()
-
-const exist = await prisma.doctor.findUnique({
-where:{ email }
-})
-
-if(exist){
-
-return NextResponse.json(
-{ error:"Doctor already exists" },
-{ status:400 }
-)
-
-}
-
-const hashedPassword = await bcrypt.hash(password,10)
-
-const doctor = await prisma.doctor.create({
-
-data:{
-name,
-email,
-password:hashedPassword,
-specialization: specialization || "General",
-experience:Number(experience) || 0,
-degree: degree || null,
-phone: phone || null,
-image: image || null,
-about: about || null,
-role:"doctor"
-},
-
-select:{
-id:true,
-name:true,
-email:true,
-specialization:true,
-experience:true,
-degree:true,
-phone:true,
-image:true,
-about:true,
-createdAt:true
-}
-
-})
-
-return NextResponse.json(doctor,{status:201})
-
-}catch(error){
-
-console.log("CREATE DOCTOR ERROR:",error)
-
-return NextResponse.json(
-{ error:"Failed to create doctor" },
-{ status:500 }
-)
-
-}
-
-}
-
-
-
-/* -------- UPDATE DOCTOR -------- */
+/* -------- UPDATE -------- */
 
 export async function PUT(req:Request){
+  try{
 
-try{
+    const admin:any = await getUser()
 
-const body = await req.json()
+    if(!admin || admin.role !== "admin"){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+    }
 
-const { id, password, ...data } = body
+    const { id, ...data } = await req.json()
 
-if(!id){
+    const updated = await prisma.doctor.update({
+      where:{ id },
+      data,
+      include:{
+        user:{ select:{ email:true } }
+      }
+    })
 
-return NextResponse.json(
-{ error:"Doctor id required" },
-{ status:400 }
-)
+    return NextResponse.json(updated)
 
-}
-
-/* password update */
-
-if(password){
-data.password = await bcrypt.hash(password,10)
-}
-
-const updatedDoctor = await prisma.doctor.update({
-
-where:{ id },
-
-data,
-
-select:{
-id:true,
-name:true,
-email:true,
-specialization:true,
-experience:true,
-degree:true,
-phone:true,
-image:true,
-about:true,
-createdAt:true
-}
-
-})
-
-return NextResponse.json(updatedDoctor)
-
-}catch(error){
-
-console.log("UPDATE DOCTOR ERROR:",error)
-
-return NextResponse.json(
-{ error:"Failed to update doctor" },
-{ status:500 }
-)
-
-}
-
+  }catch{
+    return NextResponse.json({ error:"Failed" },{ status:500 })
+  }
 }

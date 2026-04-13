@@ -1,209 +1,169 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
+import type { NextRequest } from "next/server"
 
-/* -------- GET ALL DOCTORS -------- */
+const SECRET = process.env.JWT_SECRET!
 
-export async function GET() {
-  try {
-    const doctors = await prisma.doctor.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        specialization: true,
-        experience: true,
-        degree: true,
-        phone: true,
-        image: true,
-        about: true,
-        createdAt: true
-      }
-    })
+/* ============================= */
+/* AUTH HELPER */
+/* ============================= */
 
-    return NextResponse.json(doctors)
+async function getUser(){
+  const cookieStore = await cookies()
+  const token = cookieStore.get("token")?.value
 
-  } catch (error) {
-    console.log("GET DOCTORS ERROR:", error)
+  if(!token) return null
 
-    return NextResponse.json(
-      { error: "Failed to fetch doctors" },
-      { status: 500 }
-    )
+  try{
+    return jwt.verify(token, SECRET)
+  }catch{
+    return null
   }
 }
 
-/* -------- CREATE DOCTOR -------- */
+/* ============================= */
+/* GET SINGLE DOCTOR */
+/* ============================= */
 
-export async function POST(req: Request) {
-  try {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+){
+  try{
 
-    const body = await req.json()
+    const { id } = await context.params
 
-    let {
-      name,
-      email,
-      password,
-      specialization,
-      experience,
-      degree,
-      phone,
-      image,
-      about
-    } = body
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: "Name, email and password required" },
-        { status: 400 }
-      )
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      )
-    }
-
-    email = email.toLowerCase().trim()
-
-    const exist = await prisma.doctor.findUnique({
-      where: { email }
+    const doctor = await prisma.doctor.findUnique({
+      where:{ id },
+      include:{
+        user:{ select:{ email:true } }
+      }
     })
 
-    if (exist) {
-      return NextResponse.json(
-        { error: "Doctor already exists" },
-        { status: 400 }
-      )
+    return NextResponse.json(doctor)
+
+  }catch{
+    return NextResponse.json({ error:"Failed" },{ status:500 })
+  }
+}
+
+/* ============================= */
+/* UPDATE DOCTOR */
+/* ============================= */
+
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+){
+  try{
+
+    const user:any = await getUser()
+
+    if(!user){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const { id } = await context.params
+    const body = await req.json()
 
-    const doctor = await prisma.doctor.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        specialization: specialization || "General",
-        experience: Number(experience) || 0,
-        degree: degree || null,
-        phone: phone || null,
-        image: image || null,
-        about: about || null,
-        role: "doctor"
+    /* ============================= */
+    /* 🔐 ROLE CHECK */
+    /* ============================= */
+
+    if(user.role !== "admin" && user.role !== "doctor"){
+      return NextResponse.json({ error:"Forbidden" },{ status:403 })
+    }
+
+    /* ============================= */
+    /* 🔒 DOCTOR SELF CHECK */
+    /* ============================= */
+
+    if(user.role === "doctor"){
+
+      const doctor = await prisma.doctor.findFirst({
+        where:{ userId: user.id }
+      })
+
+      if(doctor?.id !== id){
+        return NextResponse.json({ error:"Forbidden" },{ status:403 })
+      }
+    }
+
+    /* ============================= */
+    /* UPDATE */
+    /* ============================= */
+
+    const updated = await prisma.doctor.update({
+      where:{ id },
+      data:{
+        name: body.name,
+        specialization: body.specialization,
+        experience: Number(body.experience) || 0
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        specialization: true,
-        experience: true,
-        degree: true,
-        phone: true,
-        image: true,
-        about: true,
-        createdAt: true
+      include:{
+        user:{ select:{ email:true } }
       }
     })
 
-    return NextResponse.json(doctor, { status: 201 })
+    return NextResponse.json(updated)
 
-  } catch (error) {
-    console.log("CREATE DOCTOR ERROR:", error)
+  }catch(err){
+
+    console.log("UPDATE DOCTOR ERROR:",err)
 
     return NextResponse.json(
-      { error: "Failed to create doctor" },
-      { status: 500 }
+      { error:"Failed to update doctor" },
+      { status:500 }
     )
   }
 }
 
-/* -------- UPDATE DOCTOR -------- */
-
-export async function PUT(req: Request) {
-  try {
-
-    const body = await req.json()
-    const { id, password, ...data } = body
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Doctor id required" },
-        { status: 400 }
-      )
-    }
-
-    if (data.experience) {
-      data.experience = Number(data.experience)
-    }
-
-    if (password) {
-      data.password = await bcrypt.hash(password, 10)
-    }
-
-    const updatedDoctor = await prisma.doctor.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        specialization: true,
-        experience: true,
-        degree: true,
-        phone: true,
-        image: true,
-        about: true,
-        createdAt: true
-      }
-    })
-
-    return NextResponse.json(updatedDoctor)
-
-  } catch (error) {
-    console.log("UPDATE DOCTOR ERROR:", error)
-
-    return NextResponse.json(
-      { error: "Failed to update doctor" },
-      { status: 500 }
-    )
-  }
-}
-
-/* -------- DELETE DOCTOR -------- */
+/* ============================= */
+/* DELETE DOCTOR */
+/* ============================= */
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+){
+  try{
 
-    const { id } = await params
+    const user:any = await getUser()
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "Doctor id required" },
-        { status: 400 }
-      )
+    if(!user || user.role !== "admin"){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
     }
 
+    const { id } = await context.params
+
+    const doctor = await prisma.doctor.findUnique({
+      where:{ id }
+    })
+
+    if(!doctor){
+      return NextResponse.json({ error:"Not found" },{ status:404 })
+    }
+
+    // 🔥 delete linked user
+    await prisma.user.delete({
+      where:{ id: doctor.userId! }
+    })
+
     await prisma.doctor.delete({
-      where: { id }
+      where:{ id }
     })
 
-    return NextResponse.json({
-      message: "Doctor deleted successfully"
-    })
+    return NextResponse.json({ message:"Deleted" })
 
-  } catch (error) {
-    console.log("DELETE DOCTOR ERROR:", error)
+  }catch(err){
+
+    console.log("DELETE DOCTOR ERROR:",err)
 
     return NextResponse.json(
-      { error: "Failed to delete doctor" },
-      { status: 500 }
+      { error:"Failed to delete doctor" },
+      { status:500 }
     )
   }
 }

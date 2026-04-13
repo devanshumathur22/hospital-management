@@ -7,7 +7,8 @@ import {
   Calendar,
   Clock,
   CheckCircle,
-  Search
+  Search,
+  Mail
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -16,6 +17,7 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [doctors, setDoctors] = useState<any[]>([])
   const [patients, setPatients] = useState<any[]>([])
+  const [loading,setLoading] = useState(true)
 
   const [patientSearch, setPatientSearch] = useState("")
   const [doctorSearch, setDoctorSearch] = useState("")
@@ -31,14 +33,12 @@ export default function Appointments() {
     time: ""
   })
 
-  /* ===================== */
-  /* FETCH DATA */
-  /* ===================== */
+  /* ================= FETCH ================= */
 
   async function fetchData() {
     try {
       const [a, d, p] = await Promise.all([
-        fetch("/api/appointments"),
+        fetch("/api/appointments",{ credentials:"include" }),
         fetch("/api/doctors"),
         fetch("/api/patients")
       ])
@@ -54,15 +54,15 @@ export default function Appointments() {
     } catch (err) {
       console.error("Fetch error:", err)
     }
+
+    setLoading(false)
   }
 
   useEffect(() => {
     fetchData()
   }, [])
 
-  /* ===================== */
-  /* FILTERS */
-  /* ===================== */
+  /* ================= FILTER ================= */
 
   const filteredPatients = patients.filter(p =>
     p.name?.toLowerCase().includes(patientSearch.toLowerCase())
@@ -75,9 +75,7 @@ export default function Appointments() {
     d.name.toLowerCase().includes(doctorSearch.toLowerCase())
   )
 
-  /* ===================== */
-  /* TIME SLOTS */
-  /* ===================== */
+  /* ================= TIME ================= */
 
   const timeSlots = [
     "09:00 AM","09:30 AM","10:00 AM","10:30 AM",
@@ -86,9 +84,7 @@ export default function Appointments() {
     "03:30 PM","04:00 PM","04:30 PM","05:00 PM"
   ]
 
-  /* ===================== */
-  /* CREATE APPOINTMENT */
-  /* ===================== */
+  /* ================= CREATE ================= */
 
   async function createAppointment() {
 
@@ -100,6 +96,7 @@ export default function Appointments() {
     try {
       const res = await fetch("/api/appointments", {
         method: "POST",
+        credentials:"include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       })
@@ -111,10 +108,8 @@ export default function Appointments() {
         return
       }
 
-      // refresh list
       fetchData()
 
-      // reset
       setForm({
         doctorId: "",
         patientId: "",
@@ -132,14 +127,16 @@ export default function Appointments() {
     }
   }
 
-  /* ===================== */
-  /* UI */
-  /* ===================== */
+  /* ================= UI ================= */
+
+  if(loading){
+    return <div className="p-10 text-center">Loading...</div>
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 space-y-12">
 
-      {/* BOOK APPOINTMENT */}
+      {/* BOOK */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -158,7 +155,7 @@ export default function Appointments() {
             <label className="text-sm text-gray-500 mb-1 block">Patient</label>
 
             <div className="flex items-center border rounded-lg h-10 px-3 gap-2">
-              <Search size={16} className="text-gray-400" />
+              <Search size={16}/>
               <input
                 placeholder="Search patient"
                 value={patientSearch}
@@ -182,7 +179,7 @@ export default function Appointments() {
                     }}
                     className="p-2 hover:bg-gray-100 cursor-pointer"
                   >
-                    {p.name}
+                    {p.name} ({p.user?.email})
                   </div>
                 ))}
               </div>
@@ -209,7 +206,7 @@ export default function Appointments() {
             <label className="text-sm text-gray-500 mb-1 block">Doctor</label>
 
             <div className="flex items-center border rounded-lg h-10 px-3 gap-2">
-              <Search size={16} className="text-gray-400" />
+              <Search size={16}/>
               <input
                 placeholder="Search doctor"
                 value={doctorSearch}
@@ -233,7 +230,7 @@ export default function Appointments() {
                     }}
                     className="p-2 hover:bg-gray-100 cursor-pointer"
                   >
-                    {d.name}
+                    {d.name} ({d.specialization})
                   </div>
                 ))}
               </div>
@@ -276,15 +273,15 @@ export default function Appointments() {
 
         <button
           onClick={createAppointment}
-          className="mt-8 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+          className="mt-8 flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg"
         >
-          <CheckCircle size={16} />
+          <CheckCircle size={16}/>
           Book Appointment
         </button>
 
       </motion.div>
 
-      {/* APPOINTMENTS */}
+      {/* LIST */}
       <div>
         <h2 className="text-2xl font-semibold mb-8">Appointments</h2>
 
@@ -294,22 +291,27 @@ export default function Appointments() {
             <div key={a.id} className="bg-white border rounded-2xl p-6 shadow-sm">
 
               <p className="flex items-center gap-2 text-sm mb-1">
-                <User size={14} />
-                {a.patient?.name || "No Patient"}
+                <User size={14}/>
+                {a.patient?.name}
+              </p>
+
+              <p className="flex items-center gap-2 text-sm mb-1 text-gray-500">
+                <Mail size={14}/>
+                {a.patient?.user?.email || "-"}
               </p>
 
               <p className="flex items-center gap-2 text-sm mb-1">
-                <Stethoscope size={14} />
-                {a.doctor?.name || "No Doctor"}
+                <Stethoscope size={14}/>
+                {a.doctor?.name}
               </p>
 
               <p className="flex items-center gap-2 text-sm mb-1">
-                <Calendar size={14} />
+                <Calendar size={14}/>
                 {new Date(a.date).toLocaleDateString()}
               </p>
 
               <p className="flex items-center gap-2 text-sm">
-                <Clock size={14} />
+                <Clock size={14}/>
                 {a.time}
               </p>
 

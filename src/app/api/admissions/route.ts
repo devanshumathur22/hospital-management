@@ -14,9 +14,22 @@ export async function GET() {
       )
     }
 
+    // 🔥 find doctor from user
+    const doctor = await prisma.doctor.findFirst({
+      where: { userId: user.id }
+    })
+
+    if(!doctor){
+      return NextResponse.json(
+        { error: "Doctor not found" },
+        { status: 404 }
+      )
+    }
+
+    // ✅ now correct query
     const admissions = await prisma.admission.findMany({
       where: {
-        doctorId: user.id
+        doctorId: doctor.id
       },
       include: {
         patient: true

@@ -1,59 +1,78 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
+
+const SECRET = process.env.JWT_SECRET!
 
 export async function GET(){
 
-try{
+  try{
 
-const doctors = await prisma.doctor.count()
-const patients = await prisma.patient.count()
-const appointments = await prisma.appointment.count()
+    // 🔐 AUTH
+    const cookieStore = await cookies()
+    const token = cookieStore.get("token")?.value
 
-/* TODAY APPOINTMENTS */
+    if(!token){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+    }
 
-const today = new Date()
+    const user:any = jwt.verify(token, SECRET)
 
-const start = new Date(
-today.getFullYear(),
-today.getMonth(),
-today.getDate()
-)
+    // 🔥 ROLE CHECK
+    if(user.role !== "admin"){
+      return NextResponse.json({ error:"Forbidden" },{ status:403 })
+    }
 
-const end = new Date(
-today.getFullYear(),
-today.getMonth(),
-today.getDate()+1
-)
+    /* ===================== */
+    /* COUNTS */
+    /* ===================== */
 
-const todayAppointments = await prisma.appointment.count({
+    const doctors = await prisma.doctor.count()
+    const patients = await prisma.patient.count()
+    const appointments = await prisma.appointment.count()
 
-where:{
-date:{
-gte:start,
-lt:end
-}
-}
+    /* ===================== */
+    /* TODAY */
+    /* ===================== */
 
-})
+    const today = new Date()
 
-return NextResponse.json({
+    const start = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    )
 
-doctors,
-patients,
-appointments,
-today:todayAppointments
+    const end = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()+1
+    )
 
-})
+    const todayAppointments = await prisma.appointment.count({
+      where:{
+        date:{
+          gte:start,
+          lt:end
+        }
+      }
+    })
 
-}catch(err){
+    return NextResponse.json({
+      doctors,
+      patients,
+      appointments,
+      today: todayAppointments
+    })
 
-console.log("STATS ERROR:",err)
+  }catch(err){
 
-return NextResponse.json(
-{ error:"Failed to fetch stats" },
-{ status:500 }
-)
+    console.log("STATS ERROR:",err)
 
-}
-
+    return NextResponse.json(
+      { error:"Failed to fetch stats" },
+      { status:500 }
+    )
+  }
 }

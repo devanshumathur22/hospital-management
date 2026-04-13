@@ -1,71 +1,126 @@
 import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { prisma } from "@/lib/prisma"
+import { cookies } from "next/headers"
 
 const SECRET = process.env.JWT_SECRET!
 
 export async function PUT(req: Request) {
 
   try {
-    const cookie = req.headers.get("cookie")
 
-    if (!cookie) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const token = cookie
-      .split(";")
-      .find(c => c.trim().startsWith("token="))
-      ?.split("=")[1]
+    const cookieStore = await cookies()
+    const token = cookieStore.get("token")?.value
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const decoded: any = jwt.verify(token, SECRET)
+    let decoded:any
+
+    try{
+      decoded = jwt.verify(token, SECRET)
+    }catch{
+      return NextResponse.json({ error:"Invalid token" },{ status:401 })
+    }
 
     const body = await req.json()
 
     let updatedUser = null
 
+    /* ================= DOCTOR ================= */
+
     if (decoded.role === "doctor") {
+
+      const doctor = await prisma.doctor.findFirst({
+        where:{ userId: decoded.id }
+      })
+
       updatedUser = await prisma.doctor.update({
-        where: { id: decoded.id },
-        data: body
+        where: { id: doctor?.id },
+        data: {
+          name: body.name,
+          phone: body.phone,
+          about: body.about
+        }
       })
     }
 
-    if (decoded.role === "admin") {
-      updatedUser = await prisma.admin.update({
-        where: { id: decoded.id },
-        data: body
-      })
-    }
+    /* ================= PATIENT ================= */
 
     if (decoded.role === "patient") {
+
+      const patient = await prisma.patient.findFirst({
+        where:{ userId: decoded.id }
+      })
+
       updatedUser = await prisma.patient.update({
-        where: { id: decoded.id },
-        data: body
+        where: { id: patient?.id },
+        data: {
+          name: body.name,
+          phone: body.phone,
+          address: body.address
+        }
       })
     }
 
-    if (decoded.role === "receptionist") {
-      updatedUser = await prisma.receptionist.update({
-        where: { id: decoded.id },
-        data: body
-      })
-    }
+    /* ================= NURSE ================= */
 
     if (decoded.role === "nurse") {
+
+      const nurse = await prisma.nurse.findFirst({
+        where:{ userId: decoded.id }
+      })
+
       updatedUser = await prisma.nurse.update({
-        where: { id: decoded.id },
-        data: body
+        where: { id: nurse?.id },
+        data: {
+          name: body.name
+        }
+      })
+    }
+
+    /* ================= ADMIN ================= */
+
+    if (decoded.role === "admin") {
+
+      const admin = await prisma.admin.findFirst({
+        where:{ userId: decoded.id }
+      })
+
+      updatedUser = await prisma.admin.update({
+        where: { id: admin?.id },
+        data: {
+          name: body.name
+        }
+      })
+    }
+
+    /* ================= RECEPTIONIST ================= */
+
+    if (decoded.role === "receptionist") {
+
+      const rec = await prisma.receptionist.findFirst({
+        where:{ userId: decoded.id }
+      })
+
+      updatedUser = await prisma.receptionist.update({
+        where: { id: rec?.id },
+        data: {
+          name: body.name
+        }
       })
     }
 
     return NextResponse.json({ user: updatedUser })
 
   } catch (err) {
-    return NextResponse.json({ error: "Update failed" }, { status: 500 })
+
+    console.log("PROFILE UPDATE ERROR:", err)
+
+    return NextResponse.json(
+      { error: "Update failed" },
+      { status: 500 }
+    )
   }
 }

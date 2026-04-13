@@ -4,28 +4,20 @@ import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { cookies } from "next/headers"
 
-/* ============================= */
-/* AUTH HELPER */
-/* ============================= */
+const SECRET = process.env.JWT_SECRET!
 
 async function getUser(){
-
   const cookieStore = await cookies()
   const token = cookieStore.get("token")?.value
-
   if(!token) return null
-
   try{
-    return jwt.verify(token,process.env.JWT_SECRET!)
+    return jwt.verify(token, SECRET)
   }catch{
     return null
   }
-
 }
 
-/* ============================= */
-/* GET PATIENTS / PROFILE */
-/* ============================= */
+/* ================= GET ================= */
 
 export async function GET(){
 
@@ -39,150 +31,81 @@ export async function GET(){
 
     let patients:any = []
 
-    /* ============================= */
-    /* 🔥 PATIENT → own profile */
-    /* ============================= */
-
+    /* PATIENT → own profile */
     if(user.role === "patient"){
 
-      const patient = await prisma.patient.findUnique({
-        where:{ id:user.id },
-        select:{
-          id:true,
-          name:true,
-          email:true,
-          phone:true,
-          gender:true,
-          bloodGroup:true,
-          dob:true,
-          address:true,
-          emergencyContact:true
+      const patient = await prisma.patient.findFirst({
+        where:{ userId:user.id },
+        include:{
+          user:{ select:{ email:true } }
         }
       })
 
       return NextResponse.json(patient)
     }
 
-    /* ============================= */
-    /* DOCTOR → own patients */
-    /* ============================= */
-
+    /* DOCTOR */
     if(user.role === "doctor"){
 
-      patients = await prisma.patient.findMany({
-
-        where:{
-          appointments:{
-            some:{ doctorId:user.id }
-          }
-        },
-
-        orderBy:{ createdAt:"desc" },
-
-        select:{
-          id:true,
-          name:true,
-          email:true,
-          phone:true,
-          gender:true,
-          bloodGroup:true,
-          createdAt:true
-        }
-
+      const doctor = await prisma.doctor.findFirst({
+        where:{ userId:user.id }
       })
 
+      patients = await prisma.patient.findMany({
+        where:{
+          appointments:{
+            some:{ doctorId:doctor?.id }
+          }
+        },
+        include:{
+          user:{ select:{ email:true } }
+        }
+      })
     }
 
-    /* ============================= */
-    /* NURSE → doctor ke patients */
-    /* ============================= */
-
+    /* NURSE */
     else if(user.role === "nurse"){
 
-      const nurse = await prisma.nurse.findUnique({
-        where:{ id:user.id },
+      const nurse = await prisma.nurse.findFirst({
+        where:{ userId:user.id },
         include:{ doctor:true }
       })
 
-      if(!nurse?.doctor){
-        return NextResponse.json([])
-      }
-
       patients = await prisma.patient.findMany({
-
         where:{
           appointments:{
-            some:{
-              doctorId:nurse.doctor.id
-            }
+            some:{ doctorId:nurse?.doctor?.id }
           }
         },
-
-        orderBy:{ createdAt:"desc" },
-
-        select:{
-          id:true,
-          name:true,
-          email:true,
-          phone:true,
-          gender:true,
-          bloodGroup:true,
-          createdAt:true
+        include:{
+          user:{ select:{ email:true } }
         }
-
       })
-
     }
 
-    /* ============================= */
-    /* ADMIN + RECEPTIONIST */
-    /* ============================= */
-
+    /* ADMIN / RECEPTIONIST */
     else if(user.role === "admin" || user.role === "receptionist"){
 
       patients = await prisma.patient.findMany({
-
-        orderBy:{ createdAt:"desc" },
-
-        select:{
-          id:true,
-          name:true,
-          email:true,
-          phone:true,
-          gender:true,
-          bloodGroup:true,
-          createdAt:true
-        }
-
+        include:{
+          user:{ select:{ email:true } }
+        },
+        orderBy:{ createdAt:"desc" }
       })
-
     }
 
     else{
-      return NextResponse.json(
-        {error:"Forbidden"},
-        {status:403}
-      )
+      return NextResponse.json({error:"Forbidden"},{status:403})
     }
 
     return NextResponse.json(patients)
 
-  }catch(err){
-
-    console.log("GET PATIENTS ERROR:",err)
-
-    return NextResponse.json(
-      {error:"Failed to fetch patients"},
-      {status:500}
-    )
-
+  }catch{
+    return NextResponse.json({error:"Failed"},{status:500})
   }
-
 }
 
-/* ============================= */
-/* CREATE PATIENT */
-/* ============================= */
+/* ================= CREATE ================= */
 
 export async function POST(req:Request){
 
@@ -190,88 +113,52 @@ export async function POST(req:Request){
 
     const user:any = await getUser()
 
-    if(!user){
+    if(!user || (user.role !== "admin" && user.role !== "receptionist")){
       return NextResponse.json({error:"Unauthorized"},{status:401})
-    }
-
-    if(user.role !== "admin" && user.role !== "receptionist"){
-      return NextResponse.json(
-        {error:"Forbidden"},
-        {status:403}
-      )
     }
 
     const body = await req.json()
 
-    if(!body.name || !body.email){
-      return NextResponse.json(
-        {error:"Name and Email required"},
-        {status:400}
-      )
-    }
-
     const email = body.email.toLowerCase().trim()
 
-    const exist = await prisma.patient.findUnique({
-      where:{email}
+    const exist = await prisma.user.findUnique({
+      where:{ email }
     })
 
     if(exist){
-      return NextResponse.json(
-        {error:"Patient already exists"},
-        {status:400}
-      )
+      return NextResponse.json({error:"User exists"},{status:400})
     }
 
-    const password = body.password || "123456"
-    const hashedPassword = await bcrypt.hash(password,10)
+    const hashed = await bcrypt.hash(body.password || "123456",10)
 
-    const patient = await prisma.patient.create({
-
+    const newUser = await prisma.user.create({
       data:{
-        name:body.name,
         email,
-        password:hashedPassword,
-        phone:body.phone || null,
-        gender:body.gender || null,
-        dob:body.dob ? new Date(body.dob) : null,
-        address:body.address || null,
-        bloodGroup:body.bloodGroup || null,
-        emergencyContact:body.emergencyContact || null,
-        allergies:body.allergies || null,
-        medicalHistory:body.medicalHistory || null
-      },
-
-      select:{
-        id:true,
-        name:true,
-        email:true,
-        phone:true,
-        gender:true,
-        bloodGroup:true,
-        createdAt:true
+        password:hashed,
+        role:"patient"
       }
-
     })
 
-    return NextResponse.json(patient,{status:201})
+    const patient = await prisma.patient.create({
+      data:{
+        userId:newUser.id,
+        name:body.name,
+        phone:body.phone || null,
+        gender:body.gender || null
+      },
+      include:{
+        user:{ select:{ email:true } }
+      }
+    })
 
-  }catch(err){
+    return NextResponse.json(patient)
 
-    console.log("CREATE PATIENT ERROR:",err)
-
-    return NextResponse.json(
-      {error:"Failed to create patient"},
-      {status:500}
-    )
-
+  }catch{
+    return NextResponse.json({error:"Failed"},{status:500})
   }
-
 }
 
-/* ============================= */
-/* UPDATE PATIENT PROFILE */
-/* ============================= */
+/* ================= UPDATE ================= */
 
 export async function PUT(req:Request){
 
@@ -279,46 +166,27 @@ export async function PUT(req:Request){
 
     const user:any = await getUser()
 
-    if(!user){
+    if(!user || user.role !== "patient"){
       return NextResponse.json({error:"Unauthorized"},{status:401})
-    }
-
-    if(user.role !== "patient"){
-      return NextResponse.json(
-        {error:"Forbidden"},
-        {status:403}
-      )
     }
 
     const body = await req.json()
 
+    const patient = await prisma.patient.findFirst({
+      where:{ userId:user.id }
+    })
+
     const updated = await prisma.patient.update({
-
-      where:{ id:user.id },
-
+      where:{ id:patient?.id },
       data:{
         name: body.name || undefined,
-        phone: body.phone || null,
-        gender: body.gender || null,
-        dob: body.dob ? new Date(body.dob) : null,
-        address: body.address || null,
-        bloodGroup: body.bloodGroup || null,
-        emergencyContact: body.emergencyContact || null
+        phone: body.phone || null
       }
-
     })
 
     return NextResponse.json(updated)
 
-  }catch(err){
-
-    console.log("UPDATE PATIENT ERROR:",err)
-
-    return NextResponse.json(
-      {error:"Failed to update profile"},
-      {status:500}
-    )
-
+  }catch{
+    return NextResponse.json({error:"Failed"},{status:500})
   }
-
 }

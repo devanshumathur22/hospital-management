@@ -1,42 +1,72 @@
 import { prisma } from "@/lib/prisma"
-import { NextResponse } from "next/server"
+import { NextResponse, NextRequest } from "next/server"
+import { verifyToken } from "@/lib/auth"
 
-export async function POST(req:Request){
+export async function POST(req: NextRequest){
 
-try{
+  try{
 
-const body = await req.json()
+    // 🔐 AUTH CHECK
+    const token = req.cookies.get("token")?.value
 
-const { doctorId , nurseId } = body
+    if(!token){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+    }
 
-if(!doctorId || !nurseId){
+    const user:any = verifyToken(token)
 
-return NextResponse.json(
-{ error:"doctorId and nurseId required" },
-{ status:400 }
-)
+    if(!user){
+      return NextResponse.json({ error:"Invalid token" },{ status:401 })
+    }
 
-}
+    // 🔥 ROLE CHECK (only admin)
+    if(user.role !== "admin"){
+      return NextResponse.json({ error:"Forbidden" },{ status:403 })
+    }
 
-const nurse = await prisma.nurse.update({
+    const body = await req.json()
+    const { doctorId , nurseId } = body
 
-where:{ id:nurseId },
+    if(!doctorId || !nurseId){
+      return NextResponse.json(
+        { error:"doctorId and nurseId required" },
+        { status:400 }
+      )
+    }
 
-data:{ doctorId }
+    // ✅ check doctor
+    const doctor = await prisma.doctor.findUnique({
+      where:{ id: doctorId }
+    })
 
-})
+    if(!doctor){
+      return NextResponse.json({ error:"Doctor not found" },{ status:404 })
+    }
 
-return NextResponse.json(nurse)
+    // ✅ check nurse
+    const nurse = await prisma.nurse.findUnique({
+      where:{ id: nurseId }
+    })
 
-}catch(err){
+    if(!nurse){
+      return NextResponse.json({ error:"Nurse not found" },{ status:404 })
+    }
 
-console.log("ASSIGN NURSE ERROR:",err)
+    // 🔥 assign
+    const updated = await prisma.nurse.update({
+      where:{ id: nurseId },
+      data:{ doctorId }
+    })
 
-return NextResponse.json(
-{ error:"Failed to assign nurse" },
-{ status:500 }
-)
+    return NextResponse.json(updated)
 
-}
+  }catch(err){
 
+    console.log("ASSIGN NURSE ERROR:",err)
+
+    return NextResponse.json(
+      { error:"Failed to assign nurse" },
+      { status:500 }
+    )
+  }
 }
