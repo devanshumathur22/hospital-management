@@ -3,174 +3,119 @@
 import Link from "next/link"
 import { HeartPulse, Phone, Mail, MapPin, Facebook, Twitter, Instagram } from "lucide-react"
 
-export default function Footer(){
+export default function Footer() {
+  return (
+    <footer className="px-4 mt-10">
 
-return(
+      {/* FLOATING GLASS CONTAINER */}
+      <div className="max-w-7xl mx-auto 
+      bg-white/30 backdrop-blur-2xl 
+      border border-white/20 
+      rounded-2xl 
+      shadow-[0_8px_30px_rgba(0,0,0,0.08)]
+      relative overflow-hidden">
 
-<footer className="bg-gray-900 text-gray-300 mt-0 ">
+        {/* GRADIENT GLOW */}
+        <div className="absolute inset-0 rounded-2xl pointer-events-none
+        bg-gradient-to-r from-blue-400/20 via-white/10 to-purple-400/20 blur-xl opacity-60"></div>
 
-{/* TOP */}
-<div className="max-w-7xl mx-auto px-6 py-4 grid md:grid-cols-4 gap-12">
+        {/* TOP */}
+        <div className="relative z-10 px-6 py-10 grid md:grid-cols-4 gap-10 text-gray-700">
 
-{/* BRAND */}
-<div>
+          {/* BRAND */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <HeartPulse className="text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-900">
+                HospitalCare
+              </h2>
+            </div>
 
-<div className="flex items-center gap-2 mb-4">
+            <p className="text-gray-600 leading-relaxed">
+              Providing modern healthcare services with advanced
+              technology and compassionate care for every patient.
+            </p>
 
-<HeartPulse className="text-blue-500"/>
+            {/* SOCIAL */}
+            <div className="flex gap-4 mt-6">
+              <Facebook className="hover:text-blue-600 cursor-pointer transition" />
+              <Twitter className="hover:text-blue-600 cursor-pointer transition" />
+              <Instagram className="hover:text-blue-600 cursor-pointer transition" />
+            </div>
+          </div>
 
-<h2 className="text-xl font-bold text-white">
-HospitalCare
-</h2>
+          {/* QUICK LINKS */}
+          <div>
+            <h3 className="font-semibold mb-6 text-gray-900">
+              Quick Links
+            </h3>
 
-</div>
+            <ul className="space-y-3">
+              <li><Link href="/" className="hover:text-blue-600 transition">Home</Link></li>
+              <li><Link href="/about" className="hover:text-blue-600 transition">About</Link></li>
+              <li><Link href="/departments" className="hover:text-blue-600 transition">Departments</Link></li>
+              <li><Link href="/services" className="hover:text-blue-600 transition">Services</Link></li>
+            </ul>
+          </div>
 
-<p className="text-gray-400 leading-relaxed">
-Providing modern healthcare services with advanced
-technology and compassionate care for every patient.
-</p>
+          {/* PAGES */}
+          <div>
+            <h3 className="font-semibold mb-6 text-gray-900">
+              Pages
+            </h3>
 
-{/* SOCIAL */}
-<div className="flex gap-4 mt-6">
+            <ul className="space-y-3">
+              <li><Link href="/doctors" className="hover:text-blue-600 transition">Doctors</Link></li>
+              <li><Link href="/appointment" className="hover:text-blue-600 transition">Appointment</Link></li>
+              <li><Link href="/blog" className="hover:text-blue-600 transition">Blog</Link></li>
+              <li><Link href="/contact" className="hover:text-blue-600 transition">Contact</Link></li>
+            </ul>
+          </div>
 
-<Facebook className="hover:text-blue-500 cursor-pointer transition"/>
-<Twitter className="hover:text-blue-500 cursor-pointer transition"/>
-<Instagram className="hover:text-blue-500 cursor-pointer transition"/>
+          {/* CONTACT */}
+          <div>
+            <h3 className="font-semibold mb-6 text-gray-900">
+              Contact
+            </h3>
 
-</div>
+            <div className="space-y-4 text-gray-700">
+              <div className="flex gap-3 items-center">
+                <Phone size={18} />
+                <span>+91 9876543210</span>
+              </div>
 
-</div>
+              <div className="flex gap-3 items-center">
+                <Mail size={18} />
+                <span>support@hospital.com</span>
+              </div>
 
+              <div className="flex gap-3 items-center">
+                <MapPin size={18} />
+                <span>Jaipur, Rajasthan</span>
+              </div>
+            </div>
 
-{/* QUICK LINKS */}
-<div>
+            {/* NEWSLETTER */}
+            <div className="mt-6">
+              <input
+                placeholder="Your email"
+                className="w-full p-3 rounded-lg bg-white/40 border border-white/20 text-sm outline-none"
+              />
 
-<h3 className="text-white font-semibold mb-6">
-Quick Links
-</h3>
+              <button className="mt-3 w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">
+                Subscribe
+              </button>
+            </div>
+          </div>
 
-<ul className="space-y-3">
+        </div>
 
-<li>
-<Link href="/" className="hover:text-blue-400 transition">
-Home
-</Link>
-</li>
+        {/* BOTTOM */}
+        <div className="relative z-10 border-t border-white/20 py-5 text-center text-gray-600 text-sm">
+          © {new Date().getFullYear()} HospitalCare. All rights reserved.
+        </div>
 
-<li>
-<Link href="/about" className="hover:text-blue-400 transition">
-About
-</Link>
-</li>
-
-<li>
-<Link href="/departments" className="hover:text-blue-400 transition">
-Departments
-</Link>
-</li>
-
-<li>
-<Link href="/services" className="hover:text-blue-400 transition">
-Services
-</Link>
-</li>
-
-</ul>
-
-</div>
-
-
-{/* PAGES */}
-<div>
-
-<h3 className="text-white font-semibold mb-6">
-Pages
-</h3>
-
-<ul className="space-y-3">
-
-<li>
-<Link href="/doctors" className="hover:text-blue-400 transition">
-Doctors
-</Link>
-</li>
-
-<li>
-<Link href="/appointment" className="hover:text-blue-400 transition">
-Appointment
-</Link>
-</li>
-
-<li>
-<Link href="/blog" className="hover:text-blue-400 transition">
-Blog
-</Link>
-</li>
-
-<li>
-<Link href="/contact" className="hover:text-blue-400 transition">
-Contact
-</Link>
-</li>
-
-</ul>
-
-</div>
-
-
-{/* CONTACT */}
-<div>
-
-<h3 className="text-white font-semibold mb-6">
-Contact
-</h3>
-
-<div className="space-y-4">
-
-<div className="flex gap-3 items-center">
-<Phone size={18}/>
-<span>+91 9876543210</span>
-</div>
-
-<div className="flex gap-3 items-center">
-<Mail size={18}/>
-<span>support@hospital.com</span>
-</div>
-
-<div className="flex gap-3 items-center">
-<MapPin size={18}/>
-<span>Jaipur, Rajasthan</span>
-</div>
-
-</div>
-
-{/* NEWSLETTER */}
-<div className="mt-6">
-
-<input
-placeholder="Your email"
-className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700 text-sm"
-/>
-
-<button className="mt-3 w-full bg-blue-600 hover:bg-blue-700 transition p-3 rounded-lg text-white text-sm">
-Subscribe
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-
-{/* BOTTOM */}
-<div className="border-t border-gray-800 py-6 text-center text-gray-500 text-sm">
-
-© {new Date().getFullYear()} HospitalCare. All rights reserved.
-
-</div>
-
-</footer>
-
-)
+      </div>
+    </footer>
+  )
 }
