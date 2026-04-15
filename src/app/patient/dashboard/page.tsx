@@ -1,131 +1,133 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { CalendarDays, FileText, ClipboardList, User, LogOut } from "lucide-react"
+import { CalendarDays, FileText, ClipboardList, User } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export default function PatientDashboard(){
 
 const router = useRouter()
 
-const handleLogout = async()=>{
-
-await fetch("/api/auth/logout",{
-method:"POST"
+const [stats,setStats] = useState({
+total:0,
+upcoming:0,
+prescriptions:0
 })
 
-localStorage.removeItem("patient") // cleanup
+const [activity,setActivity] = useState<any[]>([])
 
-router.push("/login")
+/* 🔥 FETCH DATA */
+useEffect(()=>{
+
+const load = async()=>{
+
+try{
+const res = await fetch("/api/patient/dashboard")
+const data = await res.json()
+
+setStats(data.stats || {})
+setActivity(data.activity || [])
+}catch(err){
+console.log(err)
 }
 
-const cards = [
+}
 
+load()
+
+},[])
+
+
+const cards = [
 {
 title:"Book Appointment",
-desc:"Schedule a new appointment with your preferred doctor.",
-icon:<CalendarDays size={28}/>,
-color:"from-blue-500 to-blue-600",
+desc:"Schedule a new appointment",
+icon:<CalendarDays size={24}/>,
 bg:"bg-blue-100",
 link:"/patient/doctors"
 },
-
 {
 title:"My Appointments",
-desc:"View all upcoming and past appointments.",
-icon:<ClipboardList size={28}/>,
-color:"from-green-500 to-green-600",
+desc:"View all appointments",
+icon:<ClipboardList size={24}/>,
 bg:"bg-green-100",
 link:"/patient/appointments"
 },
-
 {
 title:"Prescriptions",
-desc:"Check prescriptions provided by your doctors.",
-icon:<FileText size={28}/>,
-color:"from-purple-500 to-purple-600",
+desc:"Check prescriptions",
+icon:<FileText size={24}/>,
 bg:"bg-purple-100",
 link:"/patient/prescriptions"
 },
-
 {
 title:"My Profile",
-desc:"Manage your personal details and health profile.",
-icon:<User size={28}/>,
-color:"from-orange-500 to-orange-600",
+desc:"Manage profile",
+icon:<User size={24}/>,
 bg:"bg-orange-100",
 link:"/patient/profile"
 }
-
 ]
 
 return(
 
-<div className="min-h-screen p-10 bg-gradient-to-br from-blue-50 via-white to-blue-100">
+<div className="min-h-screen p-4 sm:p-6 md:p-10 bg-gradient-to-br from-blue-50 via-white to-blue-100 space-y-6">
 
-{/* HEADER */}
-
-<div className="flex justify-between items-center mb-12">
-
-<motion.div
-initial={{opacity:0,y:-20}}
-animate={{opacity:1,y:0}}
-transition={{duration:0.6}}
->
-
-<h1 className="text-4xl font-bold mb-2">
+{/* 🔥 HEADER */}
+<div className="space-y-1">
+<h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
 Patient Dashboard
 </h1>
-
-<p className="text-gray-600">
-Manage your appointments, prescriptions and profile easily.
+<p className="text-gray-600 text-sm">
+Manage your appointments & health records
 </p>
+</div>
 
-</motion.div>
+{/* 🔥 STATS */}
+<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
 
-{/* 🔥 LOGOUT BUTTON */}
+<div className="bg-white p-4 rounded-xl shadow">
+<p className="text-xs text-gray-500">Total</p>
+<h2 className="text-xl font-bold">{stats.total}</h2>
+</div>
 
-{/* <button
-onClick={handleLogout}
-className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 shadow"
->
+<div className="bg-white p-4 rounded-xl shadow">
+<p className="text-xs text-gray-500">Upcoming</p>
+<h2 className="text-xl font-bold">{stats.upcoming}</h2>
+</div>
 
-<LogOut size={18}/>
-
-Logout
-
-</button> */}
+<div className="bg-white p-4 rounded-xl shadow">
+<p className="text-xs text-gray-500">Prescriptions</p>
+<h2 className="text-xl font-bold">{stats.prescriptions}</h2>
+</div>
 
 </div>
 
-
-{/* GRID */}
-
-<div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+{/* 🔥 QUICK ACTIONS */}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
 {cards.map((card,i)=>(
 
 <motion.div
 key={i}
-initial={{opacity:0,y:40}}
+initial={{opacity:0,y:20}}
 animate={{opacity:1,y:0}}
-transition={{duration:0.5,delay:i*0.1}}
-whileHover={{scale:1.05,y:-5}}
+transition={{delay:i*0.1}}
+whileHover={{scale:1.03}}
 onClick={()=>router.push(card.link)}
-className="cursor-pointer relative overflow-hidden backdrop-blur-xl bg-white/50 border border-white/40 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all"
+className="cursor-pointer bg-white p-4 sm:p-6 rounded-2xl shadow hover:shadow-lg transition"
 >
 
-<div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-20 blur-3xl bg-gradient-to-r ${card.color}`}></div>
-
-<div className={`w-14 h-14 flex items-center justify-center rounded-xl ${card.bg} mb-5 text-gray-700`}>
+<div className={`w-12 h-12 flex items-center justify-center rounded-lg ${card.bg} mb-3`}>
 {card.icon}
 </div>
 
-<h2 className="text-xl font-bold mb-2">
+<h2 className="text-sm sm:text-base font-semibold">
 {card.title}
 </h2>
 
-<p className="text-gray-600 text-sm">
+<p className="text-xs text-gray-500">
 {card.desc}
 </p>
 
@@ -135,24 +137,54 @@ className="cursor-pointer relative overflow-hidden backdrop-blur-xl bg-white/50 
 
 </div>
 
+{/* 🔥 RECENT ACTIVITY */}
+<div className="bg-white p-4 sm:p-6 rounded-2xl shadow">
 
-{/* FLOAT BUTTON */}
+<h2 className="font-semibold mb-3 text-sm sm:text-base">
+Recent Activity
+</h2>
 
+{activity.length === 0 && (
+<p className="text-gray-500 text-sm">
+No recent activity
+</p>
+)}
+
+<div className="space-y-2 text-sm">
+
+{activity.map((a:any,i:number)=>(
+
+<div key={i} className="flex justify-between border-b pb-1">
+
+<span>
+{a.type === "appointment"
+? `Appointment with Dr. ${a.doctor}`
+: `Prescription added`}
+</span>
+
+<span className="text-gray-500 text-xs">
+{new Date(a.date).toLocaleDateString()}
+</span>
+
+</div>
+
+))}
+
+</div>
+
+</div>
+
+{/* 🔥 FLOAT BUTTON */}
 <motion.button
-initial={{opacity:0,y:60}}
+initial={{opacity:0,y:40}}
 animate={{opacity:1,y:0}}
-transition={{delay:0.6}}
 onClick={()=>router.push("/patient/doctors")}
-className="fixed bottom-8 right-8 bg-blue-600 text-white px-6 py-3 rounded-full shadow-xl hover:bg-blue-700 flex items-center gap-2"
+className="fixed bottom-6 right-6 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm"
 >
-
-<CalendarDays size={18}/>
 Book Appointment
-
 </motion.button>
 
 </div>
 
 )
-
 }

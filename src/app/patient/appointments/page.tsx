@@ -10,116 +10,97 @@ const [appointments,setAppointments] = useState<any[]>([])
 const [selected,setSelected] = useState<any>(null)
 const [newDate,setNewDate] = useState<Date | null>(null)
 const [newTime,setNewTime] = useState("")
+const [availability,setAvailability] = useState<any>(null)
+const [loading,setLoading] = useState(true)
 
-/* ============================= */
-/* GENERATE SLOTS */
-/* ============================= */
+/* 🔥 GENERATE SLOTS (VALUE + LABEL) */
+function generateTimeSlots(start:string,end:string){
 
-function generateTimeSlots(){
-  const slots = []
-  let start = 9 * 60
-  let end = 17 * 60
+  if(!start || !end) return []
 
-  for(let i = start; i < end; i += 15){
+  const slots:any[] = []
 
-    if(i >= 13*60 && i < 14*60) continue
+  const [sh,sm] = start.split(":").map(Number)
+  const [eh,em] = end.split(":").map(Number)
 
-    let hours = Math.floor(i / 60)
-    let minutes = i % 60
+  let startMin = sh * 60 + sm
+  let endMin = eh * 60 + em
 
-    let ampm = hours >= 12 ? "PM" : "AM"
+  for(let i = startMin; i < endMin; i += 15){
 
-    if(hours > 12) hours -= 12
-    if(hours === 0) hours = 12
+    const h = Math.floor(i / 60)
+    const m = i % 60
 
-    const time = `${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")} ${ampm}`
+    const value = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`
 
-    slots.push(time)
+    const label = new Date(`1970-01-01T${value}`).toLocaleTimeString([],{
+      hour:"2-digit",
+      minute:"2-digit"
+    })
+
+    slots.push({ value,label })
   }
 
   return slots
 }
 
-const timeSlots = generateTimeSlots()
-
-/* ============================= */
-/* FETCH */
-/* ============================= */
-
-const fetchAppointments = async()=>{
-
-  const res = await fetch("/api/appointments?type=pending", {
-    credentials:"include"
-  })
-
+/* 🔥 LOAD APPOINTMENTS */
+const loadData = async()=>{
+  const res = await fetch("/api/appointments?type=pending",{ credentials:"include" })
   const data = await res.json()
-
-  if(Array.isArray(data)){
-    setAppointments(data)
-  }
+  setAppointments(Array.isArray(data) ? data : [])
 }
 
+/* 🔥 INITIAL LOAD */
 useEffect(()=>{
-  fetchAppointments()
+  const load = async()=>{
+    await loadData()
+    setLoading(false)
+  }
+  load()
 },[])
 
-/* ============================= */
-/* HELPERS */
-/* ============================= */
-
-const isSlotBooked = (date: Date, time: string) => {
-  return appointments.some((a) => {
-    return (
-      new Date(a.date).toDateString() === date.toDateString() &&
-      a.time === time
-    )
-  })
-}
-
-const hasTodayAppointment = (doctorId?: string) => {
-  return appointments.some((a) => {
-    return (
-      new Date(a.date).toDateString() === new Date().toDateString() &&
-      (!doctorId || a.doctorId === doctorId)
-    )
-  })
-}
-
-/* ============================= */
-/* DELETE */
-/* ============================= */
-
-const cancelAppointment = async(id:string)=>{
-
-  const res = await fetch(`/api/appointments/${id}`,{
-    method:"DELETE",
-    credentials:"include"
-  })
-
-  const data = await res.json()
-
-  if(res.ok){
-    await fetchAppointments()
-  }else{
-    alert(data.error || "Delete failed")
-  }
-}
-
-/* ============================= */
-/* RESCHEDULE */
-/* ============================= */
-
-const openReschedule = (a:any)=>{
+/* 🔥 OPEN RESCHEDULE (IMPORTANT FIX) */
+const openReschedule = async(a:any)=>{
   setSelected(a)
   setNewDate(new Date(a.date))
   setNewTime(a.time)
+
+  // 🔥 fetch correct doctor availability
+  const res = await fetch(`/api/doctors/availability?doctorId=${a.doctorId}`)
+  const data = await res.json()
+  setAvailability(data)
 }
 
+/* 🔥 TIME SLOTS */
+const timeSlots = availability
+  ? generateTimeSlots(availability.start, availability.end)
+  : []
+
+/* 🔥 CHECK SLOT BOOKED */
+const isSlotBooked = (date: Date, time: string) => {
+  return appointments.some((a) =>
+    new Date(a.date).toDateString() === date.toDateString() &&
+    a.time === time &&
+    a.id !== selected?.id // 🔥 ignore current appointment
+  )
+}
+
+/* 🔥 DAY CHECK */
+const isDoctorAvailable = (date:Date)=>{
+  if(!availability?.days) return true
+  const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][date.getDay()]
+  return availability.days.includes(day)
+}
+
+/* 🔥 SAVE RESCHEDULE */
 const saveReschedule = async()=>{
+  if(!selected || !newDate || !newTime){
+    alert("Select date & time")
+    return
+  }
 
-  if(!selected) return
-
-  await fetch(`/api/appointments/${selected.id}`,{
+  const res = await fetch(`/api/appointments/${selected.id}`,{
     method:"PUT",
     credentials:"include",
     headers:{ "Content-Type":"application/json" },
@@ -129,75 +110,61 @@ const saveReschedule = async()=>{
     })
   })
 
-  setSelected(null)
-  await fetchAppointments()
+  if(res.ok){
+    alert("Rescheduled ✅")
+    setSelected(null)
+    loadData()
+  }else{
+    const err = await res.json()
+    alert(err.error || "Failed")
+  }
 }
 
-/* ============================= */
-/* UI */
-/* ============================= */
+/* 🔥 CANCEL */
+const cancelAppointment = async(id:string)=>{
+  await fetch(`/api/appointments/${id}`,{
+    method:"DELETE",
+    credentials:"include"
+  })
+  loadData()
+}
 
+/* 🔥 LOADING */
+if(loading){
+  return <div className="p-6 text-sm">Loading appointments...</div>
+}
+
+/* 🔥 UI */
 return(
 
-<div className="max-w-7xl mx-auto px-6 py-10">
+<div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-<h1 className="text-3xl font-bold mb-10">
-Appointments Dashboard
-</h1>
+<h1 className="text-2xl font-bold">Appointments</h1>
 
-{/* WARNING */}
-{hasTodayAppointment() && (
-  <p className="text-red-500 mb-6">
-    You already have an appointment today
-  </p>
-)}
-
-<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-{appointments.length === 0 && (
-<p className="text-gray-500">No appointments found</p>
-)}
+{/* LIST */}
+<div className="grid md:grid-cols-3 gap-4">
 
 {appointments.map((a:any)=>(
 
-<div
-key={a.id}
-className="bg-white p-6 rounded-2xl shadow-lg"
->
+<div key={a.id} className="bg-white p-4 rounded-xl shadow space-y-2">
 
-<h2 className="text-lg font-bold">
-Dr. {a.doctor?.name}
-</h2>
+<h2 className="font-semibold">Dr. {a.doctor?.name}</h2>
 
-<p className="text-sm mt-1">
-📅 {new Date(a.date).toDateString()}
-</p>
+<p className="text-sm">{new Date(a.date).toDateString()}</p>
+<p className="text-sm">{a.time}</p>
 
-<p className="text-sm">
-⏰ {a.time}
-</p>
-
-<p className="text-xs text-gray-500 mt-2">
-Status: {a.status}
-</p>
-
-<div className="flex gap-3 mt-5">
+<div className="flex gap-2">
 
 <button
 onClick={()=>openReschedule(a)}
-disabled={hasTodayAppointment(a.doctorId)}
-className={`flex-1 py-2 rounded-lg text-white ${
-  hasTodayAppointment(a.doctorId)
-    ? "bg-gray-400"
-    : "bg-blue-600"
-}`}
+className="flex-1 bg-blue-600 text-white py-2 rounded text-sm"
 >
 Reschedule
 </button>
 
 <button
 onClick={()=>cancelAppointment(a.id)}
-className="flex-1 bg-red-500 text-white py-2 rounded-lg"
+className="flex-1 bg-red-500 text-white py-2 rounded text-sm"
 >
 Cancel
 </button>
@@ -210,61 +177,56 @@ Cancel
 
 </div>
 
-{/* MODAL */}
-
+{/* 🔥 MODAL */}
 {selected && (
 
 <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
 
-<div className="bg-white p-6 rounded-2xl w-[350px]">
+<div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">
 
-<h2 className="text-xl font-bold mb-4">
-Reschedule Appointment
-</h2>
+<h2 className="font-bold">Reschedule</h2>
 
 <DatePicker
 selected={newDate}
 onChange={(d)=>setNewDate(d)}
-className="w-full border p-3 rounded-lg mb-4"
+filterDate={(d)=>isDoctorAvailable(d)}
+className="w-full border p-2 rounded"
 />
 
 <select
 value={newTime}
 onChange={(e)=>setNewTime(e.target.value)}
-className="w-full border p-3 rounded-lg mb-4"
+className="w-full border p-2 rounded"
 >
+
 <option value="">Select Time</option>
 
-{timeSlots.map((slot)=>{
+{timeSlots.map((slot:any)=>{
 
-  const booked = newDate ? isSlotBooked(newDate, slot) : false
+const booked = newDate ? isSlotBooked(newDate, slot.value) : false
 
-  return (
-    <option key={slot} value={slot} disabled={booked}>
-      {booked ? "❌ Booked" : slot}
-    </option>
-  )
+return(
+<option key={slot.value} value={slot.value} disabled={booked}>
+{booked ? "❌ Booked" : slot.label}
+</option>
+)
 })}
 
 </select>
 
-<div className="flex gap-3">
-
 <button
 onClick={saveReschedule}
-className="flex-1 bg-blue-600 text-white py-2 rounded-lg"
+className="w-full bg-blue-600 text-white py-2 rounded"
 >
 Save
 </button>
 
 <button
 onClick={()=>setSelected(null)}
-className="flex-1 bg-gray-300 py-2 rounded-lg"
+className="w-full bg-gray-300 py-2 rounded"
 >
 Cancel
 </button>
-
-</div>
 
 </div>
 

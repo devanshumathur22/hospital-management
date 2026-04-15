@@ -4,284 +4,192 @@ import { useEffect, useState } from "react"
 
 export default function PatientPrescriptions() {
 
-  const [prescriptions, setPrescriptions] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const [search, setSearch] = useState("")
-  const [dateFilter, setDateFilter] = useState("")
-
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null)
-  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
-
-  /* ====================== */
-  /* FETCH */
-  /* ====================== */
-
-  useEffect(() => {
-    fetch("/api/prescriptions")
-      .then(res => {
-        if (!res.ok) throw new Error("Failed")
-        return res.json()
-      })
-      .then(data => {
-        setPrescriptions(Array.isArray(data) ? data : [])
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setError("Failed to load prescriptions")
-        setLoading(false)
-      })
-  }, [])
-
-  /* ====================== */
-  /* SAFE FILTER */
-  /* ====================== */
-
-  const filtered = prescriptions.filter((p: any) => {
-
-    const doctorName = p.doctor?.name?.toLowerCase() || ""
-    const searchMatch = doctorName.includes(search.toLowerCase())
-
-    if (!dateFilter) return searchMatch
-
-    const d1 = new Date(p.createdAt)
-    const d2 = new Date(dateFilter)
-
-    const dateMatch =
-      d1.getDate() === d2.getDate() &&
-      d1.getMonth() === d2.getMonth() &&
-      d1.getFullYear() === d2.getFullYear()
-
-    return searchMatch && dateMatch
-  })
-
-  /* ====================== */
-  /* SAFE MEDICINE PARSE */
-  /* ====================== */
-
-  const parseMedicine = (medicine: any) => {
-    const meds = Array.isArray(medicine)
-      ? medicine
-      : medicine ? [medicine] : []
-
-    return meds.map((m: any) => {
-      if (typeof m === "string") {
-        return { name: m, dosage: "-" }
-      }
-      return {
-        name: m?.name || "Medicine",
-        dosage: m?.dosage || "-"
-      }
-    })
-  }
-
-  /* ====================== */
-  /* DOWNLOAD */
-  /* ====================== */
-
-  function downloadPrescription(p: any) {
-
-    const win = window.open("", "", "width=800,height=700")
-
-    if (!win) return
-
-    const meds = parseMedicine(p.medicine)
-
-    win.document.write(`
-      <html>
-      <head>
-        <title>Prescription_${p.doctor?.name || "Doctor"}</title>
-        <style>
-          body { font-family: Arial; padding: 30px; }
-          h2 { margin-bottom: 10px; }
-          ul { padding-left: 20px; }
-        </style>
-      </head>
-      <body>
-
-        <h2>Hospital Prescription</h2>
-
-        <p><b>Doctor:</b> ${p.doctor?.name || "N/A"}</p>
-        <p><b>Date:</b> ${new Date(p.createdAt).toLocaleDateString()}</p>
-
-        <h3>Medicines:</h3>
-        <ul>
-          ${meds.map((m:any)=>`
-            <li>${m.name} - ${m.dosage}</li>
-          `).join("")}
-        </ul>
-
-        <p><b>Notes:</b> ${p.notes || "-"}</p>
-
-      </body>
-      </html>
-    `)
-
-    win.document.close()
-    setTimeout(()=>win.print(),500)
-  }
-
-  /* ====================== */
-  /* STATES */
-  /* ====================== */
-
-  if (loading) {
-    return <div className="p-10 text-center">Loading...</div>
-  }
-
-  if (error) {
-    return <div className="p-10 text-center text-red-600">{error}</div>
-  }
-
-  /* ====================== */
-  /* UI */
-  /* ====================== */
-
-  return (
-
-    <div className="max-w-6xl mx-auto px-4 py-10">
-
-      <h1 className="text-3xl font-bold mb-8">
-        Prescriptions
-      </h1>
-
-      {/* FILTER */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-
-        <input
-          placeholder="Search by doctor..."
-          value={search}
-          onChange={(e)=>setSearch(e.target.value)}
-          className="border px-4 py-2 rounded-lg w-full md:w-80"
-        />
+const [prescriptions, setPrescriptions] = useState<any[]>([])
+const [loading, setLoading] = useState(true)
+const [error, setError] = useState<string | null>(null)
+
+const [search, setSearch] = useState("")
+const [dateFilter, setDateFilter] = useState("")
+const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
+
+/* FETCH */
+useEffect(() => {
+fetch("/api/prescriptions")
+.then(res => res.json())
+.then(data => {
+setPrescriptions(Array.isArray(data) ? data : [])
+})
+.catch(()=>setError("Failed to load"))
+.finally(()=>setLoading(false))
+},[])
+
+/* FILTER */
+const filtered = prescriptions.filter((p:any)=>{
+const doctor = p.doctor?.name?.toLowerCase() || ""
+const searchMatch = doctor.includes(search.toLowerCase())
+
+if(!dateFilter) return searchMatch
+
+const d1 = new Date(p.createdAt)
+const d2 = new Date(dateFilter)
+
+return d1.toDateString() === d2.toDateString() && searchMatch
+})
+
+/* LOADING */
+if(loading){
+return <div className="p-6 text-sm">Loading...</div>
+}
+
+if(error){
+return <div className="p-6 text-red-500">{error}</div>
+}
+
+return(
+
+<div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
 
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(e)=>setDateFilter(e.target.value)}
-          className="border px-4 py-2 rounded-lg"
-        />
+<h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+Prescriptions
+</h1>
 
-      </div>
-
-      {/* TABLE */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-
-        <table className="w-full">
-
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-4">Doctor</th>
-              <th className="p-4">Medicine</th>
-              <th className="p-4">Date</th>
-              <th className="p-4">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-10 text-center text-gray-500">
-                  No prescriptions found
-                </td>
-              </tr>
-            )}
+{/* FILTER */}
+<div className="flex flex-col sm:flex-row gap-3">
 
-            {filtered.map((item:any)=>{
+<input
+placeholder="Search doctor..."
+value={search}
+onChange={(e)=>setSearch(e.target.value)}
+className="border px-3 py-2 rounded-lg text-sm w-full sm:w-72"
+/>
 
-              const meds = parseMedicine(item.medicine)
+<input
+type="date"
+value={dateFilter}
+onChange={(e)=>setDateFilter(e.target.value)}
+className="border px-3 py-2 rounded-lg text-sm"
+/>
 
-              return (
-                <tr key={item.id} className="border-t">
+</div>
 
-                  {/* DOCTOR */}
-                  <td
-                    className="p-4 text-blue-600 cursor-pointer"
-                    onClick={()=>setSelectedDoctor(item.doctor)}
-                  >
-                    {item.doctor?.name || "N/A"}
-                  </td>
+{/* ❌ EMPTY */}
+{filtered.length === 0 && (
+<p className="text-gray-500 text-sm">
+No prescriptions found
+</p>
+)}
 
-                  {/* MEDICINE */}
-                  <td className="p-4">
-                    {meds.map((m:any,i:number)=>(
-                      <div key={i}>
-                        {m.name} ({m.dosage})
-                      </div>
-                    ))}
-                  </td>
+{/* 🔥 MOBILE VIEW */}
+<div className="space-y-4 sm:hidden">
 
-                  {/* DATE */}
-                  <td className="p-4">
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </td>
+{filtered.map((p:any)=>(
+<div key={p.id} className="bg-white p-4 rounded-xl shadow space-y-2">
 
-                  {/* ACTION */}
-                  <td className="p-4 flex gap-2">
+<p className="font-semibold text-sm">
+Dr. {p.doctor?.name}
+</p>
 
-                    <button
-                      onClick={()=>setSelectedPrescription(item)}
-                      className="bg-blue-600 text-white px-4 py-1 rounded"
-                    >
-                      View
-                    </button>
+<p className="text-xs text-gray-500">
+{new Date(p.createdAt).toDateString()}
+</p>
 
-                    <button
-                      onClick={()=>downloadPrescription(item)}
-                      className="bg-green-600 text-white px-4 py-1 rounded"
-                    >
-                      Download
-                    </button>
+<button
+onClick={()=>setSelectedPrescription(p)}
+className="bg-blue-600 text-white px-3 py-1 rounded text-xs"
+>
+View
+</button>
 
-                  </td>
+</div>
+))}
 
-                </tr>
-              )
-            })}
+</div>
 
-          </tbody>
+{/* 💻 DESKTOP TABLE */}
+<div className="hidden sm:block bg-white rounded-xl shadow overflow-x-auto">
 
-        </table>
+<table className="w-full text-sm">
 
-      </div>
+<thead className="bg-gray-100">
+<tr>
+<th className="p-4 text-left">Doctor</th>
+<th className="p-4 text-left">Date</th>
+<th className="p-4 text-left">Action</th>
+</tr>
+</thead>
 
-      {/* MODAL */}
-      {selectedPrescription && (
+<tbody>
 
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+{filtered.map((item:any)=>(
+<tr key={item.id} className="border-t">
 
-          <div className="bg-white p-6 rounded-xl w-[400px]">
+<td className="p-4">
+Dr. {item.doctor?.name}
+</td>
 
-            <h2 className="text-xl font-bold mb-4">
-              Prescription
-            </h2>
+<td className="p-4">
+{new Date(item.createdAt).toLocaleDateString()}
+</td>
 
-            <p>Doctor: {selectedPrescription.doctor?.name}</p>
+<td className="p-4">
 
-            <ul className="mt-3">
-              {parseMedicine(selectedPrescription.medicine).map((m:any,i:number)=>(
-                <li key={i}>
-                  {m.name} - {m.dosage}
-                </li>
-              ))}
-            </ul>
+<button
+onClick={()=>setSelectedPrescription(item)}
+className="bg-blue-600 text-white px-3 py-1 rounded"
+>
+View
+</button>
 
-            <button
-              onClick={()=>setSelectedPrescription(null)}
-              className="mt-4 bg-gray-500 text-white px-4 py-2 rounded"
-            >
-              Close
-            </button>
+</td>
 
-          </div>
+</tr>
+))}
 
-        </div>
+</tbody>
 
-      )}
+</table>
 
-    </div>
-  )
+</div>
+
+{/* 🔥 MODAL */}
+{selectedPrescription && (
+
+<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+
+<div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-md">
+
+<h2 className="text-lg font-bold mb-4">
+Prescription
+</h2>
+
+<p className="text-sm mb-2">
+Doctor: {selectedPrescription.doctor?.name}
+</p>
+
+<ul className="text-sm space-y-1">
+
+{selectedPrescription.medicine?.map((m:any,i:number)=>(
+<li key={i}>
+{m.name} - {m.dosage}
+</li>
+))}
+
+</ul>
+
+<button
+onClick={()=>setSelectedPrescription(null)}
+className="mt-4 bg-gray-500 text-white px-4 py-2 rounded text-sm w-full"
+>
+Close
+</button>
+
+</div>
+
+</div>
+
+)}
+
+</div>
+
+)
 }

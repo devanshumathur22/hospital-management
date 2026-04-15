@@ -6,295 +6,281 @@ import "react-datepicker/dist/react-datepicker.css"
 import { X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
-export default function PatientDoctors(){
+export default function PatientDoctors() {
 
-const [doctors,setDoctors] = useState<any[]>([])
-const [groupedDoctors,setGroupedDoctors] = useState<any>({})
-const [selectedDoctor,setSelectedDoctor] = useState<any>(null)
+  const [doctors, setDoctors] = useState<any[]>([])
+  const [groupedDoctors, setGroupedDoctors] = useState<any>({})
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null)
 
-const [date,setDate] = useState<Date | null>(null)
-const [time,setTime] = useState("")
+  const [date, setDate] = useState<Date | null>(null)
+  const [time, setTime] = useState("")
+  const [appointments, setAppointments] = useState<any[]>([])
+  const [availability, setAvailability] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [filter, setFilter] = useState("all")
 
-const [appointments,setAppointments] = useState<any[]>([])
-const [loading,setLoading] = useState(false)
+  /* 🔥 GENERATE SLOTS */
+  function generateSlots(start: string, end: string) {
+    if (!start || !end) return []
 
-const [filter,setFilter] = useState("all")
+    const slots: { value: string; label: string }[] = []
 
-/* ============================= */
-/* GENERATE SLOTS */
-/* ============================= */
+    const [sh, sm] = start.split(":").map(Number)
+    const [eh, em] = end.split(":").map(Number)
 
-function generateSlots(){
-  const slots:string[] = []
+    let startMin = sh * 60 + sm
+    let endMin = eh * 60 + em
 
-  let hour = 9
-  let minute = 0
+    for (let i = startMin; i < endMin; i += 15) {
+      const h = Math.floor(i / 60)
+      const m = i % 60
 
-  while(hour < 17){
-    const h = hour.toString().padStart(2,"0")
-    const m = minute.toString().padStart(2,"0")
+      const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 
-    slots.push(`${h}:${m}`)
+      const label = new Date(`1970-01-01T${value}`).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      })
 
-    minute += 15
+      slots.push({ value, label })
+    }
 
-    if(minute === 60){
-      minute = 0
-      hour++
+    return slots
+  }
+
+  /* 🔥 FETCH DOCTORS */
+  useEffect(() => {
+    fetch("/api/doctors")
+      .then(res => res.json())
+      .then(data => {
+        setDoctors(data || [])
+
+        const grouped = (data || []).reduce((acc: any, doc: any) => {
+          if (!acc[doc.specialization]) acc[doc.specialization] = []
+          acc[doc.specialization].push(doc)
+          return acc
+        }, {})
+
+        setGroupedDoctors(grouped)
+      })
+  }, [])
+
+  /* 🔥 FETCH AVAILABILITY */
+  useEffect(() => {
+
+    if (!selectedDoctor?.id) return
+
+    setAvailability(null) // ✅ reset
+
+    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`)
+      .then(res => res.json())
+      .then(data => setAvailability(data))
+
+  }, [selectedDoctor])
+
+  /* 🔥 FETCH BOOKED SLOTS */
+  useEffect(() => {
+
+    if (!selectedDoctor?.id || !date) return
+
+    setAppointments([]) // ✅ reset
+
+    fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`)
+      .then(res => res.json())
+      .then(data => setAppointments(data || []))
+
+  }, [selectedDoctor, date])
+
+  const timeSlots = availability
+    ? generateSlots(availability.start, availability.end)
+    : []
+
+  /* 🔥 DAY CHECK */
+  const isDoctorAvailable = (date: Date) => {
+    if (!availability?.days) return false
+    const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][date.getDay()]
+    return availability.days.includes(day)
+  }
+
+  /* 🔥 SLOT BOOK CHECK */
+  const isSlotBooked = (slot: string) => {
+    return appointments.some((a: any) => {
+      return a.time?.trim() === slot.trim()
+    })
+  }
+
+  /* 🔥 BOOK */
+  const handleBook = async () => {
+
+    if (!date || !time) {
+      alert("Select date and time")
+      return
+    }
+
+    setLoading(true)
+
+    const res = await fetch("/api/appointments", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        doctorId: selectedDoctor.id,
+        date,
+        time
+      })
+    })
+
+    setLoading(false)
+
+    if (res.ok) {
+
+      alert("Appointment Booked ✅")
+
+      // 🔥 refresh slots instantly
+      const updated = await fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`)
+      const data = await updated.json()
+      setAppointments(data)
+
+      setTime("")
+    } else {
+      const err = await res.json()
+      alert(err.error || "Booking failed")
     }
   }
 
-  return slots
-}
-
-const timeSlots = generateSlots()
-
-/* ============================= */
-/* FETCH DATA */
-/* ============================= */
-
-useEffect(()=>{
-
-  fetch("/api/doctors")
-  .then(res=>res.json())
-  .then(data=>{
-
-    setDoctors(data)
-
-    const grouped = data.reduce((acc:any,doc:any)=>{
-      if(!acc[doc.specialization]){
-        acc[doc.specialization] = []
-      }
-      acc[doc.specialization].push(doc)
-      return acc
-    },{})
-
-    setGroupedDoctors(grouped)
-
-  })
-
-  fetch("/api/appointments",{ credentials:"include" })
-  .then(res=>res.json())
-  .then(setAppointments)
-
-},[])
-
-/* ============================= */
-/* HELPERS */
-/* ============================= */
-
-// 🔥 slot booked check
-const isSlotBooked = (slot:string) => {
-  if(!date || !selectedDoctor) return false
-
-  return appointments.some((a:any)=>
-    new Date(a.date).toDateString() === date.toDateString() &&
-    a.time === slot &&
-    a.doctorId === selectedDoctor.id
-  )
-}
-
-// 🔥 FIXED same day (doctor-wise)
-const hasTodayAppointment = () => {
-  if (!selectedDoctor) return false
-
-  return appointments.some((a:any)=>
-    new Date(a.date).toDateString() === new Date().toDateString() &&
-    a.doctorId === selectedDoctor.id
-  )
-}
-
-/* ============================= */
-/* BOOK */
-/* ============================= */
-
-const handleBook = async()=>{
-
-  if(!date || !time){
-    alert("Select date and time")
-    return
-  }
-
-  // ✅ FIXED
-  if(hasTodayAppointment()){
-    alert("You already have an appointment with this doctor today")
-    return
-  }
-
-  setLoading(true)
-
-  const res = await fetch("/api/appointments",{
-    method:"POST",
-    credentials:"include",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      doctorId:selectedDoctor.id,
-      date,
-      time
-    })
-  })
-
-  const data = await res.json()
-
-  setLoading(false)
-
-  if(res.ok){
-    alert("Appointment Booked ✅")
-    setSelectedDoctor(null)
-  }else{
-    alert(data.error || "Booking failed")
-  }
-
-}
-
-/* ============================= */
-/* UI */
-/* ============================= */
-
-const specializations = ["all", ...Object.keys(groupedDoctors)]
-
-return(
-
-<div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
-
-<h1 className="text-3xl md:text-4xl font-bold mb-10">
-Find Doctors
-</h1>
-
-{/* WARNING */}
-{hasTodayAppointment() && selectedDoctor && (
-  <p className="text-red-500 mb-6">
-    You already have an appointment with this doctor today
-  </p>
-)}
-
-{/* FILTER */}
-<div className="flex flex-wrap gap-3 mb-12">
-
-{specializations.map((sp)=>(
-<button
-key={sp}
-onClick={()=>setFilter(sp)}
-className={`px-4 py-2 rounded-full border text-sm ${
-filter === sp
-? "bg-blue-600 text-white"
-: "bg-white"
-}`}
->
-{sp}
-</button>
-))}
-
-</div>
-
-{/* DOCTORS */}
-
-{Object.entries(groupedDoctors)
-.filter(([category])=>filter==="all" || filter===category)
-.map(([category,docs]:any)=>(
-
-<div key={category} className="mb-14">
-
-<h2 className="text-xl font-semibold mb-6">
-🏥 {category}
-</h2>
-
-<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-
-{docs.map((doc:any)=>(
-
-<div key={doc.id} className="p-6 rounded-2xl shadow-lg bg-white">
-
-<h3 className="font-bold">{doc.name}</h3>
-<p className="text-sm text-gray-500">{doc.experience} yrs</p>
-
-<button
-onClick={()=>setSelectedDoctor(doc)}
-className="mt-3 w-full bg-blue-600 text-white py-2 rounded-xl"
->
-Book
-</button>
-
-</div>
-
-))}
-
-</div>
-
-</div>
-
-))}
-
-{/* MODAL */}
-
-<AnimatePresence>
-
-{selectedDoctor && (
-
-<motion.div
-className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
->
-
-<motion.div className="bg-white p-6 rounded-2xl w-[350px]">
-
-<button onClick={()=>setSelectedDoctor(null)}>
-<X/>
-</button>
-
-<h2 className="text-xl font-bold mb-4">
-Book Appointment
-</h2>
-
-<DatePicker
-selected={date}
-onChange={(d)=>setDate(d)}
-className="w-full border p-3 rounded mb-4"
-/>
-
-<div className="flex flex-wrap gap-2 mb-4">
-
-{timeSlots.map(slot=>{
-
-  const booked = isSlotBooked(slot)
+  const specializations = ["all", ...Object.keys(groupedDoctors)]
 
   return (
-    <button
-      key={slot}
-      disabled={booked}
-      onClick={()=>setTime(slot)}
-      className={`px-3 py-2 rounded border ${
-        booked
-        ? "bg-gray-300 cursor-not-allowed"
-        : time === slot
-        ? "bg-blue-600 text-white"
-        : "bg-white"
-      }`}
-    >
-      {booked ? "❌" : slot}
-    </button>
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+      <h1 className="text-2xl font-bold">Find Doctors</h1>
+
+      {/* FILTER */}
+      <div className="flex flex-wrap gap-2">
+        {specializations.map((sp) => (
+          <button
+            key={sp}
+            onClick={() => setFilter(sp)}
+            className={`px-3 py-1 rounded-full border ${
+              filter === sp
+                ? "bg-blue-600 text-white"
+                : "bg-white"
+            }`}
+          >
+            {sp}
+          </button>
+        ))}
+      </div>
+
+      {/* DOCTORS */}
+      {Object.entries(groupedDoctors)
+        .filter(([category]) => filter === "all" || filter === category)
+        .map(([category, docs]: any) => (
+
+          <div key={category} className="space-y-4">
+
+            <h2 className="font-semibold">🏥 {category}</h2>
+
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+              {docs.map((doc: any) => (
+
+                <div key={doc.id} className="bg-white p-4 rounded-xl shadow space-y-2">
+
+                  <h3 className="font-semibold">{doc.name}</h3>
+
+                  <p className="text-sm text-gray-500">
+                    {doc.experience} yrs experience
+                  </p>
+
+                  <button
+                    onClick={() => {
+                      setSelectedDoctor(doc)
+                      setDate(null)
+                      setTime("")
+                    }}
+                    className="w-full bg-blue-600 text-white py-2 rounded"
+                  >
+                    Book
+                  </button>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          </div>
+
+        ))}
+
+      {/* MODAL */}
+      <AnimatePresence>
+        {selectedDoctor && (
+
+          <motion.div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+            <motion.div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">
+
+              <div className="flex justify-between">
+                <h2 className="font-bold">Book Appointment</h2>
+                <button onClick={() => setSelectedDoctor(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <DatePicker
+                selected={date}
+                onChange={(d) => setDate(d)}
+                filterDate={(d) => isDoctorAvailable(d)}
+                className="w-full border p-2 rounded"
+              />
+
+              {/* SLOTS */}
+              {!availability ? (
+                <p className="text-sm text-gray-500">Loading slots...</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+
+                  {timeSlots.map((slot) => {
+
+                    const booked = isSlotBooked(slot.value)
+
+                    return (
+                      <button
+                        key={slot.value}
+                        disabled={booked}
+                        onClick={() => setTime(slot.value)}
+                        className={`px-3 py-1 rounded border text-sm ${
+                          booked
+                            ? "bg-red-200 text-red-600 line-through cursor-not-allowed opacity-80"
+                            : time === slot.value
+                            ? "bg-blue-600 text-white"
+                            : "bg-white hover:bg-blue-50"
+                        }`}
+                      >
+                        {booked ? "Booked ❌" : slot.label}
+                      </button>
+                    )
+                  })}
+
+                </div>
+              )}
+
+              <button
+                onClick={handleBook}
+                className="w-full bg-blue-600 text-white py-2 rounded"
+              >
+                {loading ? "Booking..." : "Confirm"}
+              </button>
+
+            </motion.div>
+
+          </motion.div>
+
+        )}
+      </AnimatePresence>
+
+    </div>
   )
-
-})}
-
-</div>
-
-<button
-onClick={handleBook}
-disabled={loading}
-className="w-full bg-blue-600 text-white py-3 rounded"
->
-{loading ? "Booking..." : "Confirm"}
-</button>
-
-</motion.div>
-
-</motion.div>
-
-)}
-
-</AnimatePresence>
-
-</div>
-
-)
 }

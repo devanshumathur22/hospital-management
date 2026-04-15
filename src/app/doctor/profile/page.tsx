@@ -3,255 +3,248 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import {
-  User,
-  Mail,
-  Stethoscope,
-  Award,
-  Edit,
-  Save,
-  X
+User,
+Mail,
+Stethoscope,
+Award,
+Edit,
+Save,
+X
 } from "lucide-react"
 
 export default function DoctorProfile(){
 
-  const [doctor,setDoctor] = useState<any>(null)
-  const [editing,setEditing] = useState(false)
-  const [loading,setLoading] = useState(true)
+const [doctor,setDoctor] = useState<any>(null)
+const [editing,setEditing] = useState(false)
+const [loading,setLoading] = useState(true)
+const [saving,setSaving] = useState(false)
 
-  const [form,setForm] = useState({
-    name:"",
-    specialization:"",
-    experience:""
-  })
+const [form,setForm] = useState({
+name:"",
+specialization:"",
+experience:""
+})
 
-  /* ================= LOAD ================= */
+useEffect(()=>{
 
-  useEffect(()=>{
+const loadDoctor = async()=>{
+try{
+const res = await fetch("/api/auth/me",{ cache:"no-store" })
+const data = await res.json()
 
-    const loadDoctor = async()=>{
+if(data?.user){
+setDoctor(data.user)
 
-      try{
+setForm({
+name:data.user.name || "",
+specialization:data.user.specialization || "",
+experience:data.user.experience || ""
+})
+}
+}catch(err){
+console.log(err)
+}
+setLoading(false)
+}
 
-        const res = await fetch("/api/auth/me",{
-          cache:"no-store"
-        })
+loadDoctor()
 
-        const data = await res.json()
+},[])
 
-        if(data?.user){
+const handleChange = (e:any)=>{
+setForm({
+...form,
+[e.target.name]:e.target.value
+})
+}
 
-          setDoctor(data.user)
+/* 🔥 SAVE */
+const saveProfile = async()=>{
 
-          setForm({
-            name:data.user.name || "",
-            specialization:data.user.specialization || "",
-            experience:data.user.experience || ""
-          })
+setSaving(true)
 
-        }
+try{
+const res = await fetch(`/api/doctors/${doctor.id}`,{
+method:"PUT",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify(form)
+})
 
-      }catch(err){
-        console.log("DOCTOR ERROR",err)
-      }
+const data = await res.json()
 
-      setLoading(false)
+if(!res.ok){
+alert(data.error || "Update failed")
+return
+}
 
-    }
+setDoctor(data)
+setEditing(false)
 
-    loadDoctor()
+alert("Profile updated successfully ✅")
 
-  },[])
+}catch(err){
+console.log(err)
+}finally{
+setSaving(false)
+}
 
-  /* ================= CHANGE ================= */
+}
 
-  const handleChange = (e:any)=>{
-    setForm({
-      ...form,
-      [e.target.name]:e.target.value
-    })
-  }
+/* 🔥 RESET */
+const resetForm = ()=>{
+setForm({
+name:doctor.name,
+specialization:doctor.specialization,
+experience:doctor.experience
+})
+setEditing(false)
+}
 
-  /* ================= SAVE ================= */
+if(loading){
+return <div className="p-6 text-sm">Loading profile...</div>
+}
 
-  const saveProfile = async()=>{
+if(!doctor){
+return <div className="p-6 text-sm">Doctor not found</div>
+}
 
-    try{
+return(
 
-      const res = await fetch(`/api/doctors/${doctor.id}`,{
-        method:"PUT",
-        credentials:"include",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify(form)
-      })
+<div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
 
-      const data = await res.json()
+<motion.div
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+className="bg-white border rounded-2xl shadow p-4 sm:p-6 md:p-8 space-y-6"
+>
 
-      if(!res.ok){
-        alert(data.error || "Update failed")
-        return
-      }
+{/* 🔥 HEADER */}
+<div className="flex items-center gap-4">
 
-      setDoctor(data)
-      setEditing(false)
+<div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg">
+{doctor.name?.charAt(0)}
+</div>
 
-    }catch(err){
-      console.log("UPDATE ERROR",err)
-    }
+<div>
+<h1 className="text-lg sm:text-xl md:text-2xl font-bold">
+Dr. {doctor.name}
+</h1>
+<p className="text-xs sm:text-sm text-gray-500">
+Doctor Profile
+</p>
+</div>
 
-  }
+</div>
 
-  /* ================= UI ================= */
+{/* 🔥 INFO */}
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
 
-  if(loading){
-    return <div className="p-10 text-center">Loading profile...</div>
-  }
+<div className="flex items-center gap-3">
+<Stethoscope size={16}/>
+<div>
+<p className="text-xs text-gray-500">Specialization</p>
+<p className="font-medium text-sm sm:text-base">
+{doctor.specialization || "-"}
+</p>
+</div>
+</div>
 
-  if(!doctor){
-    return <div className="p-10 text-center">Doctor not found</div>
-  }
+<div className="flex items-center gap-3">
+<Award size={16}/>
+<div>
+<p className="text-xs text-gray-500">Experience</p>
+<p className="font-medium text-sm sm:text-base">
+{doctor.experience || 0} years
+</p>
+</div>
+</div>
 
-  return(
+<div className="flex items-center gap-3">
+<Mail size={16}/>
+<div>
+<p className="text-xs text-gray-500">Email</p>
+<p className="font-medium text-sm sm:text-base break-all">
+{doctor.user?.email}
+</p>
+</div>
+</div>
 
-    <div className="max-w-6xl mx-auto px-4 py-10">
+</div>
 
-      <motion.div
-        initial={{opacity:0,y:20}}
-        animate={{opacity:1,y:0}}
-        className="bg-white border rounded-2xl shadow-sm p-8"
-      >
+{/* 🔥 BUTTON */}
+<button
+onClick={()=>setEditing(true)}
+className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm w-full sm:w-fit hover:bg-green-700"
+>
+<Edit size={14}/>
+Edit Profile
+</button>
 
-        {/* HEADER */}
-        <div className="flex items-center gap-4 mb-8">
+</motion.div>
 
-          <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
-            <User size={24}/>
-          </div>
+{/* 🔥 MODAL */}
+{editing && (
 
-          <div>
-            <h1 className="text-2xl font-bold">
-              {doctor.name}
-            </h1>
-            <p className="text-sm text-gray-500">
-              Doctor Profile
-            </p>
-          </div>
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
 
-        </div>
+<div className="bg-white p-5 rounded-xl w-full max-w-md shadow-xl">
 
-        {/* INFO */}
-        <div className="grid md:grid-cols-2 gap-6">
+<h2 className="text-lg font-bold mb-4">
+Edit Profile
+</h2>
 
-          <div className="flex items-center gap-3">
-            <Stethoscope size={18}/>
-            <div>
-              <p className="text-xs text-gray-500">Specialization</p>
-              <p className="font-medium">{doctor.specialization}</p>
-            </div>
-          </div>
+<input
+name="name"
+value={form.name}
+onChange={handleChange}
+placeholder="Name"
+className="w-full border p-3 rounded mb-3 text-sm"
+/>
 
-          <div className="flex items-center gap-3">
-            <Award size={18}/>
-            <div>
-              <p className="text-xs text-gray-500">Experience</p>
-              <p className="font-medium">{doctor.experience} years</p>
-            </div>
-          </div>
+<input
+name="specialization"
+value={form.specialization}
+onChange={handleChange}
+placeholder="Specialization"
+className="w-full border p-3 rounded mb-3 text-sm"
+/>
 
-          {/* ✅ EMAIL FIXED */}
-          <div className="flex items-center gap-3">
-            <Mail size={18}/>
-            <div>
-              <p className="text-xs text-gray-500">Email</p>
-              <p className="font-medium">
-                {doctor.user?.email}
-              </p>
-            </div>
-          </div>
+<input
+name="experience"
+type="number"
+value={form.experience}
+onChange={handleChange}
+placeholder="Experience"
+className="w-full border p-3 rounded mb-4 text-sm"
+/>
 
-        </div>
+<div className="flex justify-end gap-2">
 
-        {/* BUTTON */}
-        <div className="mt-8">
+<button
+onClick={resetForm}
+className="bg-gray-400 text-white px-4 py-2 rounded text-sm"
+>
+Cancel
+</button>
 
-          <button
-            onClick={()=>setEditing(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg"
-          >
-            <Edit size={16}/>
-            Edit Profile
-          </button>
+<button
+onClick={saveProfile}
+disabled={saving}
+className="bg-green-600 text-white px-4 py-2 rounded text-sm flex items-center gap-1"
+>
+<Save size={14}/>
+{saving ? "Saving..." : "Save"}
+</button>
 
-        </div>
+</div>
 
-      </motion.div>
+</div>
 
-      {/* EDIT MODAL */}
-      {editing && (
+</div>
 
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+)}
 
-          <div className="bg-white p-8 rounded-xl w-[420px] shadow-xl">
+</div>
 
-            <h2 className="text-xl font-bold mb-6">
-              Edit Doctor Profile
-            </h2>
-
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Name"
-              className="w-full border p-3 rounded mb-4"
-            />
-
-            <input
-              name="specialization"
-              value={form.specialization}
-              onChange={handleChange}
-              placeholder="Specialization"
-              className="w-full border p-3 rounded mb-4"
-            />
-
-            <input
-              name="experience"
-              type="number"
-              value={form.experience}
-              onChange={handleChange}
-              placeholder="Experience (years)"
-              className="w-full border p-3 rounded mb-6"
-            />
-
-            {/* ❌ EMAIL REMOVED (IMPORTANT) */}
-
-            <div className="flex justify-end gap-3">
-
-              <button
-                onClick={()=>setEditing(false)}
-                className="flex items-center gap-1 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
-              >
-                <X size={14}/>
-                Cancel
-              </button>
-
-              <button
-                onClick={saveProfile}
-                className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-              >
-                <Save size={14}/>
-                Save
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-    </div>
-
-  )
+)
 }

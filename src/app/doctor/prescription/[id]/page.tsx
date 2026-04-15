@@ -17,8 +17,6 @@ const [medicines,setMedicines] = useState([
 { name:"", dosage:"", timing:"" }
 ])
 
-
-
 useEffect(()=>{
 
 const load = async()=>{
@@ -31,269 +29,224 @@ const data = await res.json()
 setAppointment(data)
 
 if(data?.patient?.id){
-
 fetch(`/api/prescriptions?patientId=${data.patient.id}`)
 .then(res=>res.json())
 .then(historyData=>setHistory(historyData))
-
 }
 
 }catch(err){
-
-console.log("APPOINTMENT ERROR",err)
-
+console.log(err)
 }
 
 setLoading(false)
-
 }
 
 load()
 
 },[])
 
-
-
 if(loading){
-return <div className="p-10">Loading...</div>
+return <div className="p-6 text-sm">Loading...</div>
 }
 
 if(!appointment){
-return <div className="p-10">Appointment not found</div>
+return <div className="p-6 text-sm">Appointment not found</div>
 }
-
-
 
 const doctor = appointment.doctor
 const patient = appointment.patient
 
-
-
+/* 🔥 ADD MEDICINE */
 const addMedicine = ()=>{
-
 setMedicines([...medicines,{name:"",dosage:"",timing:""}])
-
 }
 
-
-
+/* 🔥 UPDATE MEDICINE */
 const updateMedicine = (index:number,field:string,value:string)=>{
-
 const updated = [...medicines]
-
 updated[index][field] = value
-
 setMedicines(updated)
-
 }
 
-
-
-const printPrescription = ()=>{
-
-window.print()
-
-}
-
-
-
+/* 🔥 PROFESSIONAL PDF */
 const downloadPDF = ()=>{
 
 const doc = new jsPDF()
 
-doc.text("City Care Hospital",20,20)
+/* HEADER */
+doc.setFontSize(18)
+doc.text("City Care Hospital",105,20,{ align:"center" })
+
+doc.setFontSize(10)
+doc.text("MG Road Jaipur | +91 9876543210",105,26,{ align:"center" })
+
+doc.line(20,30,190,30)
+
+/* DOCTOR + PATIENT */
+doc.setFontSize(12)
 
 doc.text(`Doctor: Dr. ${doctor.name}`,20,40)
-doc.text(`Patient: ${patient.name}`,20,50)
-doc.text(`Date: ${new Date().toLocaleDateString()}`,20,60)
+doc.text(`Specialization: ${doctor.specialization}`,20,46)
 
-let y = 80
+doc.text(`Patient: ${patient.name}`,20,60)
+doc.text(`Phone: ${patient.phone}`,20,66)
+doc.text(`Gender: ${patient.gender}`,20,72)
+
+doc.text(`Date: ${new Date().toLocaleDateString()}`,140,40)
+
+/* TABLE */
+let y = 90
+
+doc.setFontSize(13)
+doc.text("Prescription",20,y)
+
+y += 10
+
+doc.setFontSize(11)
+
+doc.text("No",20,y)
+doc.text("Medicine",35,y)
+doc.text("Dosage",100,y)
+doc.text("Timing",150,y)
+
+doc.line(20,y+2,190,y+2)
+
+y += 10
 
 medicines.forEach((m,index)=>{
 
-doc.text(`${index+1}. ${m.name} - ${m.dosage} (${m.timing})`,20,y)
+doc.text(String(index+1),20,y)
+doc.text(m.name || "-",35,y)
+doc.text(m.dosage || "-",100,y)
+doc.text(m.timing || "-",150,y)
 
-y+=10
+y += 8
 
 })
 
-doc.save("prescription.pdf")
+/* SIGN */
+y += 20
 
+doc.line(120,y,180,y)
+doc.text("Doctor Signature",130,y+6)
+
+/* SAVE */
+doc.save(`Prescription-${patient.name}.pdf`)
 }
 
-
-
+/* SAVE */
 const savePrescription = async ()=>{
-
-try{
-
-const res = await fetch("/api/prescriptions",{
-
+await fetch("/api/prescriptions",{
 method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
+headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-
 doctorId:doctor.id,
 patientId:patient.id,
 appointmentId:appointment.id,
 medicine: medicines,
 notes:""
-
 })
-
 })
-
-if(res.ok){
-
-alert("Prescription saved")
-
-}else{
-
-alert("Error saving prescription")
-
+alert("Saved")
 }
-
-}catch(err){
-
-console.log("SAVE ERROR",err)
-
-}
-
-}
-
-
 
 return(
 
-<div className="p-10 bg-gray-100 min-h-screen">
+<div className="p-4 sm:p-6 bg-gray-100 min-h-screen space-y-6">
 
+{/* CARD */}
+<div className="max-w-4xl mx-auto bg-white shadow rounded-xl p-4 sm:p-6 md:p-10 space-y-6">
 
+{/* HEADER */}
+<div className="text-center border-b pb-4">
 
-{/* PRESCRIPTION CARD */}
-
-<div id="prescription" className="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-10 print:shadow-none">
-
-
-
-{/* HOSPITAL */}
-
-<div className="text-center border-b pb-4 mb-6">
-
-<h1 className="text-3xl font-bold">
+<h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
 City Care Hospital
 </h1>
 
-<p className="text-gray-500">
+<p className="text-xs sm:text-sm text-gray-500">
 MG Road Jaipur • +91 9876543210
 </p>
 
 </div>
 
-
-
 {/* DOCTOR */}
-
-<div className="mb-6">
-
-<p className="font-semibold text-lg">
+<div>
+<p className="font-semibold text-base sm:text-lg">
 Dr. {doctor.name}
 </p>
-
-<p className="text-gray-500">
-{doctor.specialization} • {doctor.experience} years experience
+<p className="text-gray-500 text-xs sm:text-sm">
+{doctor.specialization} • {doctor.experience} yrs
 </p>
-
 </div>
 
-
-
-{/* PATIENT INFO */}
-
-<div className="grid md:grid-cols-4 gap-6 bg-gray-50 p-4 rounded-lg mb-4">
+{/* PATIENT */}
+<div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg text-xs sm:text-sm">
 
 <div>
-<p className="text-sm text-gray-500">Patient</p>
+<p className="text-gray-500">Patient</p>
 <p className="font-medium">{patient.name}</p>
 </div>
 
 <div>
-<p className="text-sm text-gray-500">Phone</p>
+<p className="text-gray-500">Phone</p>
 <p className="font-medium">{patient.phone}</p>
 </div>
 
 <div>
-<p className="text-sm text-gray-500">Gender</p>
+<p className="text-gray-500">Gender</p>
 <p className="font-medium">{patient.gender}</p>
 </div>
 
 <div>
-<p className="text-sm text-gray-500">Blood Group</p>
+<p className="text-gray-500">Blood</p>
 <p className="font-medium">{patient.bloodGroup}</p>
 </div>
 
 </div>
 
-
-
-{/* PATIENT HISTORY BUTTON */}
-
-<div className="mb-6">
-
+{/* HISTORY BTN */}
 <button
 onClick={()=>router.push(`/doctor/patients/${patient.id}`)}
-className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm"
+className="text-sm bg-gray-800 text-white px-3 py-2 rounded-lg"
 >
-View Full Patient History
+View Patient History
 </button>
 
-</div>
-
-
-
 {/* MEDICINES */}
-
-<h2 className="font-semibold mb-4 text-lg">
+<h2 className="font-semibold text-lg">
 Medicines
 </h2>
-
-
 
 <div className="space-y-3">
 
 {medicines.map((med,index)=>(
 
-<div key={index} className="grid md:grid-cols-3 gap-4">
+<div key={index} className="grid md:grid-cols-3 gap-2">
 
 <input
-placeholder="Medicine Name"
-className="border p-3 rounded-lg"
+placeholder="Medicine"
+className="border p-2 rounded-lg"
 value={med.name}
 onChange={(e)=>updateMedicine(index,"name",e.target.value)}
 />
 
 <input
-placeholder="Dosage (500mg)"
-className="border p-3 rounded-lg"
+placeholder="Dosage"
+className="border p-2 rounded-lg"
 value={med.dosage}
 onChange={(e)=>updateMedicine(index,"dosage",e.target.value)}
 />
 
 <select
-className="border p-3 rounded-lg"
+className="border p-2 rounded-lg"
 value={med.timing}
 onChange={(e)=>updateMedicine(index,"timing",e.target.value)}
 >
-
-<option value="">Select</option>
+<option value="">Timing</option>
 <option>Morning</option>
 <option>Afternoon</option>
 <option>Night</option>
-<option>Morning + Night</option>
-
 </select>
 
 </div>
@@ -302,110 +255,75 @@ onChange={(e)=>updateMedicine(index,"timing",e.target.value)}
 
 </div>
 
-
-
 <button
 onClick={addMedicine}
-className="mt-4 text-blue-600 font-medium"
+className="text-blue-600 text-sm"
 >
 + Add Medicine
 </button>
 
-
-
-{/* PATIENT HISTORY PREVIEW */}
-
+{/* HISTORY */}
 {history.length > 0 && (
+<div>
 
-<div className="mt-10">
-
-<h2 className="text-lg font-semibold mb-4">
-Recent Patient Prescriptions
+<h2 className="font-semibold mb-2">
+Recent Prescriptions
 </h2>
 
-<div className="bg-gray-50 rounded-lg p-4 space-y-2">
+<div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
 
 {history.slice(0,5).map((h:any)=>(
-<div key={h.id} className="flex justify-between text-sm">
-
-<span>
-{new Date(h.createdAt).toLocaleDateString()}
-</span>
-
-<span className="text-gray-600">
-{h.medicine?.length || 0} medicines
-</span>
-
+<div key={h.id} className="flex justify-between">
+<span>{new Date(h.createdAt).toLocaleDateString()}</span>
+<span>{h.medicine?.length} meds</span>
 </div>
 ))}
 
 </div>
 
 </div>
-
 )}
 
-
-
 {/* FOOTER */}
+<div className="flex justify-between text-sm">
 
-<div className="flex justify-between mt-10">
-
-<p className="text-sm text-gray-500">
-Date: {new Date().toLocaleDateString()}
-</p>
-
-<div className="text-right">
+<p>Date: {new Date().toLocaleDateString()}</p>
 
 <p className="font-semibold">
 Dr. {doctor.name}
 </p>
 
-<p className="text-sm text-gray-500">
-Signature
-</p>
-
 </div>
 
 </div>
-
-
-
-</div>
-
-
 
 {/* ACTION BUTTONS */}
-
-<div className="max-w-4xl mx-auto mt-6 flex gap-4 print:hidden">
+<div className="max-w-4xl mx-auto flex flex-col sm:flex-row gap-3">
 
 <button
-onClick={printPrescription}
-className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
+onClick={()=>window.print()}
+className="bg-green-600 text-white px-4 py-2 rounded-lg"
 >
 Print
 </button>
 
 <button
 onClick={downloadPDF}
-className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg"
+className="bg-purple-600 text-white px-4 py-2 rounded-lg"
 >
 Download PDF
 </button>
 
 <button
 onClick={savePrescription}
-className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
+className="bg-blue-600 text-white px-4 py-2 rounded-lg"
 >
-Save Prescription
+Save
 </button>
 
 </div>
 
-
-
 </div>
 
 )
-
 }

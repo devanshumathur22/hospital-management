@@ -88,12 +88,12 @@ model Doctor {
   slots         Slot[]
   queues        Queue[]
   admissions    Admission[]
+  vitals        Vital[]
 
-  vitals Vital[]
+  availability Json?   // ✅ THIS IS CORRECT
 
   @@index([specialization])
 }
-
 //////////////////////////////
 // PATIENT
 //////////////////////////////
@@ -147,13 +147,11 @@ model Appointment {
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
-  // ✅ Correct line for MongoDB
   patient Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction)
 
   prescription Prescription[]
 
-  @@unique([doctorId, date, time])
-  @@unique([patientId, doctorId, date])
+  @@unique([doctorId, date, time]) // 🔥 only this needed
   @@index([doctorId])
   @@index([patientId])
 }
@@ -165,9 +163,9 @@ model Appointment {
 model Prescription {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  doctorId      String? @db.ObjectId // ✅ OPTIONAL
+  doctorId      String? @db.ObjectId
   patientId     String  @db.ObjectId
-  appointmentId String? @unique @db.ObjectId
+  appointmentId String? @db.ObjectId
 
   medicine Json
   notes    String?
@@ -183,7 +181,6 @@ model Prescription {
   @@index([doctorId])
   @@index([patientId])
 }
-
 //////////////////////////////
 // DOCTOR SCHEDULE
 //////////////////////////////
