@@ -165,7 +165,7 @@ model Prescription {
 
   doctorId      String? @db.ObjectId
   patientId     String  @db.ObjectId
-  appointmentId String? @db.ObjectId
+  appointmentId String? @unique @db.ObjectId
 
   medicine Json
   notes    String?
