@@ -7,7 +7,8 @@ import {
   CheckCircle,
   User,
   Stethoscope,
-  Clock
+  Clock,
+  AlertTriangle
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -17,16 +18,10 @@ export default function NurseDashboard(){
   const [nurse,setNurse] = useState<any>(null)
   const [loading,setLoading] = useState(true)
 
-  useEffect(()=>{
-    loadData()
-  },[])
-
   /* ================= LOAD ================= */
 
   const loadData = async () => {
-
     try{
-
       const [a,n] = await Promise.all([
         fetch("/api/appointments",{ credentials:"include" }),
         fetch("/api/auth/me",{ cache:"no-store" })
@@ -35,16 +30,12 @@ export default function NurseDashboard(){
       const appt = await a.json()
       const nurseData = await n.json()
 
-      /* ✅ FIX nurse */
       setNurse(nurseData.user)
 
-      /* ✅ TODAY FILTER */
       const now = new Date()
 
       const filtered = appt.filter((a:any)=>{
-
         const d = new Date(a.date)
-
         return (
           d.getDate() === now.getDate() &&
           d.getMonth() === now.getMonth() &&
@@ -55,10 +46,46 @@ export default function NurseDashboard(){
       setAppointments(filtered)
 
     }catch(err){
-      console.log("LOAD ERROR:",err)
+      console.log(err)
     }
 
     setLoading(false)
+  }
+
+  /* ================= AUTO REFRESH ================= */
+
+  useEffect(()=>{
+    loadData()
+
+    const interval = setInterval(()=>{
+      loadData()
+    },5000)
+
+    return ()=> clearInterval(interval)
+  },[])
+
+  /* ================= ACTION ================= */
+
+  const markReady = async(id:string)=>{
+    await fetch(`/api/appointments/${id}`,{
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ status:"ready" })
+    })
+    loadData()
+  }
+
+  /* ================= ALERT LOGIC ================= */
+
+  const isCritical = (a:any)=>{
+    const v = a.vitals
+    if(!v) return false
+
+    return (
+      v.bp > 140 ||
+      v.temperature > 100 ||
+      v.oxygen < 92
+    )
   }
 
   /* ================= STATS ================= */
@@ -66,17 +93,22 @@ export default function NurseDashboard(){
   const vitalsPending = appointments.filter(a => a.status === "pending").length
   const readyForDoctor = appointments.filter(a => a.status === "ready").length
 
+  const queue = [
+    ...appointments.filter(a=>a.status==="pending"),
+    ...appointments.filter(a=>a.status==="ready")
+  ]
+
   if(loading){
-    return <div className="p-10 text-center">Loading dashboard...</div>
+    return <div className="p-10 text-center">Loading...</div>
   }
 
   return(
 
-    <div className="max-w-7xl mx-auto px-6 py-10 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-xl sm:text-2xl font-semibold">
           Nurse Dashboard
         </h1>
 
@@ -85,51 +117,53 @@ export default function NurseDashboard(){
         </p>
       </div>
 
-      {/* ================= STATS ================= */}
+      {/* STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
 
-      <div className="grid md:grid-cols-3 gap-6">
-
-        <div className="bg-white border rounded-2xl p-6 shadow-sm flex items-center gap-4">
-          <Calendar size={26} className="text-blue-600"/>
-          <div>
-            <p className="text-gray-500 text-sm">Appointments Today</p>
-            <p className="text-2xl font-bold">{appointments.length}</p>
-          </div>
-        </div>
-
-        <div className="bg-white border rounded-2xl p-6 shadow-sm flex items-center gap-4">
-          <Activity size={26} className="text-orange-500"/>
-          <div>
-            <p className="text-gray-500 text-sm">Vitals Pending</p>
-            <p className="text-2xl font-bold">{vitalsPending}</p>
-          </div>
-        </div>
-
-        <div className="bg-white border rounded-2xl p-6 shadow-sm flex items-center gap-4">
-          <CheckCircle size={26} className="text-green-600"/>
-          <div>
-            <p className="text-gray-500 text-sm">Ready For Doctor</p>
-            <p className="text-2xl font-bold">{readyForDoctor}</p>
-          </div>
-        </div>
+        <Card icon={Calendar} label="Appointments Today" value={appointments.length} color="text-blue-600"/>
+        <Card icon={Activity} label="Vitals Pending" value={vitalsPending} color="text-orange-500"/>
+        <Card icon={CheckCircle} label="Ready For Doctor" value={readyForDoctor} color="text-green-600"/>
 
       </div>
 
-      {/* ================= PATIENT LIST ================= */}
+      {/* 🔥 QUEUE */}
+      <div className="bg-white p-4 rounded-xl border shadow-sm">
+        <h2 className="font-semibold mb-3">Queue</h2>
 
+        <div className="flex gap-3 overflow-x-auto pb-2">
+
+          {queue.map((a:any,i:number)=>(
+            <div
+              key={a.id}
+              className={`min-w-[120px] px-3 py-2 rounded-lg text-sm text-center font-medium
+              ${i===0
+                ? "bg-green-600 text-white"
+                : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {i===0 ? "Now" : `#${i+1}`}
+              <br/>
+              {a.patient?.name?.split(" ")[0]}
+            </div>
+          ))}
+
+        </div>
+      </div>
+
+      {/* PATIENTS */}
       <div>
 
-        <h2 className="text-xl font-semibold mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold mb-4">
           Today's Patients
         </h2>
 
         {appointments.length === 0 && (
-          <p className="text-gray-500 text-center">
-            No patients today
-          </p>
+          <div className="text-center py-10 text-gray-500">
+            🏥 No patients today
+          </div>
         )}
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
           {appointments.map((a:any)=>(
 
@@ -138,60 +172,84 @@ export default function NurseDashboard(){
               initial={{opacity:0,y:20}}
               animate={{opacity:1,y:0}}
               whileHover={{y:-4}}
-              className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-lg transition"
+              className={`bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between
+              ${isCritical(a) ? "border-red-500" : ""}
+              `}
             >
+
+              {/* ALERT */}
+              {isCritical(a) && (
+                <div className="flex items-center gap-2 text-red-600 text-xs mb-2">
+                  <AlertTriangle size={14}/>
+                  Critical Patient
+                </div>
+              )}
 
               {/* PATIENT */}
               <div className="flex items-center gap-3 mb-3">
 
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User size={18}/>
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                  <User size={16}/>
                 </div>
 
-                <div>
-                  <p className="font-medium">
+                <div className="truncate">
+                  <p className="font-medium text-sm">
                     {a.patient?.name || "Patient"}
                   </p>
-                  <p className="text-xs text-gray-500">
-                    {/* ✅ EMAIL FIX */}
+                  <p className="text-xs text-gray-500 truncate">
                     {a.patient?.user?.email || "No email"}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {a.patient?.phone || "No phone"}
                   </p>
                 </div>
 
               </div>
 
-              {/* DOCTOR */}
-              <div className="flex items-center gap-2 text-sm mb-2">
-                <Stethoscope size={15}/>
-                {a.doctor?.name || "Doctor"}
+              {/* INFO */}
+              <div className="space-y-1 text-xs text-gray-600">
+
+                <div className="flex items-center gap-2">
+                  <Stethoscope size={14}/>
+                  {a.doctor?.name}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Clock size={14}/>
+                  {a.time}
+                </div>
+
               </div>
 
-              {/* TIME */}
-              <div className="flex items-center gap-2 text-sm mb-3">
-                <Clock size={15}/>
-                {a.time}
+              {/* STATUS */}
+              <div className="mt-3">
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  a.status === "ready"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-orange-100 text-orange-600"
+                }`}>
+                  {a.status}
+                </span>
               </div>
 
-              {/* STATUS BADGE */}
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                a.status === "ready"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-orange-100 text-orange-600"
-              }`}>
-                {a.status}
-              </span>
+              {/* ACTIONS */}
+              <div className="mt-4 space-y-2">
 
-              {/* BUTTON */}
-              <a
-                href={`/nurse/vitals?patient=${a.patientId}&appointment=${a.id}`}
-                className="mt-4 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm"
-              >
-                <Activity size={16}/>
-                Add Vitals
-              </a>
+                <a
+                  href={`/nurse/vitals?patient=${a.patientId}&appointment=${a.id}`}
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm"
+                >
+                  <Activity size={14}/>
+                  Add Vitals
+                </a>
+
+                {a.status !== "ready" && (
+                  <button
+                    onClick={()=>markReady(a.id)}
+                    className="w-full border border-green-600 text-green-600 hover:bg-green-50 py-2 rounded-lg text-sm"
+                  >
+                    Mark Ready
+                  </button>
+                )}
+
+              </div>
 
             </motion.div>
 
@@ -203,5 +261,18 @@ export default function NurseDashboard(){
 
     </div>
 
+  )
+}
+
+/* CARD */
+function Card({icon:Icon,label,value,color}:any){
+  return(
+    <div className="bg-white border rounded-xl p-4 flex items-center gap-3 shadow-sm">
+      <Icon className={color} size={22}/>
+      <div>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-lg font-bold">{value}</p>
+      </div>
+    </div>
   )
 }

@@ -23,7 +23,7 @@ async function getUser(){
 }
 
 /* ====================== */
-/* CREATE */
+/* CREATE / UPDATE */
 /* ====================== */
 
 export async function POST(req: Request){
@@ -41,6 +41,16 @@ export async function POST(req: Request){
       return NextResponse.json({ error:"Appointment required" },{ status:400 })
     }
 
+    /* 🔥 GET DOCTOR (IMPORTANT FIX) */
+    const doctor = await prisma.doctor.findFirst({
+      where:{ userId: user.id }
+    })
+
+    if(!doctor){
+      return NextResponse.json({ error:"Doctor not found" },{ status:400 })
+    }
+
+    /* 🔥 CHECK APPOINTMENT */
     const appointment = await prisma.appointment.findUnique({
       where:{ id: body.appointmentId }
     })
@@ -49,19 +59,17 @@ export async function POST(req: Request){
       return NextResponse.json({ error:"Invalid appointment" },{ status:400 })
     }
 
-    /* prevent duplicate */
-
-    const exist = await prisma.prescription.findUnique({
-      where:{ appointmentId: body.appointmentId }
-    })
-
-    if(exist){
-      return NextResponse.json(exist)
-    }
-
-    const prescription = await prisma.prescription.create({
-      data:{
-        doctorId: user.id,
+    /* 🔥 UPSERT (NO DUPLICATE ERROR) */
+    const prescription = await prisma.prescription.upsert({
+      where:{
+        appointmentId: body.appointmentId
+      },
+      update:{
+        medicine: body.medicine,
+        notes: body.notes || ""
+      },
+      create:{
+        doctorId: doctor.id, // ✅ FIXED
         patientId: appointment.patientId,
         appointmentId: body.appointmentId,
         medicine: body.medicine,
@@ -93,10 +101,17 @@ export async function GET(){
 
     let prescriptions:any = []
 
-    /* PATIENT */
+    /* ================= PATIENT ================= */
     if(user.role === "patient"){
+
+      const patient = await prisma.patient.findFirst({
+        where:{ userId: user.id }
+      })
+
+      if(!patient) return NextResponse.json([])
+
       prescriptions = await prisma.prescription.findMany({
-        where:{ patientId: user.id },
+        where:{ patientId: patient.id },
         include:{
           doctor:{
             select:{
@@ -112,10 +127,17 @@ export async function GET(){
       })
     }
 
-    /* DOCTOR */
+    /* ================= DOCTOR ================= */
     else if(user.role === "doctor"){
+
+      const doctor = await prisma.doctor.findFirst({
+        where:{ userId: user.id }
+      })
+
+      if(!doctor) return NextResponse.json([])
+
       prescriptions = await prisma.prescription.findMany({
-        where:{ doctorId: user.id },
+        where:{ doctorId: doctor.id },
         include:{
           patient:true,
           appointment:true
@@ -124,8 +146,9 @@ export async function GET(){
       })
     }
 
-    /* ADMIN */
+    /* ================= ADMIN ================= */
     else if(user.role === "admin"){
+
       prescriptions = await prisma.prescription.findMany({
         include:{
           doctor:true,

@@ -28,10 +28,17 @@ export async function GET(){
 
   try{
 
+    const user:any = await getUser()
+
+    // 🔥 only admin access
+    if(!user || user.role !== "admin"){
+      return NextResponse.json({ error:"Unauthorized" },{ status:401 })
+    }
+
     const nurses = await prisma.nurse.findMany({
       orderBy:{ createdAt:"desc" },
       include:{
-        user:{ select:{ email:true } }, // 🔥 email from user
+        user:{ select:{ email:true } },
         doctor:{
           select:{
             id:true,
@@ -42,14 +49,17 @@ export async function GET(){
       }
     })
 
-    return NextResponse.json(nurses)
+    return NextResponse.json({
+      success:true,
+      data:nurses
+    })
 
   }catch(err){
 
     console.log("GET NURSES ERROR:",err)
 
     return NextResponse.json(
-      { error:"Failed to fetch nurses" },
+      { success:false, error:"Failed to fetch nurses" },
       { status:500 }
     )
 
@@ -74,16 +84,26 @@ export async function POST(req:Request){
 
     const body = await req.json()
 
-    if(!body.name || !body.email || !body.password){
+    const name = body.name?.trim()
+    const email = body.email?.toLowerCase().trim()
+    const password = body.password
+
+    /* 🔥 VALIDATION */
+    if(!name || !email || !password){
       return NextResponse.json(
-        { error:"Name email password required" },
+        { error:"Name, email and password required" },
         { status:400 }
       )
     }
 
-    const email = body.email.toLowerCase().trim()
+    if(password.length < 6){
+      return NextResponse.json(
+        { error:"Password must be at least 6 characters" },
+        { status:400 }
+      )
+    }
 
-    // 🔥 check user exist
+    /* 🔥 CHECK EXIST */
     const exist = await prisma.user.findUnique({
       where:{ email }
     })
@@ -95,36 +115,43 @@ export async function POST(req:Request){
       )
     }
 
-    const hashed = await bcrypt.hash(body.password,10)
+    const hashed = await bcrypt.hash(password,10)
 
-    // 🔥 create user
-    const user = await prisma.user.create({
-      data:{
-        email,
-        password: hashed,
-        role:"nurse"
-      }
+    /* 🔥 TRANSACTION (IMPORTANT) */
+    const result = await prisma.$transaction(async (tx)=>{
+
+      const user = await tx.user.create({
+        data:{
+          email,
+          password: hashed,
+          role:"nurse"
+        }
+      })
+
+      const nurse = await tx.nurse.create({
+        data:{
+          userId: user.id,
+          name
+        },
+        include:{
+          user:{ select:{ email:true } }
+        }
+      })
+
+      return nurse
     })
 
-    // 🔥 create nurse profile
-    const nurse = await prisma.nurse.create({
-      data:{
-        userId: user.id,
-        name: body.name
-      },
-      include:{
-        user:{ select:{ email:true } }
-      }
-    })
-
-    return NextResponse.json(nurse,{status:201})
+    return NextResponse.json({
+      success:true,
+      data:result
+    },{ status:201 })
 
   }catch(err){
 
     console.log("CREATE NURSE ERROR:",err)
 
     return NextResponse.json(
-      { error:"Failed to create nurse" },
+      { success:false, error:"Failed to create nurse" },
       { status:500 }
     )
 

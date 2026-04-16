@@ -13,6 +13,8 @@ import {
 export default function AdminNurses(){
 
   const [nurses,setNurses] = useState<any[]>([])
+  const [loading,setLoading] = useState(true)
+  const [adding,setAdding] = useState(false)
 
   const [form,setForm] = useState({
     name:"",
@@ -23,43 +25,48 @@ export default function AdminNurses(){
     experience:""
   })
 
-  /* ====================== */
-  /* FETCH NURSES */
-  /* ====================== */
-
+  /* LOAD */
   useEffect(()=>{
     loadNurses()
   },[])
 
   const loadNurses = async () => {
-    const res = await fetch("/api/nurses")
-    const data = await res.json()
-    setNurses(data)
+    try{
+      const res = await fetch("/api/nurses")
+      const data = await res.json()
+      setNurses(data || [])
+    }catch{
+      setNurses([])
+    }
+    setLoading(false)
   }
 
-  /* ====================== */
-  /* ADD NURSE */
-  /* ====================== */
-
+  /* ADD */
   async function addNurse(){
 
     if(!form.name || !form.email || !form.password){
-      alert("Name email password required")
+      alert("Name, email, password required")
       return
     }
 
+    setAdding(true)
+
     const res = await fetch("/api/nurses",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify(form)
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        ...form,
+        experience:Number(form.experience)
+      })
     })
 
     const data = await res.json()
 
+    setAdding(false)
+
     if(res.ok){
-      await loadNurses() // 🔥 reload list (important)
+      await loadNurses()
+
       setForm({
         name:"",
         email:"",
@@ -68,156 +75,128 @@ export default function AdminNurses(){
         department:"",
         experience:""
       })
+
     }else{
       alert(data.error)
     }
+  }
 
+  if(loading){
+    return(
+      <div className="flex items-center justify-center min-h-screen text-sm">
+        Loading nurses...
+      </div>
+    )
   }
 
   return(
 
-    <div className="max-w-6xl mx-auto px-6 py-10 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-8">
 
-      {/* ====================== */}
-      {/* ADD NURSE */}
-      {/* ====================== */}
+      {/* ADD FORM */}
+      <div className="bg-white border rounded-2xl p-5 sm:p-8 shadow space-y-6">
 
-      <div className="bg-white border rounded-2xl p-8 shadow-sm">
-
-        <h1 className="flex items-center gap-2 text-2xl font-semibold mb-8">
-          <UserPlus size={22}/>
+        <h1 className="flex items-center gap-2 text-lg sm:text-2xl font-semibold">
+          <UserPlus size={20}/>
           Add Nurse
         </h1>
 
-        <div className="grid md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
 
           {/* NAME */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">Nurse Name</label>
-            <div className="flex items-center border rounded-lg px-3 h-11">
-              <User size={16} className="text-gray-400 mr-2"/>
-              <input
-                placeholder="Enter nurse name"
-                value={form.name}
-                onChange={(e)=>setForm({...form,name:e.target.value})}
-                className="flex-1 outline-none text-sm"
-              />
-            </div>
-          </div>
+          <Input icon={<User size={14}/>} label="Nurse Name"
+            value={form.name}
+            onChange={(v)=>setForm({...form,name:v})}
+            placeholder="Enter name"
+          />
 
           {/* EMAIL */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">Email</label>
-            <div className="flex items-center border rounded-lg px-3 h-11">
-              <Mail size={16} className="text-gray-400 mr-2"/>
-              <input
-                placeholder="Enter email"
-                value={form.email}
-                onChange={(e)=>setForm({...form,email:e.target.value})}
-                className="flex-1 outline-none text-sm"
-              />
-            </div>
-          </div>
+          <Input icon={<Mail size={14}/>} label="Email"
+            value={form.email}
+            onChange={(v)=>setForm({...form,email:v})}
+            placeholder="Enter email"
+          />
 
           {/* PASSWORD */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">Login Password</label>
-            <div className="flex items-center border rounded-lg px-3 h-11">
-              <Lock size={16} className="text-gray-400 mr-2"/>
-              <input
-                type="password"
-                placeholder="Create password"
-                value={form.password}
-                onChange={(e)=>setForm({...form,password:e.target.value})}
-                className="flex-1 outline-none text-sm"
-              />
-            </div>
-          </div>
+          <Input icon={<Lock size={14}/>} label="Password"
+            type="password"
+            value={form.password}
+            onChange={(v)=>setForm({...form,password:v})}
+            placeholder="Create password"
+          />
 
           {/* PHONE */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">Phone</label>
-            <div className="flex items-center border rounded-lg px-3 h-11">
-              <Phone size={16} className="text-gray-400 mr-2"/>
-              <input
-                placeholder="Phone number"
-                value={form.phone}
-                onChange={(e)=>setForm({...form,phone:e.target.value})}
-                className="flex-1 outline-none text-sm"
-              />
-            </div>
-          </div>
+          <Input icon={<Phone size={14}/>} label="Phone"
+            value={form.phone}
+            onChange={(v)=>setForm({...form,phone:v})}
+            placeholder="Phone number"
+          />
 
           {/* DEPARTMENT */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">Department</label>
-            <div className="flex items-center border rounded-lg px-3 h-11">
-              <Briefcase size={16} className="text-gray-400 mr-2"/>
-              <input
-                placeholder="ICU / Ward"
-                value={form.department}
-                onChange={(e)=>setForm({...form,department:e.target.value})}
-                className="flex-1 outline-none text-sm"
-              />
-            </div>
-          </div>
+          <Input icon={<Briefcase size={14}/>} label="Department"
+            value={form.department}
+            onChange={(v)=>setForm({...form,department:v})}
+            placeholder="ICU / Ward"
+          />
 
           {/* EXPERIENCE */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">Experience</label>
-            <input
-              placeholder="Years of experience"
-              value={form.experience}
-              onChange={(e)=>setForm({...form,experience:e.target.value})}
-              className="border rounded-lg h-11 px-3 text-sm w-full"
-            />
-          </div>
+          <Input label="Experience"
+            value={form.experience}
+            onChange={(v)=>setForm({...form,experience:v})}
+            placeholder="Years"
+          />
 
         </div>
 
         <button
           onClick={addNurse}
-          className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+          disabled={adding}
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm disabled:opacity-60"
         >
-          Add Nurse
+          {adding ? "Adding..." : "Add Nurse"}
         </button>
 
       </div>
 
+      {/* LIST */}
+      <div className="space-y-4">
 
-      {/* ====================== */}
-      {/* NURSE LIST */}
-      {/* ====================== */}
-
-      <div>
-
-        <h2 className="text-xl font-semibold mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold">
           Nurses
         </h2>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        {nurses.length === 0 && (
+          <p className="text-sm text-gray-500">
+            No nurses found
+          </p>
+        )}
 
-          {nurses.map(n=>(
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          {nurses.map((n:any)=>(
 
             <div
               key={n.id}
-              className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition"
+              className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition space-y-1"
             >
 
-              <p className="font-semibold">
+              <p className="font-semibold text-sm">
                 {n.name}
               </p>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-xs text-gray-500">
                 {n.email}
               </p>
 
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs text-gray-500">
                 Dept: {n.department || "-"}
               </p>
 
-              {/* 🔥 NEW (Doctor show) */}
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs text-gray-500">
+                Exp: {n.experience || 0} yrs
+              </p>
+
+              <p className="text-xs text-gray-500">
                 Doctor: {n.doctor?.name || "Not Assigned"}
               </p>
 
@@ -231,5 +210,24 @@ export default function AdminNurses(){
 
     </div>
 
+  )
+}
+
+/* 🔥 REUSABLE INPUT */
+function Input({label,icon,value,onChange,placeholder,type="text"}:any){
+  return(
+    <div className="space-y-1">
+      <label className="text-xs sm:text-sm text-gray-500">{label}</label>
+      <div className="flex items-center border rounded-lg px-3 h-10 text-sm focus-within:ring-2 focus-within:ring-blue-500">
+        {icon && <span className="mr-2 text-gray-400">{icon}</span>}
+        <input
+          type={type}
+          value={value}
+          onChange={(e)=>onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 outline-none text-sm"
+        />
+      </div>
+    </div>
   )
 }

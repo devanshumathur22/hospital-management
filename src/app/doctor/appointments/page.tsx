@@ -22,6 +22,7 @@ export default function DoctorAppointments(){
   const [loading,setLoading] = useState(true)
   const [search,setSearch] = useState("")
 
+  /* 🔥 FETCH */
   const fetchAppointments = async ()=>{
     try{
       const res = await fetch("/api/appointments")
@@ -36,8 +37,16 @@ export default function DoctorAppointments(){
 
   useEffect(()=>{
     fetchAppointments()
+
+    /* 🔔 AUTO REFRESH (NOTIFICATION SYSTEM) */
+    const interval = setInterval(()=>{
+      fetchAppointments()
+    },5000)
+
+    return ()=>clearInterval(interval)
   },[])
 
+  /* 🔥 UPDATE STATUS */
   const updateStatus = async(id:string,status:string)=>{
 
     if(status==="cancelled"){
@@ -63,10 +72,16 @@ export default function DoctorAppointments(){
     }
   }
 
+  /* 🔥 NAVIGATION */
   const openPrescription = (id:string)=>{
     router.push(`/doctor/prescription/${id}`)
   }
 
+  const openHistory = (patientId:string)=>{
+    router.push(`/doctor/patients/${patientId}`)
+  }
+
+  /* 🔍 FILTER */
   const filtered = appointments.filter((a:any)=>
     a.patient?.name?.toLowerCase().includes(search.toLowerCase())
   )
@@ -77,9 +92,9 @@ export default function DoctorAppointments(){
 
   return(
 
-    <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+      <h1 className="text-2xl font-bold">
         Appointments
       </h1>
 
@@ -104,7 +119,7 @@ export default function DoctorAppointments(){
       )}
 
       {/* CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
         {filtered.map((a:any)=>(
 
@@ -113,7 +128,7 @@ export default function DoctorAppointments(){
             initial={{opacity:0,y:20}}
             animate={{opacity:1,y:0}}
             whileHover={{y:-4}}
-            className="bg-white border rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-lg transition space-y-3"
+            className="bg-white border rounded-2xl p-4 shadow-sm hover:shadow-lg transition space-y-3"
           >
 
             {/* PATIENT */}
@@ -124,7 +139,7 @@ export default function DoctorAppointments(){
               </div>
 
               <div>
-                <p className="font-semibold text-sm sm:text-base truncate">
+                <p className="font-semibold text-sm truncate">
                   {a.patient?.name || "Unknown"}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -135,13 +150,13 @@ export default function DoctorAppointments(){
             </div>
 
             {/* DATE */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
               <Calendar size={14}/>
               {new Date(a.date).toDateString()}
             </div>
 
             {/* TIME */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
               <Clock size={14}/>
               {a.time}
             </div>
@@ -161,42 +176,37 @@ export default function DoctorAppointments(){
             {/* ACTIONS */}
             <div className="flex flex-wrap gap-2 pt-2">
 
-              {/* COMPLETE */}
               {a.status === "pending" && (
-                <button
-                  onClick={()=>updateStatus(a.id,"completed")}
-                  className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm"
-                >
-                  <CheckCircle size={14}/>
-                  Complete
-                </button>
-              )}
+                <>
+                  <button
+                    onClick={()=>updateStatus(a.id,"completed")}
+                    className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs"
+                  >
+                    <CheckCircle size={14}/>
+                    Complete
+                  </button>
 
-              {/* CANCEL */}
-              {a.status === "pending" && (
-                <button
-                  onClick={()=>updateStatus(a.id,"cancelled")}
-                  className="flex items-center gap-1 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm"
-                >
-                  <XCircle size={14}/>
-                  Cancel
-                </button>
-              )}
+                  <button
+                    onClick={()=>updateStatus(a.id,"cancelled")}
+                    className="flex items-center gap-1 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs"
+                  >
+                    <XCircle size={14}/>
+                    Cancel
+                  </button>
 
-              {/* NO SHOW */}
-              {a.status === "pending" && (
-                <button
-                  onClick={()=>updateStatus(a.id,"no-show")}
-                  className="flex items-center gap-1 bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm"
-                >
-                  🚫 No-show
-                </button>
+                  <button
+                    onClick={()=>updateStatus(a.id,"no-show")}
+                    className="flex items-center gap-1 bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs"
+                  >
+                    🚫 No-show
+                  </button>
+                </>
               )}
 
               {/* VITALS */}
               <button
                 onClick={()=>router.push(`/doctor/vitals/${a.id}`)}
-                className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm"
+                className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs"
               >
                 <Activity size={14}/>
                 Vitals
@@ -205,10 +215,18 @@ export default function DoctorAppointments(){
               {/* PRESCRIPTION */}
               <button
                 onClick={()=>openPrescription(a.id)}
-                className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm"
+                className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs"
               >
                 <FileText size={14}/>
                 Prescription
+              </button>
+
+              {/* 🔥 NEW: PATIENT HISTORY */}
+              <button
+                onClick={()=>openHistory(a.patient?.id)}
+                className="bg-black text-white px-3 py-1.5 rounded-lg text-xs"
+              >
+                History
               </button>
 
             </div>

@@ -2,75 +2,80 @@
 
 import { motion } from "framer-motion"
 import { UserPlus, CalendarPlus, CreditCard, Wallet } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 const cards = [
-
-{
-title:"Patient Registration",
-icon:UserPlus,
-color:"from-yellow-400 to-orange-400"
-},
-
-{
-title:"Book Appointment",
-icon:CalendarPlus,
-color:"from-red-400 to-pink-500"
-},
-
-{
-title:"Pending Payments",
-icon:CreditCard,
-color:"from-green-400 to-emerald-500"
-},
-
-{
-title:"Advance Payment",
-icon:Wallet,
-color:"from-purple-400 to-indigo-500"
-}
-
+  {
+    title:"Patient Registration",
+    icon:UserPlus,
+    color:"from-yellow-400 to-orange-400"
+  },
+  {
+    title:"Book Appointment",
+    icon:CalendarPlus,
+    color:"from-red-400 to-pink-500"
+  },
+  {
+    title:"Pending Payments",
+    icon:CreditCard,
+    color:"from-green-400 to-emerald-500"
+  },
+  {
+    title:"Advance Payment",
+    icon:Wallet,
+    color:"from-purple-400 to-indigo-500"
+  }
 ]
 
 export default function Kiosk(){
 
-return(
+  const router = useRouter()
 
-<div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center justify-center">
+  const handleClick = (type:string)=>{
+    // sab login pe jayega (future me type use kar sakta hai)
+    router.push(`/patient/login?type=${type}`)
+  }
 
-<h1 className="text-white text-4xl font-bold mb-12">
-Hospital Self Service
-</h1>
+  return(
 
-<div className="grid grid-cols-2 gap-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center justify-center px-4">
 
-{cards.map((card,i)=>{
+      <h1 className="text-white text-3xl sm:text-4xl font-bold mb-10 text-center">
+        Hospital Self Service
+      </h1>
 
-const Icon = card.icon
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
 
-return(
+        {cards.map((card,i)=>{
 
-<motion.div
-key={i}
-whileHover={{scale:1.05}}
-className={`bg-gradient-to-br ${card.color} p-10 rounded-2xl w-[240px] h-[200px] flex flex-col justify-center items-center shadow-xl cursor-pointer`}
->
+          const Icon = card.icon
 
-<Icon size={40} className="mb-4 text-white"/>
+          return(
 
-<h2 className="text-white font-semibold text-lg text-center">
-{card.title}
-</h2>
+            <motion.div
+              key={i}
+              whileHover={{scale:1.05}}
+              whileTap={{scale:0.95}}
+              onClick={()=>handleClick(card.title)}
+              className={`bg-gradient-to-br ${card.color} p-8 sm:p-10 rounded-2xl w-[220px] sm:w-[240px] h-[180px] sm:h-[200px] flex flex-col justify-center items-center shadow-xl cursor-pointer`}
+            >
 
-</motion.div>
+              <Icon size={38} className="mb-3 text-white"/>
 
-)
+              <h2 className="text-white font-semibold text-base sm:text-lg text-center">
+                {card.title}
+              </h2>
 
-})}
+            </motion.div>
 
-</div>
+          )
 
-</div>
+        })}
 
-)
+      </div>
+
+    </div>
+
+  )
 
 }

@@ -106,6 +106,8 @@ model Patient {
 
   name String
 
+  mrn String?
+
   phone  String?
   gender String?
   dob    DateTime?
@@ -239,22 +241,35 @@ model Receptionist {
 //////////////////////////////
 
 model Nurse {
-  id     String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId String? @db.ObjectId
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
 
-  user User? @relation("UserNurses", fields: [userId], references: [id])
+  // 🔐 USER RELATION
+  userId    String?  @db.ObjectId
+  user      User?    @relation("UserNurses", fields: [userId], references: [id])
 
-  name String
+  // BASIC INFO
+  name      String
+  phone     String?
+  image     String?
 
-  doctorId String? @db.ObjectId
-  doctor   Doctor? @relation("DoctorNurses", fields: [doctorId], references: [id])
+  // 👨‍⚕️ DOCTOR ASSIGNMENT
+  doctorId  String?  @db.ObjectId
+  doctor    Doctor?  @relation("DoctorNurses", fields: [doctorId], references: [id])
 
+  // 📊 RELATIONS
+  vitals    Vital[]
+
+  // ⚡ STATUS
+  status    String   @default("active")
+
+  // ⏱️ TIMESTAMPS
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vitals Vital[]
+  // 🔍 INDEXES
+  @@index([doctorId])
+  @@index([userId])
 }
-
 //////////////////////////////
 // PATIENT VITALS
 //////////////////////////////

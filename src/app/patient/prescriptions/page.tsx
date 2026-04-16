@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import jsPDF from "jspdf"
 
 export default function PatientPrescriptions() {
 
@@ -35,6 +36,34 @@ const d2 = new Date(dateFilter)
 
 return d1.toDateString() === d2.toDateString() && searchMatch
 })
+
+/* PDF */
+const downloadPDF = (p:any)=>{
+
+const doc = new jsPDF()
+
+doc.setFontSize(16)
+doc.text("Prescription",105,20,{ align:"center" })
+
+doc.setFontSize(11)
+
+doc.text(`Doctor: Dr. ${p.doctor?.name}`,20,40)
+doc.text(`Date: ${new Date(p.createdAt).toLocaleDateString()}`,20,48)
+
+let y = 60
+
+doc.text("Medicines:",20,y)
+y += 10
+
+p.medicine?.forEach((m:any,i:number)=>{
+
+doc.text(`${i+1}. ${m.name} - ${m.dosage} (${m.timing || "-"})`,20,y)
+y += 8
+
+})
+
+doc.save(`Prescription-${p.doctor?.name}.pdf`)
+}
 
 /* LOADING */
 if(loading){
@@ -72,14 +101,14 @@ className="border px-3 py-2 rounded-lg text-sm"
 
 </div>
 
-{/* ❌ EMPTY */}
+{/* EMPTY */}
 {filtered.length === 0 && (
 <p className="text-gray-500 text-sm">
 No prescriptions found
 </p>
 )}
 
-{/* 🔥 MOBILE VIEW */}
+{/* MOBILE */}
 <div className="space-y-4 sm:hidden">
 
 {filtered.map((p:any)=>(
@@ -105,7 +134,7 @@ View
 
 </div>
 
-{/* 💻 DESKTOP TABLE */}
+{/* DESKTOP */}
 <div className="hidden sm:block bg-white rounded-xl shadow overflow-x-auto">
 
 <table className="w-full text-sm">
@@ -131,13 +160,20 @@ Dr. {item.doctor?.name}
 {new Date(item.createdAt).toLocaleDateString()}
 </td>
 
-<td className="p-4">
+<td className="p-4 flex gap-2">
 
 <button
 onClick={()=>setSelectedPrescription(item)}
 className="bg-blue-600 text-white px-3 py-1 rounded"
 >
 View
+</button>
+
+<button
+onClick={()=>downloadPDF(item)}
+className="bg-green-600 text-white px-3 py-1 rounded"
+>
+PDF
 </button>
 
 </td>
@@ -151,37 +187,52 @@ View
 
 </div>
 
-{/* 🔥 MODAL */}
+{/* MODAL */}
 {selectedPrescription && (
 
 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
 
-<div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-md">
+<div className="bg-white p-5 rounded-xl w-full max-w-md space-y-4">
 
-<h2 className="text-lg font-bold mb-4">
+<h2 className="text-lg font-bold">
 Prescription
 </h2>
 
-<p className="text-sm mb-2">
-Doctor: {selectedPrescription.doctor?.name}
+<p className="text-sm">
+Doctor: <b>{selectedPrescription.doctor?.name}</b>
+</p>
+
+<p className="text-sm text-gray-500">
+{new Date(selectedPrescription.createdAt).toDateString()}
 </p>
 
 <ul className="text-sm space-y-1">
 
 {selectedPrescription.medicine?.map((m:any,i:number)=>(
 <li key={i}>
-{m.name} - {m.dosage}
+• {m.name} - {m.dosage} ({m.timing || "-"})
 </li>
 ))}
 
 </ul>
 
+<div className="flex gap-2 pt-2">
+
+<button
+onClick={()=>downloadPDF(selectedPrescription)}
+className="bg-green-600 text-white px-3 py-2 rounded text-sm w-full"
+>
+Download PDF
+</button>
+
 <button
 onClick={()=>setSelectedPrescription(null)}
-className="mt-4 bg-gray-500 text-white px-4 py-2 rounded text-sm w-full"
+className="bg-gray-500 text-white px-3 py-2 rounded text-sm w-full"
 >
 Close
 </button>
+
+</div>
 
 </div>
 

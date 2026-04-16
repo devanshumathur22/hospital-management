@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect,useState } from "react"
-import { useParams,useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import jsPDF from "jspdf"
 
 export default function PrescriptionPage(){
@@ -14,9 +14,10 @@ const [history,setHistory] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 
 const [medicines,setMedicines] = useState([
-{ name:"", dosage:"", timing:"" }
+  { name:"", dosage:"", timing:"" }
 ])
 
+/* 🔥 LOAD DATA */
 useEffect(()=>{
 
 const load = async()=>{
@@ -28,10 +29,11 @@ const data = await res.json()
 
 setAppointment(data)
 
+/* ✅ FIXED: no patientId param */
 if(data?.patient?.id){
-fetch(`/api/prescriptions?patientId=${data.patient.id}`)
-.then(res=>res.json())
-.then(historyData=>setHistory(historyData))
+  fetch(`/api/prescriptions`)
+  .then(res=>res.json())
+  .then(historyData=>setHistory(historyData))
 }
 
 }catch(err){
@@ -44,6 +46,7 @@ setLoading(false)
 load()
 
 },[])
+
 
 if(loading){
 return <div className="p-6 text-sm">Loading...</div>
@@ -68,12 +71,11 @@ updated[index][field] = value
 setMedicines(updated)
 }
 
-/* 🔥 PROFESSIONAL PDF */
+/* 🔥 PDF */
 const downloadPDF = ()=>{
 
 const doc = new jsPDF()
 
-/* HEADER */
 doc.setFontSize(18)
 doc.text("City Care Hospital",105,20,{ align:"center" })
 
@@ -82,7 +84,6 @@ doc.text("MG Road Jaipur | +91 9876543210",105,26,{ align:"center" })
 
 doc.line(20,30,190,30)
 
-/* DOCTOR + PATIENT */
 doc.setFontSize(12)
 
 doc.text(`Doctor: Dr. ${doctor.name}`,20,40)
@@ -94,7 +95,6 @@ doc.text(`Gender: ${patient.gender}`,20,72)
 
 doc.text(`Date: ${new Date().toLocaleDateString()}`,140,40)
 
-/* TABLE */
 let y = 90
 
 doc.setFontSize(13)
@@ -124,64 +124,81 @@ y += 8
 
 })
 
-/* SIGN */
 y += 20
 
 doc.line(120,y,180,y)
 doc.text("Doctor Signature",130,y+6)
 
-/* SAVE */
 doc.save(`Prescription-${patient.name}.pdf`)
 }
 
-/* SAVE */
+/* 🔥 SAVE */
 const savePrescription = async ()=>{
-await fetch("/api/prescriptions",{
+
+if(medicines.some(m => !m.name)){
+  alert("Enter medicine name")
+  return
+}
+
+const res = await fetch("/api/prescriptions",{
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-doctorId:doctor.id,
-patientId:patient.id,
-appointmentId:appointment.id,
-medicine: medicines,
-notes:""
+  doctorId:doctor.id,
+  patientId:patient.id,
+  appointmentId:appointment.id,
+  medicine: medicines,
+  notes:""
 })
 })
-alert("Saved")
+
+if(res.ok){
+  alert("Saved ✅")
+
+  /* 🔥 MARK COMPLETED */
+  await fetch(`/api/appointments/${appointment.id}`,{
+    method:"PUT",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      status:"completed"
+    })
+  })
+
+  router.push("/doctor/appointments")
+}else{
+  alert("Error saving")
+}
+
 }
 
 return(
 
 <div className="p-4 sm:p-6 bg-gray-100 min-h-screen space-y-6">
 
-{/* CARD */}
 <div className="max-w-4xl mx-auto bg-white shadow rounded-xl p-4 sm:p-6 md:p-10 space-y-6">
 
 {/* HEADER */}
 <div className="text-center border-b pb-4">
-
-<h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+<h1 className="text-xl sm:text-2xl font-bold">
 City Care Hospital
 </h1>
-
-<p className="text-xs sm:text-sm text-gray-500">
+<p className="text-xs text-gray-500">
 MG Road Jaipur • +91 9876543210
 </p>
-
 </div>
 
 {/* DOCTOR */}
 <div>
-<p className="font-semibold text-base sm:text-lg">
+<p className="font-semibold text-lg">
 Dr. {doctor.name}
 </p>
-<p className="text-gray-500 text-xs sm:text-sm">
+<p className="text-gray-500 text-sm">
 {doctor.specialization} • {doctor.experience} yrs
 </p>
 </div>
 
 {/* PATIENT */}
-<div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg text-xs sm:text-sm">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg text-sm">
 
 <div>
 <p className="text-gray-500">Patient</p>
@@ -286,19 +303,14 @@ Recent Prescriptions
 
 {/* FOOTER */}
 <div className="flex justify-between text-sm">
-
 <p>Date: {new Date().toLocaleDateString()}</p>
-
-<p className="font-semibold">
-Dr. {doctor.name}
-</p>
-
+<p className="font-semibold">Dr. {doctor.name}</p>
 </div>
 
 </div>
 
-{/* ACTION BUTTONS */}
-<div className="max-w-4xl mx-auto flex flex-col sm:flex-row gap-3">
+{/* ACTIONS */}
+<div className="max-w-4xl mx-auto flex gap-3">
 
 <button
 onClick={()=>window.print()}

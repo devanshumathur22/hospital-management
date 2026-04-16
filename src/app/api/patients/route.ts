@@ -6,6 +6,8 @@ import { cookies } from "next/headers"
 
 const SECRET = process.env.JWT_SECRET!
 
+/* ================= AUTH ================= */
+
 async function getUser(){
   const cookieStore = await cookies()
   const token = cookieStore.get("token")?.value
@@ -15,6 +17,12 @@ async function getUser(){
   }catch{
     return null
   }
+}
+
+/* ================= MRN GENERATOR ================= */
+
+function generateMRN(){
+  return "MRN" + Date.now().toString().slice(-6)
 }
 
 /* ================= GET ================= */
@@ -31,7 +39,7 @@ export async function GET(){
 
     let patients:any = []
 
-    /* PATIENT → own profile */
+    /* PATIENT → own */
     if(user.role === "patient"){
 
       const patient = await prisma.patient.findFirst({
@@ -143,8 +151,15 @@ export async function POST(req:Request){
       data:{
         userId:newUser.id,
         name:body.name,
+
+        /* 🔥 NEW FIELDS */
+        mrn: generateMRN(),
         phone:body.phone || null,
-        gender:body.gender || null
+        gender:body.gender || null,
+
+        address:body.address || null,
+        bloodGroup:body.bloodGroup || null,
+        emergencyContact:body.emergencyContact || null
       },
       include:{
         user:{ select:{ email:true } }
@@ -153,7 +168,8 @@ export async function POST(req:Request){
 
     return NextResponse.json(patient)
 
-  }catch{
+  }catch(err){
+    console.log(err)
     return NextResponse.json({error:"Failed"},{status:500})
   }
 }
@@ -180,7 +196,9 @@ export async function PUT(req:Request){
       where:{ id:patient?.id },
       data:{
         name: body.name || undefined,
-        phone: body.phone || null
+        phone: body.phone || null,
+        address: body.address || null,
+        emergencyContact: body.emergencyContact || null
       }
     })
 

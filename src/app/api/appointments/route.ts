@@ -47,6 +47,9 @@ export async function GET(req: Request) {
             gte: start,
             lt: end
           }
+        },
+        include: {
+          patient: true
         }
       })
 

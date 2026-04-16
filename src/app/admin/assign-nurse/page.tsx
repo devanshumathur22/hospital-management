@@ -1,122 +1,163 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Stethoscope } from "lucide-react"
+import { Search, Stethoscope, User } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function AssignNurse(){
 
   const [doctors,setDoctors] = useState<any[]>([])
   const [nurses,setNurses] = useState<any[]>([])
   const [search,setSearch] = useState("")
+  const [loading,setLoading] = useState(true)
 
-  /* ====================== */
-  /* LOAD DATA */
-  /* ====================== */
-
+  /* LOAD */
   useEffect(()=>{
     loadData()
   },[])
 
   const loadData = async () => {
-    const d = await fetch("/api/doctors")
-    const n = await fetch("/api/nurses")
+    try{
+      const d = await fetch("/api/doctors")
+      const n = await fetch("/api/nurses")
 
-    setDoctors(await d.json())
-    setNurses(await n.json())
+      setDoctors(await d.json())
+      setNurses(await n.json())
+    }catch{
+      setDoctors([])
+      setNurses([])
+    }
+    setLoading(false)
   }
 
-  /* ====================== */
   /* ASSIGN */
-  /* ====================== */
-
   async function assign(doctorId:string,nurseId:string){
 
     await fetch("/api/admin/assign-nurse",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
+      headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ doctorId, nurseId })
     })
 
-    await loadData() // 🔥 auto refresh
+    loadData()
   }
 
-  /* ====================== */
   /* SEARCH */
-  /* ====================== */
-
   const filteredNurses = nurses.filter(n =>
     n.name?.toLowerCase().includes(search.toLowerCase())
   )
 
+  if(loading){
+    return (
+      <div className="flex items-center justify-center min-h-screen text-sm">
+        Loading...
+      </div>
+    )
+  }
+
   return(
 
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
 
-      <h1 className="text-2xl font-bold">
+      {/* TITLE */}
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
         Assign Nurse To Doctor
       </h1>
 
       {/* SEARCH */}
-      <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
+      <div className="relative w-full sm:max-w-md">
+
+        <Search size={16} className="absolute left-3 top-2.5 text-gray-400"/>
+
         <input
           placeholder="Search nurse..."
           value={search}
           onChange={(e)=>setSearch(e.target.value)}
-          className="border rounded-lg pl-9 pr-3 h-10 w-full"
+          className="pl-9 pr-3 py-2 text-sm border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+
       </div>
 
-      {/* DOCTOR LIST */}
-      <div className="space-y-4">
+      {/* EMPTY */}
+      {doctors.length === 0 && (
+        <p className="text-sm text-gray-500">
+          No doctors found
+        </p>
+      )}
 
-        {doctors.map(d=>(
+      {/* GRID */}
+      <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
 
-          <div
+        {doctors.map((d:any)=>(
+
+          <motion.div
             key={d.id}
-            className="bg-white border p-4 rounded-xl shadow-sm space-y-2"
+            initial={{opacity:0,y:20}}
+            animate={{opacity:1,y:0}}
+            whileHover={{y:-4}}
+            className="bg-white border p-4 sm:p-5 rounded-2xl shadow-sm hover:shadow-lg transition space-y-3"
           >
 
             {/* DOCTOR */}
-            <div className="flex items-center gap-2">
-              <Stethoscope size={16}/>
-              <p className="font-medium">{d.name}</p>
+            <div className="flex items-center gap-3">
+
+              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                <Stethoscope size={16}/>
+              </div>
+
+              <div>
+                <p className="font-semibold text-sm truncate">
+                  {d.name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Doctor
+                </p>
+              </div>
+
             </div>
 
-            {/* 🔥 ASSIGNED NURSE SHOW */}
-            <p className="text-sm text-gray-500">
-              Assigned: {
-                d.nurses?.length
+            {/* ASSIGNED */}
+            <div className="text-xs sm:text-sm text-gray-600">
+
+              Assigned:{" "}
+              <span className="font-medium text-gray-800">
+                {d.nurses?.length
                   ? d.nurses.map((n:any)=>n.name).join(", ")
-                  : "Not Assigned"
-              }
-            </p>
+                  : "Not Assigned"}
+              </span>
+
+            </div>
 
             {/* SELECT */}
-            <select
-              value={d.nurses?.[0]?.id || ""} // 🔥 preselect
-              onChange={(e)=>assign(d.id,e.target.value)}
-              className="border rounded-lg h-9 px-3 w-full"
-            >
+            <div className="relative">
 
-              <option value="">Select Nurse</option>
+              <User size={14} className="absolute left-3 top-2.5 text-gray-400"/>
 
-              {filteredNurses.map(n=>(
-                <option key={n.id} value={n.id}>
-                  {n.name}
-                </option>
-              ))}
+              <select
+                value={d.nurses?.[0]?.id || ""}
+                onChange={(e)=>assign(d.id,e.target.value)}
+                className="border rounded-lg pl-8 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
 
-            </select>
+                <option value="">Select Nurse</option>
 
-          </div>
+                {filteredNurses.map((n:any)=>(
+                  <option key={n.id} value={n.id}>
+                    {n.name}
+                  </option>
+                ))}
+
+              </select>
+
+            </div>
+
+          </motion.div>
 
         ))}
 
       </div>
 
     </div>
+
   )
 }

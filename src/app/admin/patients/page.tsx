@@ -11,18 +11,20 @@ const [filtered,setFiltered] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 const [search,setSearch] = useState("")
 
-/* ================= FETCH ================= */
+/* 🔥 GET SEARCH PARAM SAFELY */
+useEffect(()=>{
+const params = new URLSearchParams(window.location.search)
+const q = params.get("search") || ""
+setSearch(q)
+},[])
 
+/* FETCH */
 useEffect(()=>{
 
 const fetchPatients = async()=>{
 
 try{
-
-const res = await fetch("/api/patients",{
-credentials:"include" // 🔥 IMPORTANT
-})
-
+const res = await fetch("/api/patients",{ credentials:"include" })
 const data = await res.json()
 
 setPatients(data || [])
@@ -40,27 +42,29 @@ fetchPatients()
 
 },[])
 
-/* ================= SEARCH ================= */
-
+/* 🔥 SEARCH FIX (name + phone + MRN) */
 useEffect(()=>{
 
+const q = search.toLowerCase()
+
 const f = patients.filter((p:any)=>
-p.name?.toLowerCase().includes(search.toLowerCase())
+p.name?.toLowerCase().includes(q) ||
+p.phone?.toLowerCase().includes(q) ||
+p.mrn?.toLowerCase().includes(q)
 )
 
 setFiltered(f)
 
 },[search,patients])
 
-/* ================= DELETE ================= */
-
+/* DELETE */
 const deletePatient = async(id:string)=>{
 
 if(!confirm("Delete this patient?")) return
 
 const res = await fetch(`/api/patients/${id}`,{
 method:"DELETE",
-credentials:"include" // 🔥 IMPORTANT
+credentials:"include"
 })
 
 if(res.ok){
@@ -71,51 +75,52 @@ alert("Delete failed")
 
 }
 
-/* ================= UI ================= */
-
+/* LOADING */
 if(loading){
-return <div className="p-10 text-center">Loading patients...</div>
+return(
+<div className="flex items-center justify-center min-h-screen text-sm">
+Loading patients...
+</div>
+)
 }
 
 return(
 
-<div className="max-w-7xl mx-auto px-4 py-10">
+<div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
 
 {/* HEADER */}
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
-<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
-
-<h1 className="flex items-center gap-2 text-3xl font-bold">
-
-<User size={26}/>
-
+<h1 className="flex items-center gap-2 text-xl sm:text-2xl md:text-3xl font-bold">
+<User size={22}/>
 Patients
-
 </h1>
 
 {/* SEARCH */}
+<div className="relative w-full sm:w-80">
 
-<div className="relative w-full md:w-96">
-
-<Search
-size={18}
-className="absolute left-3 top-3 text-gray-400"
-/>
+<Search size={16} className="absolute left-3 top-2.5 text-gray-400"/>
 
 <input
-placeholder="Search patient..."
+placeholder="Search by name / phone / MRN"
 value={search}
 onChange={(e)=>setSearch(e.target.value)}
-className="pl-10 pr-4 py-2 border rounded-lg w-full"
+className="pl-9 pr-3 py-2 text-sm border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
 />
 
 </div>
 
 </div>
 
-{/* GRID */}
+{/* EMPTY */}
+{filtered.length === 0 && (
+<p className="text-sm text-gray-500">
+No patients found
+</p>
+)}
 
-<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+{/* GRID */}
+<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
 
 {filtered.map((p:any)=>(
 
@@ -124,36 +129,42 @@ key={p.id}
 initial={{opacity:0,y:20}}
 animate={{opacity:1,y:0}}
 whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+className="bg-white border rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-lg transition space-y-3"
 >
 
 {/* PATIENT */}
+<div className="flex items-center gap-3">
 
-<div className="flex items-center gap-3 mb-4">
-
-<div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
-<User size={20}/>
+<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+<User size={16}/>
 </div>
 
 <div>
-<p className="font-semibold">{p.name}</p>
-<p className="text-xs text-gray-500">Patient</p>
+<p className="font-semibold text-sm truncate">
+{p.name}
+</p>
+<p className="text-xs text-gray-500">
+Patient
+</p>
 </div>
 
 </div>
 
 {/* INFO */}
+<div className="space-y-1 text-xs sm:text-sm text-gray-600">
 
-<div className="space-y-2 text-sm text-gray-600 mb-4">
+{/* 🔥 MRN */}
+<p className="text-xs text-blue-600 font-medium">
+MRN: {p.mrn}
+</p>
 
-{/* ✅ EMAIL FIX */}
-<div className="flex items-center gap-2">
-<Mail size={14}/>
-{p.user?.email || "No email"}
+<div className="flex items-center gap-2 truncate">
+<Mail size={13}/>
+<span className="truncate">{p.user?.email || "No email"}</span>
 </div>
 
 <div className="flex items-center gap-2">
-<Phone size={14}/>
+<Phone size={13}/>
 {p.phone || "No phone"}
 </div>
 
@@ -164,15 +175,12 @@ Age: {p.age || "-"}
 </div>
 
 {/* ACTION */}
-
 <button
 onClick={()=>deletePatient(p.id)}
-className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm"
+className="flex items-center gap-1 text-red-600 hover:text-red-800 text-xs sm:text-sm pt-1"
 >
-
-<Trash2 size={14}/>
+<Trash2 size={13}/>
 Delete
-
 </button>
 
 </motion.div>
@@ -184,5 +192,4 @@ Delete
 </div>
 
 )
-
 }
