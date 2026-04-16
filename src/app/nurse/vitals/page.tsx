@@ -1,16 +1,16 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useState } from "react"
 import {
   Activity,
   Thermometer,
   HeartPulse,
-  Droplet,
-  FileText
+  FileText,
+  AlertTriangle
 } from "lucide-react"
 
-export default function VitalsContent(){
+export default function VitalsPage(){
 
   const params = useSearchParams()
   const router = useRouter()
@@ -18,176 +18,187 @@ export default function VitalsContent(){
   const patientId = params.get("patient")
   const appointmentId = params.get("appointment")
 
+  const [vitals,setVitals] = useState<any[]>([])
+  const [loading,setLoading] = useState(false)
+
   const [form,setForm] = useState({
     bp:"",
     temperature:"",
     pulse:"",
-    oxygen:"",
     notes:""
   })
 
-  const [loading,setLoading] = useState(false)
+  /* ================= FETCH ================= */
 
-  /* ================= INPUT ================= */
+  useEffect(()=>{
+    if(!patientId) return
+    loadVitals()
+  },[patientId])
 
-  const handleChange = (e:any)=>{
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
-    })
-  }
-
-  /* ================= SAVE ================= */
-
-  const handleSubmit = async ()=>{
-
-    if(!form.bp || !form.temperature || !form.pulse || !form.oxygen){
-      alert("Fill all required fields")
-      return
-    }
-
-    setLoading(true)
-
-    try{
-
-      await fetch("/api/vitals",{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({
-          patientId,
-          appointmentId,
-          ...form
-        })
-      })
-
-      // 👉 mark ready automatically
-      await fetch(`/api/appointments/${appointmentId}`,{
-        method:"PATCH",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({ status:"ready" })
-      })
-
-      alert("Vitals saved successfully")
-
-      router.push("/nurse/dashboard")
-
-    }catch(err){
-      console.log(err)
-      alert("Error saving vitals")
-    }
-
-    setLoading(false)
+  const loadVitals = async () => {
+    const res = await fetch(`/api/vitals?patient=${patientId}`)
+    const data = await res.json()
+    setVitals(Array.isArray(data) ? data : [])
   }
 
   /* ================= ALERT ================= */
 
   const isCritical =
     Number(form.bp) > 140 ||
-    Number(form.temperature) > 100 ||
-    Number(form.oxygen) < 92
+    Number(form.temperature) > 100
+
+  /* ================= SUBMIT ================= */
+
+  const handleSubmit = async(e:any)=>{
+    e.preventDefault()
+
+    if(!form.bp || !form.temperature || !form.pulse){
+      alert("Fill all required fields")
+      return
+    }
+
+    setLoading(true)
+
+    await fetch("/api/vitals",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        ...form,
+        patientId,
+        appointmentId
+      })
+    })
+
+    // 👉 auto mark ready
+    await fetch(`/api/appointments/${appointmentId}`,{
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ status:"ready" })
+    })
+
+    setForm({
+      bp:"",
+      temperature:"",
+      pulse:"",
+      notes:""
+    })
+
+    await loadVitals()
+
+    setLoading(false)
+
+    alert("Vitals saved")
+  }
 
   return(
 
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
-      <div className="bg-white border rounded-xl p-6 shadow-sm">
+      <h1 className="text-xl sm:text-2xl font-semibold">
+        Patient Vitals
+      </h1>
 
-        <h1 className="text-xl font-semibold mb-6">
-          Add Patient Vitals
-        </h1>
+      {/* ALERT */}
+      {isCritical && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-100 p-2 rounded text-sm">
+          <AlertTriangle size={14}/>
+          Critical vitals detected
+        </div>
+      )}
 
-        {/* ALERT */}
-        {isCritical && (
-          <div className="mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">
-            ⚠️ Critical vitals detected!
+      {/* FORM */}
+      <form onSubmit={handleSubmit} className="space-y-4 bg-white p-5 rounded-xl border shadow-sm">
+
+        <Input icon={Activity} label="Blood Pressure" value={form.bp}
+          onChange={(v:any)=>setForm({...form,bp:v})}
+        />
+
+        <Input icon={Thermometer} label="Temperature" value={form.temperature}
+          onChange={(v:any)=>setForm({...form,temperature:v})}
+        />
+
+        <Input icon={HeartPulse} label="Pulse" value={form.pulse}
+          onChange={(v:any)=>setForm({...form,pulse:v})}
+        />
+
+        <div>
+          <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+            <FileText size={14}/>
+            Notes
           </div>
+          <textarea
+            value={form.notes}
+            onChange={(e)=>setForm({...form,notes:e.target.value})}
+            className="w-full border rounded-lg p-2 text-sm"
+          />
+        </div>
+
+        <button
+          disabled={loading}
+          className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm"
+        >
+          {loading ? "Saving..." : "Save Vitals"}
+        </button>
+
+      </form>
+
+      {/* HISTORY */}
+      <div className="space-y-3">
+
+        <h2 className="text-lg font-semibold">
+          Previous Vitals
+        </h2>
+
+        {vitals.length === 0 && (
+          <p className="text-gray-500 text-sm">
+            No vitals yet
+          </p>
         )}
 
-        <div className="space-y-4">
+        {vitals.map((v:any)=>(
 
-          {/* BP */}
-          <Input
-            icon={Activity}
-            name="bp"
-            placeholder="Blood Pressure (e.g. 120)"
-            value={form.bp}
-            onChange={handleChange}
-          />
+          <div key={v.id} className="border rounded-lg p-3 text-sm bg-white">
 
-          {/* TEMP */}
-          <Input
-            icon={Thermometer}
-            name="temperature"
-            placeholder="Temperature (°F)"
-            value={form.temperature}
-            onChange={handleChange}
-          />
-
-          {/* PULSE */}
-          <Input
-            icon={HeartPulse}
-            name="pulse"
-            placeholder="Pulse Rate"
-            value={form.pulse}
-            onChange={handleChange}
-          />
-
-          {/* OXYGEN */}
-          <Input
-            icon={Droplet}
-            name="oxygen"
-            placeholder="Oxygen (%)"
-            value={form.oxygen}
-            onChange={handleChange}
-          />
-
-          {/* NOTES */}
-          <div>
-            <div className="flex items-center gap-2 mb-1 text-sm text-gray-600">
-              <FileText size={14}/>
-              Notes
+            <div className="flex justify-between">
+              <p>BP: {v.bp || "-"}</p>
+              <p>Temp: {v.temperature || "-"}</p>
             </div>
 
-            <textarea
-              name="notes"
-              value={form.notes}
-              onChange={handleChange}
-              className="w-full border rounded-lg p-2 text-sm"
-              placeholder="Optional notes..."
-            />
+            <div className="flex justify-between mt-1">
+              <p>Pulse: {v.pulse || "-"}</p>
+              <p className="text-gray-400 text-xs">
+                {new Date(v.createdAt).toLocaleTimeString()}
+              </p>
+            </div>
+
+            {v.notes && (
+              <p className="text-gray-500 mt-1 text-xs">
+                {v.notes}
+              </p>
+            )}
+
           </div>
 
-          {/* BUTTON */}
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm"
-          >
-            {loading ? "Saving..." : "Save Vitals"}
-          </button>
-
-        </div>
+        ))}
 
       </div>
 
     </div>
-
   )
 }
 
-/* INPUT COMPONENT */
-function Input({icon:Icon,name,placeholder,value,onChange}:any){
+/* INPUT */
+function Input({icon:Icon,label,value,onChange}:any){
   return(
     <div>
-      <div className="flex items-center gap-2 mb-1 text-sm text-gray-600">
+      <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
         <Icon size={14}/>
-        {placeholder}
+        {label}
       </div>
 
       <input
-        name={name}
         value={value}
-        onChange={onChange}
+        onChange={(e)=>onChange(e.target.value)}
         className="w-full border rounded-lg px-3 py-2 text-sm"
       />
     </div>
