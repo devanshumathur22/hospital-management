@@ -191,7 +191,29 @@ export async function POST(req: Request) {
     const start = new Date(new Date(date).setHours(0, 0, 0, 0))
     const end = new Date(new Date(date).setHours(23, 59, 59, 999))
 
-    /* 🔥 PRE CHECK */
+    /* ===================================================== */
+    /* 🔥 NEW FIX: SAME PATIENT SAME DOCTOR SAME DAY BLOCK */
+    /* ===================================================== */
+
+    const alreadyBooked = await prisma.appointment.findFirst({
+      where:{
+        doctorId,
+        patientId,
+        date:{
+          gte:start,
+          lte:end
+        }
+      }
+    })
+
+    if(alreadyBooked){
+      return NextResponse.json(
+        { error:"You already have appointment with this doctor today" },
+        { status:400 }
+      )
+    }
+
+    /* 🔥 SLOT CHECK */
     const slotTaken = await prisma.appointment.findFirst({
       where: {
         doctorId,
@@ -224,7 +246,7 @@ export async function POST(req: Request) {
 
     const nextToken = lastAppointment ? lastAppointment.token + 1 : 1
 
-    /* 🔥 CREATE (FINAL SAFE) */
+    /* 🔥 CREATE */
     let appointment
 
     try {
@@ -246,10 +268,10 @@ export async function POST(req: Request) {
 
     } catch (err: any) {
 
-      /* 🔥 DOUBLE BOOKING FINAL BLOCK */
+      /* 🔥 FINAL DB SAFETY */
       if (err.code === "P2002") {
         return NextResponse.json(
-          { error: "Slot already booked" },
+          { error: "Already booked for today" },
           { status: 400 }
         )
       }
@@ -257,7 +279,6 @@ export async function POST(req: Request) {
       throw err
     }
 
-    /* 🔥 FINAL RETURN */
     return NextResponse.json({
       success: true,
       data: appointment

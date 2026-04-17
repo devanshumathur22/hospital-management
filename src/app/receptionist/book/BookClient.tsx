@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Search, CheckCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import { useSearchParams } from "next/navigation"
+import toast from "react-hot-toast"
 
 export default function BookPage() {
 
@@ -29,6 +30,14 @@ export default function BookPage() {
     date:"",
     time:""
   })
+
+  /* 🔥 FORMAT FIX */
+  function formatTimeTo12H(time:string){
+    const [h,m] = time.split(":").map(Number)
+    const ampm = h >= 12 ? "PM" : "AM"
+    const hour = h % 12 || 12
+    return `${hour.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${ampm}`
+  }
 
   /* 🔥 SLOT GENERATOR */
   function generateSlots(start="09:00",end="17:00",interval=15){
@@ -83,7 +92,7 @@ export default function BookPage() {
 
   },[])
 
-  /* 🔥 AUTO SELECT PATIENT */
+  /* AUTO SELECT PATIENT */
   useEffect(()=>{
     if(patientIdFromURL && patients.length>0){
       const found = patients.find(p=>p.id===patientIdFromURL)
@@ -98,49 +107,29 @@ export default function BookPage() {
   useEffect(()=>{
     if(!form.doctorId) return
 
-    const loadAvailability = async()=>{
-      try{
-        const res = await fetch(`/api/doctors/availability?doctorId=${form.doctorId}`)
-        const data = await res.json()
-        setAvailability(data)
-      }catch(err){
-        console.log(err)
-      }
-    }
-
-    loadAvailability()
+    fetch(`/api/doctors/availability?doctorId=${form.doctorId}`)
+      .then(res=>res.json())
+      .then(setAvailability)
 
   },[form.doctorId])
 
-  /* 🔥 FETCH BOOKED SLOTS */
+  /* 🔥 FETCH BOOKED */
   useEffect(()=>{
     if(!form.doctorId || !form.date) return
 
-    const loadBooked = async()=>{
-      try{
-        const res = await fetch(
-          `/api/appointments?doctorId=${form.doctorId}&date=${form.date}`
-        )
-        const data = await res.json()
-
-        const times = data.map((a:any)=>a.time)
+    fetch(`/api/appointments?doctorId=${form.doctorId}&date=${form.date}`)
+      .then(res=>res.json())
+      .then(data=>{
+        const times = data.map((a:any)=>formatTimeTo12H(a.time))
         setBookedSlots(times)
-
-      }catch(err){
-        console.log(err)
-      }
-    }
-
-    loadBooked()
+      })
 
   },[form.doctorId,form.date])
 
-  /* 🔥 TIME SLOTS */
   const timeSlots = availability
     ? generateSlots(availability.start, availability.end)
     : []
 
-  /* 🔥 FILTERS */
   const filteredPatients = patients.filter(p =>
     p.name?.toLowerCase().includes(patientSearch.toLowerCase())
   )
@@ -149,7 +138,6 @@ export default function BookPage() {
     d.name?.toLowerCase().includes(doctorSearch.toLowerCase())
   )
 
-  /* 🔥 DAY CHECK */
   const isAvailableDay = (date:string)=>{
     if(!availability?.days) return true
     const d = new Date(date)
@@ -161,7 +149,7 @@ export default function BookPage() {
   async function createAppointment(){
 
     if(!form.doctorId || !form.patientId || !form.date || !form.time){
-      alert("Fill all fields")
+      toast.error("Fill all fields")
       return
     }
 
@@ -169,23 +157,32 @@ export default function BookPage() {
       method:"POST",
       credentials:"include",
       headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify(form)
+      body:JSON.stringify({
+        ...form,
+        time: form.time // already formatted
+      })
     })
 
     const data = await res.json()
 
     if(!res.ok){
-      alert(data.error || "Failed")
+      toast.error(data.error || "Failed")
       return
     }
 
-    alert("Appointment booked ✅")
+    toast.success("Appointment booked ✅")
+
+    /* 🔥 REFRESH SLOTS */
+    const updated = await fetch(
+      `/api/appointments?doctorId=${form.doctorId}&date=${form.date}`
+    )
+    const updatedData = await updated.json()
+    setBookedSlots(updatedData.map((a:any)=>formatTimeTo12H(a.time)))
 
     setForm({doctorId:"",patientId:"",date:"",time:""})
     setPatientSearch("")
     setDoctorSearch("")
     setAvailability(null)
-    setBookedSlots([])
   }
 
   if(loading){
@@ -198,23 +195,15 @@ export default function BookPage() {
 
       <div className="max-w-5xl mx-auto">
 
-        <motion.div
-          initial={{opacity:0,y:20}}
-          animate={{opacity:1,y:0}}
-          className="bg-white rounded-3xl p-8 shadow-xl space-y-6"
-        >
+        <motion.div className="bg-white rounded-3xl p-8 shadow-xl space-y-6">
 
-          <h1 className="text-2xl font-bold">
-            Book Appointment
-          </h1>
+          <h1 className="text-2xl font-bold">Book Appointment</h1>
 
-          {/* FORM */}
           <div className="grid md:grid-cols-2 gap-6">
 
             {/* PATIENT */}
             <div className="relative">
               <label className="text-sm mb-1 block">Patient</label>
-
               <div className="flex items-center border rounded-xl px-3 h-11 bg-gray-50">
                 <Search size={16}/>
                 <input
@@ -230,8 +219,7 @@ export default function BookPage() {
               {showPatients && (
                 <div className="absolute bg-white w-full mt-1 border rounded-xl shadow max-h-40 overflow-y-auto z-10">
                   {filteredPatients.map(p=>(
-                    <div
-                      key={p.id}
+                    <div key={p.id}
                       onClick={()=>{
                         setForm(prev=>({...prev,patientId:p.id}))
                         setPatientSearch(p.name)
@@ -249,7 +237,6 @@ export default function BookPage() {
             {/* DOCTOR */}
             <div className="relative">
               <label className="text-sm mb-1 block">Doctor</label>
-
               <div className="flex items-center border rounded-xl px-3 h-11 bg-gray-50">
                 <Search size={16}/>
                 <input
@@ -265,8 +252,7 @@ export default function BookPage() {
               {showDoctors && (
                 <div className="absolute bg-white w-full mt-1 border rounded-xl shadow max-h-40 overflow-y-auto z-10">
                   {filteredDoctors.map(d=>(
-                    <div
-                      key={d.id}
+                    <div key={d.id}
                       onClick={()=>{
                         setForm(prev=>({...prev,doctorId:d.id}))
                         setDoctorSearch(d.name)
@@ -289,12 +275,10 @@ export default function BookPage() {
                 value={form.date}
                 onChange={e=>{
                   const value = e.target.value
-
                   if(!isAvailableDay(value)){
-                    alert("Doctor not available this day")
+                    toast.error("Doctor not available this day")
                     return
                   }
-
                   setForm(prev=>({...prev,date:value}))
                 }}
                 className="border rounded-xl px-3 h-11 w-full"
@@ -303,35 +287,32 @@ export default function BookPage() {
 
           </div>
 
-          {/* TIME SLOTS */}
+          {/* 🔥 TIME SLOTS */}
           <div>
             <label className="text-sm mb-2 block">Select Time</label>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
 
               {timeSlots.map(slot=>{
-
                 const selected = form.time === slot
                 const isBooked = bookedSlots.includes(slot)
 
                 return (
                   <button
                     key={slot}
-                    type="button"
                     disabled={isBooked}
-                    onClick={()=>!isBooked && setForm(prev=>({...prev,time:slot}))}
-                    className={`py-2 rounded-xl text-sm font-medium transition
+                    onClick={()=>setForm(prev=>({...prev,time:slot}))}
+                    className={`py-2 rounded-xl text-sm
 
                       ${isBooked
-                        ? "bg-red-100 text-red-500 cursor-not-allowed line-through"
+                        ? "bg-red-100 text-red-500 line-through cursor-not-allowed"
                         : selected
-                          ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105 ring-2 ring-blue-400"
+                          ? "bg-blue-600 text-white"
                           : "bg-white border hover:bg-gray-100"
                       }
-
                     `}
                   >
-                    {isBooked ? `✕ ${slot}` : slot}
+                    {isBooked ? `❌ ${slot}` : slot}
                   </button>
                 )
               })}
@@ -340,12 +321,10 @@ export default function BookPage() {
 
           </div>
 
-          {/* BUTTON */}
           <button
             onClick={createAppointment}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl shadow-lg hover:scale-105 transition"
+            className="w-full bg-blue-600 text-white py-3 rounded-xl"
           >
-            <CheckCircle size={18}/>
             Book Appointment
           </button>
 

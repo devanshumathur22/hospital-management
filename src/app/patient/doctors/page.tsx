@@ -5,6 +5,7 @@ import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import { X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import toast from "react-hot-toast"
 
 export default function PatientDoctors() {
 
@@ -19,7 +20,6 @@ export default function PatientDoctors() {
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState("all")
 
-  /* 🔥 SLOT GENERATOR */
   function generateSlots(start: string, end: string) {
     if (!start || !end) return []
 
@@ -48,7 +48,6 @@ export default function PatientDoctors() {
     return slots
   }
 
-  /* 🔥 FETCH DOCTORS */
   useEffect(() => {
     fetch("/api/doctors")
       .then(res => res.json())
@@ -66,7 +65,6 @@ export default function PatientDoctors() {
       })
   }, [])
 
-  /* 🔥 FETCH AVAILABILITY */
   useEffect(() => {
 
     if (!selectedDoctor?.id) return
@@ -79,7 +77,6 @@ export default function PatientDoctors() {
 
   }, [selectedDoctor])
 
-  /* 🔥 FETCH BOOKED */
   useEffect(() => {
 
     if (!selectedDoctor?.id || !date) return
@@ -96,23 +93,21 @@ export default function PatientDoctors() {
     ? generateSlots(availability.start, availability.end)
     : []
 
-  /* 🔥 DAY CHECK */
   const isDoctorAvailable = (date: Date) => {
     if (!availability?.days) return false
     const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][date.getDay()]
     return availability.days.includes(day)
   }
 
-  /* 🔥 SLOT BOOK CHECK */
   const isSlotBooked = (slot: string) => {
     return appointments.some((a: any) => a.time === slot)
   }
 
-  /* 🔥 BOOK */
+  /* 🔥 UPDATED BOOK */
   const handleBook = async () => {
 
     if (!date || !time) {
-      alert("Select date & time")
+      toast.error("Select date & time")
       return
     }
 
@@ -132,28 +127,23 @@ export default function PatientDoctors() {
     const data = await res.json()
     setLoading(false)
 
-    if (res.ok) {
-
-      alert("Appointment Booked ✅")
-
-      /* 🔥 REFRESH BOOKED SLOTS */
-      const updated = await fetch(
-        `/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`
-      )
-
-      const updatedData = await updated.json()
-      setAppointments(updatedData)
-
-      /* 🔥 CLOSE MODAL (MAIN FIX) */
-      setSelectedDoctor(null)
-
-      /* 🔥 RESET STATE */
-      setTime("")
-      setDate(null)
-
-    } else {
-      alert(data.error || "Booking failed")
+    if (!res.ok) {
+      toast.error(data.error || "Booking failed")
+      return
     }
+
+    toast.success("Appointment Booked ✅")
+
+    const updated = await fetch(
+      `/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`
+    )
+
+    const updatedData = await updated.json()
+    setAppointments(updatedData)
+
+    setSelectedDoctor(null)
+    setTime("")
+    setDate(null)
   }
 
   const specializations = ["all", ...Object.keys(groupedDoctors)]
@@ -163,7 +153,6 @@ export default function PatientDoctors() {
 
       <h1 className="text-2xl font-bold">Find Doctors</h1>
 
-      {/* FILTER */}
       <div className="flex flex-wrap gap-2">
         {specializations.map((sp) => (
           <button
@@ -180,7 +169,6 @@ export default function PatientDoctors() {
         ))}
       </div>
 
-      {/* DOCTORS */}
       {Object.entries(groupedDoctors)
         .filter(([category]) => filter === "all" || filter === category)
         .map(([category, docs]: any) => (
@@ -222,7 +210,6 @@ export default function PatientDoctors() {
 
         ))}
 
-      {/* MODAL */}
       <AnimatePresence>
         {selectedDoctor && (
 

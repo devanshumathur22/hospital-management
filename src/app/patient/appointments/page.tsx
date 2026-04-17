@@ -46,7 +46,6 @@ function generateTimeSlots(start:string,end:string){
 const loadData = async()=>{
   const res = await fetch("/api/appointments",{ credentials:"include" })
   const data = await res.json()
-
   setAppointments(Array.isArray(data) ? data : [])
 }
 
@@ -143,7 +142,6 @@ return(
 <div
 key={a.id}
 className={`p-4 rounded-xl shadow space-y-2
-
 ${a.status === "cancelled"
   ? "bg-red-50 border border-red-300"
   : "bg-white"
@@ -167,11 +165,13 @@ ${a.status === "cancelled"
 `}>
 {a.status === "cancelled"
   ? "❌ Cancelled by Doctor"
-  : a.status}
+  : a.status === "completed"
+    ? "✔ Completed"
+    : "⏳ Pending"}
 </p>
 
-{/* 🔥 ACTIONS */}
-{a.status !== "cancelled" && (
+{/* 🔥 FINAL FIX */}
+{a.status === "pending" && (
 
 <div className="flex gap-2">
 
@@ -199,7 +199,7 @@ Cancel
 
 </div>
 
-{/* MODAL SAME AS BEFORE */}
+{/* MODAL */}
 {selected && (
 <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
 <div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">

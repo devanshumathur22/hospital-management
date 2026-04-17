@@ -13,7 +13,7 @@ export default function Appointments() {
 
   const [doctors, setDoctors] = useState<any[]>([])
   const [patients, setPatients] = useState<any[]>([])
-  const [slots, setSlots] = useState<any[]>([]) // 🔥 SLOT STATE
+  const [slots, setSlots] = useState<any[]>([])
   const [loading,setLoading] = useState(true)
 
   const [patientSearch, setPatientSearch] = useState("")
@@ -116,13 +116,15 @@ export default function Appointments() {
 
     toast.success("Appointment booked ✅")
 
-    /* 🔥 REFRESH SLOTS */
-    setSlots(prev =>
-      prev.map(s =>
-        s.time === form.time ? { ...s, isBooked:true } : s
-      )
+    /* 🔥 REFRESH SLOTS (IMPORTANT FIX) */
+    const updated = await fetch(
+      `/api/slots?doctorId=${form.doctorId}&date=${form.date}`
     )
 
+    const updatedSlots = await updated.json()
+    setSlots(updatedSlots || [])
+
+    /* RESET */
     setForm({ doctorId:"",patientId:"",date:"",time:"" })
     setPatientSearch("")
     setDoctorSearch("")
@@ -239,6 +241,12 @@ export default function Appointments() {
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
 
+              {slots.length === 0 && (
+                <p className="text-sm text-gray-500">
+                  No slots available
+                </p>
+              )}
+
               {slots.map(slot=>{
 
                 const selected = form.time === slot.time
@@ -246,17 +254,19 @@ export default function Appointments() {
 
                 return (
                   <button
-                    key={slot.id}
+                    key={slot.time}
                     disabled={isBooked}
                     onClick={()=>setForm(prev=>({...prev,time:slot.time}))}
-                    className={`py-2 rounded-xl text-sm font-medium transition
+                    className={`py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1
+
                       ${isBooked
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        ? "bg-red-100 text-red-500 cursor-not-allowed border border-red-300"
                         : selected
                           ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105"
                           : "bg-white border hover:bg-gray-100"
                       }`}
                   >
+                    {isBooked ? "❌" : ""}
                     {slot.time}
                   </button>
                 )
