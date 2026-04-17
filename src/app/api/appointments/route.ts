@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     const doctorId = url.searchParams.get("doctorId")
     const date = url.searchParams.get("date")
 
-    /* 🔥 SLOT FILTER (used in booking page) */
+    /* 🔥 SLOT FILTER (booking page ke liye) */
     if (doctorId && date) {
 
       const selectedDate = new Date(date)
@@ -58,7 +58,6 @@ export async function GET(req: Request) {
     let appointments: any[] = []
 
     /* ===== PATIENT ===== */
-
     if (user.role === "patient") {
 
       const patient = await prisma.patient.findFirst({
@@ -75,7 +74,6 @@ export async function GET(req: Request) {
     }
 
     /* ===== DOCTOR ===== */
-
     else if (user.role === "doctor") {
 
       const doctor = await prisma.doctor.findFirst({
@@ -91,34 +89,23 @@ export async function GET(req: Request) {
       })
     }
 
-    /* ===== NURSE (🔥 FIXED FINAL) ===== */
-
+    /* ===== NURSE ===== */
     else if (user.role === "nurse") {
 
       const nurse = await prisma.nurse.findFirst({
         where: { userId: user.id }
       })
 
-      if (!nurse || !nurse.doctorId) {
-        return NextResponse.json([])
-      }
+      if (!nurse || !nurse.doctorId) return NextResponse.json([])
 
-      // ❌ NO DATE FILTER (IMPORTANT FIX)
       appointments = await prisma.appointment.findMany({
-        where: {
-          doctorId: nurse.doctorId
-        },
-        include: {
-          patient: true
-        },
-        orderBy: {
-          token: "asc"
-        }
+        where: { doctorId: nurse.doctorId },
+        include: { patient: true },
+        orderBy: { token: "asc" }
       })
     }
 
     /* ===== ADMIN ===== */
-
     else if (user.role === "admin") {
 
       appointments = await prisma.appointment.findMany({
@@ -138,7 +125,6 @@ export async function GET(req: Request) {
   }
 }
 
-
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
@@ -152,45 +138,64 @@ export async function POST(req: Request) {
 
     const body = await req.json()
 
-    const {doctorId, patientId, date, time} = body
-    
-    if(!doctorId || !patientId || !date || !time){
-      return NextResponse.json({ error: "Fill all fields" }, { status: 400 })
-    } 
-    /* 🔥 CHECK PATIENT */
-const patient = await prisma.patient.findUnique({
-  where: { id: patientId }
-})
+    let { doctorId, patientId, date, time } = body
 
-if (!patient) {
-  return NextResponse.json(
-    { error: "Invalid patient" },
-    { status: 400 }
-  )
-}
+    if (!doctorId || !date || !time) {
+      return NextResponse.json(
+        { error: "Fill all fields" },
+        { status: 400 }
+      )
+    }
 
-/* 🔥 CHECK DOCTOR */
-const doctor = await prisma.doctor.findUnique({
-  where: { id: doctorId }
-})
+    /* 🔥 PATIENT AUTO (if patient logged in) */
+    if (user.role === "patient") {
+      const patient = await prisma.patient.findFirst({
+        where: { userId: user.id }
+      })
+      patientId = patient?.id
+    }
 
-if (!doctor) {
-  return NextResponse.json(
-    { error: "Invalid doctor" },
-    { status: 400 }
-  )
-}
+    if (!patientId) {
+      return NextResponse.json(
+        { error: "Patient not found" },
+        { status: 400 }
+      )
+    }
 
-    const selectedDate = new Date(body.date)
+    /* 🔥 VALIDATE PATIENT */
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId }
+    })
 
-    const start = new Date(new Date(body.date).setHours(0,0,0,0))
-    const end = new Date(new Date(body.date).setHours(23,59,59,999))
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Invalid patient" },
+        { status: 400 }
+      )
+    }
 
-    /* 🔥 SLOT CHECK */
+    /* 🔥 VALIDATE DOCTOR */
+    const doctor = await prisma.doctor.findUnique({
+      where: { id: doctorId }
+    })
+
+    if (!doctor) {
+      return NextResponse.json(
+        { error: "Invalid doctor" },
+        { status: 400 }
+      )
+    }
+
+    const selectedDate = new Date(date)
+
+    const start = new Date(new Date(date).setHours(0, 0, 0, 0))
+    const end = new Date(new Date(date).setHours(23, 59, 59, 999))
+
+    /* 🔥 PRE CHECK */
     const slotTaken = await prisma.appointment.findFirst({
       where: {
-        doctorId: body.doctorId,
-        time: body.time.trim().toLowerCase(),
+        doctorId,
+        time,
         date: {
           gte: start,
           lt: end
@@ -205,45 +210,64 @@ if (!doctor) {
       )
     }
 
-    /* 🔥 TOKEN GENERATION */
+    /* 🔥 TOKEN */
     const lastAppointment = await prisma.appointment.findFirst({
       where: {
-        doctorId: body.doctorId,
+        doctorId,
         date: {
           gte: start,
           lt: end
         }
       },
-      orderBy: {
-        token: "desc"
-      }
+      orderBy: { token: "desc" }
     })
 
     const nextToken = lastAppointment ? lastAppointment.token + 1 : 1
 
-    /* 🔥 CREATE */
-    const appointment = await prisma.appointment.create({
-      data: {
-        doctorId: body.doctorId,
-        patientId: patient.id,
-        date: selectedDate,
-        time: body.time,
-        status: "pending",
-        token: nextToken
-      },
-      include:{
-        patient:true,
-        doctor:true
-      }
-    })
+    /* 🔥 CREATE (FINAL SAFE) */
+    let appointment
 
+    try {
+
+      appointment = await prisma.appointment.create({
+        data: {
+          doctorId,
+          patientId,
+          date: selectedDate,
+          time,
+          status: "pending",
+          token: nextToken
+        },
+        include: {
+          patient: true,
+          doctor: true
+        }
+      })
+
+    } catch (err: any) {
+
+      /* 🔥 DOUBLE BOOKING FINAL BLOCK */
+      if (err.code === "P2002") {
+        return NextResponse.json(
+          { error: "Slot already booked" },
+          { status: 400 }
+        )
+      }
+
+      throw err
+    }
+
+    /* 🔥 FINAL RETURN */
     return NextResponse.json({
-      success:true,
-      data:appointment
+      success: true,
+      data: appointment
     })
 
   } catch (err) {
     console.log(err)
-    return NextResponse.json({ error: "Failed" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to create appointment" },
+      { status: 500 }
+    )
   }
 }

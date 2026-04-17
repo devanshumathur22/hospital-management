@@ -136,10 +136,17 @@ export async function PUT(
         date: newDate,
         time: newTime,
         status: body.status || appointment.status
+      },
+      include: {
+        doctor: true,
+        patient: true
       }
     })
 
-    return NextResponse.json(updated)
+    return NextResponse.json({
+      success: true,
+      data: updated
+    })
 
   } catch (err) {
 
@@ -153,7 +160,7 @@ export async function PUT(
 }
 
 /* ============================= */
-/* DELETE */
+/* DELETE (FINAL PRO VERSION) */
 /* ============================= */
 
 export async function DELETE(
@@ -165,17 +172,27 @@ export async function DELETE(
     const user: any = await getUser()
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
     }
 
     const { id } = await context.params
 
     const appointment = await prisma.appointment.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        patient: true,
+        doctor: true
+      }
     })
 
     if (!appointment) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Appointment not found" },
+        { status: 404 }
+      )
     }
 
     /* 🔥 GET REAL IDS */
@@ -205,11 +222,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    /* 🔥 DELETE PRESCRIPTION FIRST */
+    /* 🔥 DELETE PRESCRIPTIONS */
     await prisma.prescription.deleteMany({
-      where: {
-        appointmentId: id
-      }
+      where: { appointmentId: id }
     })
 
     /* 🔥 DELETE APPOINTMENT */
@@ -217,8 +232,15 @@ export async function DELETE(
       where: { id }
     })
 
+    /* 🔥 FINAL RESPONSE */
     return NextResponse.json({
-      message: "Appointment cancelled successfully"
+      success: true,
+      message: "Appointment cancelled successfully",
+      freedSlot: {
+        doctorId: appointment.doctorId,
+        date: appointment.date,
+        time: appointment.time
+      }
     })
 
   } catch (err) {
@@ -226,7 +248,7 @@ export async function DELETE(
     console.log("DELETE ERROR:", err)
 
     return NextResponse.json(
-      { error: "Delete failed" },
+      { error: "Failed to cancel appointment" },
       { status: 500 }
     )
   }

@@ -19,7 +19,7 @@ export default function PatientDoctors() {
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState("all")
 
-  /* 🔥 GENERATE SLOTS */
+  /* 🔥 SLOT GENERATOR */
   function generateSlots(start: string, end: string) {
     if (!start || !end) return []
 
@@ -53,6 +53,7 @@ export default function PatientDoctors() {
     fetch("/api/doctors")
       .then(res => res.json())
       .then(data => {
+
         setDoctors(data || [])
 
         const grouped = (data || []).reduce((acc: any, doc: any) => {
@@ -70,7 +71,7 @@ export default function PatientDoctors() {
 
     if (!selectedDoctor?.id) return
 
-    setAvailability(null) // ✅ reset
+    setAvailability(null)
 
     fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`)
       .then(res => res.json())
@@ -78,12 +79,12 @@ export default function PatientDoctors() {
 
   }, [selectedDoctor])
 
-  /* 🔥 FETCH BOOKED SLOTS */
+  /* 🔥 FETCH BOOKED */
   useEffect(() => {
 
     if (!selectedDoctor?.id || !date) return
 
-    setAppointments([]) // ✅ reset
+    setAppointments([])
 
     fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`)
       .then(res => res.json())
@@ -104,16 +105,14 @@ export default function PatientDoctors() {
 
   /* 🔥 SLOT BOOK CHECK */
   const isSlotBooked = (slot: string) => {
-    return appointments.some((a: any) => {
-      return a.time?.trim() === slot.trim()
-    })
+    return appointments.some((a: any) => a.time === slot)
   }
 
   /* 🔥 BOOK */
   const handleBook = async () => {
 
     if (!date || !time) {
-      alert("Select date and time")
+      alert("Select date & time")
       return
     }
 
@@ -125,26 +124,35 @@ export default function PatientDoctors() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         doctorId: selectedDoctor.id,
-        date,
+        date: date.toISOString(),
         time
       })
     })
 
+    const data = await res.json()
     setLoading(false)
 
     if (res.ok) {
 
       alert("Appointment Booked ✅")
 
-      // 🔥 refresh slots instantly
-      const updated = await fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`)
-      const data = await updated.json()
-      setAppointments(data)
+      /* 🔥 REFRESH BOOKED SLOTS */
+      const updated = await fetch(
+        `/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`
+      )
 
+      const updatedData = await updated.json()
+      setAppointments(updatedData)
+
+      /* 🔥 CLOSE MODAL (MAIN FIX) */
+      setSelectedDoctor(null)
+
+      /* 🔥 RESET STATE */
       setTime("")
+      setDate(null)
+
     } else {
-      const err = await res.json()
-      alert(err.error || "Booking failed")
+      alert(data.error || "Booking failed")
     }
   }
 
@@ -236,7 +244,6 @@ export default function PatientDoctors() {
                 className="w-full border p-2 rounded"
               />
 
-              {/* SLOTS */}
               {!availability ? (
                 <p className="text-sm text-gray-500">Loading slots...</p>
               ) : (

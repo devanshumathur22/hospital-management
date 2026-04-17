@@ -12,6 +12,9 @@ export default function BookPage() {
 
   const [patients,setPatients] = useState<any[]>([])
   const [doctors,setDoctors] = useState<any[]>([])
+  const [availability,setAvailability] = useState<any>(null)
+  const [bookedSlots,setBookedSlots] = useState<string[]>([])
+
   const [loading,setLoading] = useState(true)
 
   const [patientSearch,setPatientSearch] = useState("")
@@ -57,9 +60,7 @@ export default function BookPage() {
     return slots
   }
 
-  const timeSlots = generateSlots()
-
-  /* FETCH */
+  /* 🔥 FETCH DATA */
   useEffect(()=>{
 
     const load = async()=>{
@@ -82,7 +83,7 @@ export default function BookPage() {
 
   },[])
 
-  /* AUTO SELECT PATIENT */
+  /* 🔥 AUTO SELECT PATIENT */
   useEffect(()=>{
     if(patientIdFromURL && patients.length>0){
       const found = patients.find(p=>p.id===patientIdFromURL)
@@ -93,6 +94,53 @@ export default function BookPage() {
     }
   },[patientIdFromURL,patients])
 
+  /* 🔥 FETCH AVAILABILITY */
+  useEffect(()=>{
+    if(!form.doctorId) return
+
+    const loadAvailability = async()=>{
+      try{
+        const res = await fetch(`/api/doctors/availability?doctorId=${form.doctorId}`)
+        const data = await res.json()
+        setAvailability(data)
+      }catch(err){
+        console.log(err)
+      }
+    }
+
+    loadAvailability()
+
+  },[form.doctorId])
+
+  /* 🔥 FETCH BOOKED SLOTS */
+  useEffect(()=>{
+    if(!form.doctorId || !form.date) return
+
+    const loadBooked = async()=>{
+      try{
+        const res = await fetch(
+          `/api/appointments?doctorId=${form.doctorId}&date=${form.date}`
+        )
+        const data = await res.json()
+
+        const times = data.map((a:any)=>a.time)
+        setBookedSlots(times)
+
+      }catch(err){
+        console.log(err)
+      }
+    }
+
+    loadBooked()
+
+  },[form.doctorId,form.date])
+
+  /* 🔥 TIME SLOTS */
+  const timeSlots = availability
+    ? generateSlots(availability.start, availability.end)
+    : []
+
+  /* 🔥 FILTERS */
   const filteredPatients = patients.filter(p =>
     p.name?.toLowerCase().includes(patientSearch.toLowerCase())
   )
@@ -101,7 +149,15 @@ export default function BookPage() {
     d.name?.toLowerCase().includes(doctorSearch.toLowerCase())
   )
 
-  /* CREATE */
+  /* 🔥 DAY CHECK */
+  const isAvailableDay = (date:string)=>{
+    if(!availability?.days) return true
+    const d = new Date(date)
+    const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]
+    return availability.days.includes(day)
+  }
+
+  /* 🔥 CREATE */
   async function createAppointment(){
 
     if(!form.doctorId || !form.patientId || !form.date || !form.time){
@@ -128,6 +184,8 @@ export default function BookPage() {
     setForm({doctorId:"",patientId:"",date:"",time:""})
     setPatientSearch("")
     setDoctorSearch("")
+    setAvailability(null)
+    setBookedSlots([])
   }
 
   if(loading){
@@ -229,7 +287,16 @@ export default function BookPage() {
               <input
                 type="date"
                 value={form.date}
-                onChange={e=>setForm(prev=>({...prev,date:e.target.value}))}
+                onChange={e=>{
+                  const value = e.target.value
+
+                  if(!isAvailableDay(value)){
+                    alert("Doctor not available this day")
+                    return
+                  }
+
+                  setForm(prev=>({...prev,date:value}))
+                }}
                 className="border rounded-xl px-3 h-11 w-full"
               />
             </div>
@@ -245,19 +312,26 @@ export default function BookPage() {
               {timeSlots.map(slot=>{
 
                 const selected = form.time === slot
+                const isBooked = bookedSlots.includes(slot)
 
                 return (
                   <button
                     key={slot}
                     type="button"
-                    onClick={()=>setForm(prev=>({...prev,time:slot}))}
+                    disabled={isBooked}
+                    onClick={()=>!isBooked && setForm(prev=>({...prev,time:slot}))}
                     className={`py-2 rounded-xl text-sm font-medium transition
-                      ${selected
-                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105 ring-2 ring-blue-400"
-                        : "bg-white border hover:bg-gray-100"
-                      }`}
+
+                      ${isBooked
+                        ? "bg-red-100 text-red-500 cursor-not-allowed line-through"
+                        : selected
+                          ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105 ring-2 ring-blue-400"
+                          : "bg-white border hover:bg-gray-100"
+                      }
+
+                    `}
                   >
-                    {slot}
+                    {isBooked ? `✕ ${slot}` : slot}
                   </button>
                 )
               })}
