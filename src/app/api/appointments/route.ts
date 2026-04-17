@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     const doctorId = url.searchParams.get("doctorId")
     const date = url.searchParams.get("date")
 
-    /* 🔥 SLOT FILTER */
+    /* 🔥 SLOT FILTER (used in booking page) */
     if (doctorId && date) {
 
       const selectedDate = new Date(date)
@@ -91,7 +91,7 @@ export async function GET(req: Request) {
       })
     }
 
-    /* ===== NURSE (🔥 FIXED) ===== */
+    /* ===== NURSE (🔥 FIXED FINAL) ===== */
 
     else if (user.role === "nurse") {
 
@@ -103,22 +103,16 @@ export async function GET(req: Request) {
         return NextResponse.json([])
       }
 
-      const start = new Date(new Date().setHours(0,0,0,0))
-      const end = new Date(new Date().setHours(23,59,59,999))
-
+      // ❌ NO DATE FILTER (IMPORTANT FIX)
       appointments = await prisma.appointment.findMany({
         where: {
-          doctorId: nurse.doctorId, // 🔥 IMPORTANT
-          date: {
-            gte: start,
-            lt: end
-          }
+          doctorId: nurse.doctorId
         },
         include: {
           patient: true
         },
         orderBy: {
-          token: "asc" // 🔥 QUEUE ORDER
+          token: "asc"
         }
       })
     }
@@ -209,7 +203,7 @@ export async function POST(req: Request) {
 
     const nextToken = lastAppointment ? lastAppointment.token + 1 : 1
 
-    /* 🔥 CREATE APPOINTMENT */
+    /* 🔥 CREATE */
     const appointment = await prisma.appointment.create({
       data: {
         doctorId: body.doctorId,
