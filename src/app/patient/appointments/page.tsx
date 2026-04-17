@@ -48,7 +48,11 @@ function generateTimeSlots(start:string,end:string){
 const loadData = async()=>{
   const res = await fetch("/api/appointments?type=pending",{ credentials:"include" })
   const data = await res.json()
-  setAppointments(Array.isArray(data) ? data : [])
+ const filtered = Array.isArray(data)
+  ? data.filter((a:any)=> a.status !== "completed")
+  : []
+
+setAppointments(filtered)
 }
 
 /* 🔥 INITIAL LOAD */

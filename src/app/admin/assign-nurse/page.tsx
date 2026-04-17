@@ -10,6 +10,7 @@ export default function AssignNurse(){
   const [nurses,setNurses] = useState<any[]>([])
   const [search,setSearch] = useState("")
   const [loading,setLoading] = useState(true)
+  const [assigning,setAssigning] = useState(false)
 
   /* LOAD */
   useEffect(()=>{
@@ -21,33 +22,73 @@ export default function AssignNurse(){
       const d = await fetch("/api/doctors")
       const n = await fetch("/api/nurses")
 
-      setDoctors(await d.json())
-      setNurses(await n.json())
-    }catch{
+      const doctorsData = await d.json()
+      const nursesData = await n.json()
+
+      // ✅ SAFE FIX (NO CRASH)
+      const safeDoctors = Array.isArray(doctorsData)
+        ? doctorsData
+        : doctorsData?.data || []
+
+      const safeNurses = Array.isArray(nursesData)
+        ? nursesData
+        : nursesData?.data || nursesData?.nurses || []
+
+      setDoctors(safeDoctors)
+      setNurses(safeNurses)
+
+    }catch(err){
+      console.log(err)
       setDoctors([])
       setNurses([])
     }
+
     setLoading(false)
   }
 
   /* ASSIGN */
   async function assign(doctorId:string,nurseId:string){
 
-    await fetch("/api/admin/assign-nurse",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ doctorId, nurseId })
-    })
+    if (!nurseId) return
 
-    loadData()
+    setAssigning(true)
+
+    try{
+      const res = await fetch("/api/admin/assign-nurse",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ doctorId, nurseId })
+      })
+
+      const data = await res.json()
+      console.log("ASSIGN RESPONSE:", data)
+
+      if(!res.ok){
+        alert(data.error || "Failed ❌")
+        return
+      }
+
+      alert("Assigned successfully ✅")
+
+      await loadData()
+
+    }catch(err){
+      console.log(err)
+      alert("Failed to assign ❌")
+    }
+
+    setAssigning(false)
   }
 
   /* SEARCH */
-  const filteredNurses = nurses.filter(n =>
-    n.name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredNurses = Array.isArray(nurses)
+    ? nurses.filter(n =>
+        n.name?.toLowerCase().includes(search.toLowerCase())
+      )
+    : []
 
-  if(loading){
+  /* LOADING */
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen text-sm">
         Loading...
@@ -66,7 +107,6 @@ export default function AssignNurse(){
 
       {/* SEARCH */}
       <div className="relative w-full sm:max-w-md">
-
         <Search size={16} className="absolute left-3 top-2.5 text-gray-400"/>
 
         <input
@@ -75,7 +115,6 @@ export default function AssignNurse(){
           onChange={(e)=>setSearch(e.target.value)}
           className="pl-9 pr-3 py-2 text-sm border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-
       </div>
 
       {/* EMPTY */}
@@ -100,7 +139,6 @@ export default function AssignNurse(){
 
             {/* DOCTOR */}
             <div className="flex items-center gap-3">
-
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
                 <Stethoscope size={16}/>
               </div>
@@ -113,28 +151,26 @@ export default function AssignNurse(){
                   Doctor
                 </p>
               </div>
-
             </div>
 
             {/* ASSIGNED */}
             <div className="text-xs sm:text-sm text-gray-600">
-
               Assigned:{" "}
               <span className="font-medium text-gray-800">
                 {d.nurses?.length
                   ? d.nurses.map((n:any)=>n.name).join(", ")
                   : "Not Assigned"}
               </span>
-
             </div>
 
-            {/* SELECT */}
+            {/* SELECT (🔥 FIXED) */}
             <div className="relative">
 
               <User size={14} className="absolute left-3 top-2.5 text-gray-400"/>
 
               <select
-                value={d.nurses?.[0]?.id || ""}
+                disabled={assigning}
+                defaultValue=""
                 onChange={(e)=>assign(d.id,e.target.value)}
                 className="border rounded-lg pl-8 pr-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -158,6 +194,5 @@ export default function AssignNurse(){
       </div>
 
     </div>
-
   )
 }

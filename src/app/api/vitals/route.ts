@@ -23,9 +23,17 @@ export async function GET(req: Request) {
         where:{ userId: user.id }
       })
 
+      if(!patient){
+        return NextResponse.json([], { status: 404 })
+      }
+
       vitals = await prisma.vital.findMany({
-        where:{ patientId: patient?.id },
-        orderBy:{ createdAt:"desc" }
+        where:{ patientId: patient.id },
+        orderBy:{ createdAt:"desc" },
+        include:{
+          doctor:{ select:{ name:true } },
+          nurse:{ select:{ name:true } }
+        }
       })
     }
 
@@ -37,9 +45,17 @@ export async function GET(req: Request) {
         where:{ userId: user.id }
       })
 
+      if(!doctor){
+        return NextResponse.json([], { status: 404 })
+      }
+
       vitals = await prisma.vital.findMany({
-        where:{ doctorId: doctor?.id },
-        orderBy:{ createdAt:"desc" }
+        where:{ doctorId: doctor.id },
+        orderBy:{ createdAt:"desc" },
+        include:{
+          patient:{ select:{ name:true } },
+          nurse:{ select:{ name:true } }
+        }
       })
     }
 
@@ -51,9 +67,17 @@ export async function GET(req: Request) {
         where:{ userId: user.id }
       })
 
+      if(!nurse){
+        return NextResponse.json([], { status: 404 })
+      }
+
       vitals = await prisma.vital.findMany({
-        where:{ doctorId: nurse?.doctorId },
-        orderBy:{ createdAt:"desc" }
+        where:{ nurseId: nurse.id }, // 🔥 FIXED
+        orderBy:{ createdAt:"desc" },
+        include:{
+          patient:{ select:{ name:true } },
+          doctor:{ select:{ name:true } }
+        }
       })
     }
 
@@ -62,7 +86,12 @@ export async function GET(req: Request) {
     else if(user.role === "admin"){
 
       vitals = await prisma.vital.findMany({
-        orderBy:{ createdAt:"desc" }
+        orderBy:{ createdAt:"desc" },
+        include:{
+          patient:{ select:{ name:true } },
+          doctor:{ select:{ name:true } },
+          nurse:{ select:{ name:true } }
+        }
       })
     }
 
@@ -98,16 +127,31 @@ export async function POST(req: Request) {
       )
     }
 
-    // 🔥 FIX → correct nurse
+    /* 🔥 GET NURSE */
     const nurse = await prisma.nurse.findFirst({
       where:{ userId: user.id }
     })
 
+    if(!nurse){
+      return NextResponse.json(
+        { error:"Nurse not found" },
+        { status:404 }
+      )
+    }
+
+    if(!nurse.doctorId){
+      return NextResponse.json(
+        { error:"Doctor not assigned to nurse" },
+        { status:400 }
+      )
+    }
+
+    /* 🔥 CREATE VITAL */
     const vital = await prisma.vital.create({
       data: {
         patientId: body.patientId,
-        nurseId: nurse?.id,
-        doctorId: nurse?.doctorId,
+        nurseId: nurse.id,
+        doctorId: nurse.doctorId,
 
         bp: body.bp || null,
 
@@ -120,10 +164,18 @@ export async function POST(req: Request) {
           : null,
 
         notes: body.notes || null
+      },
+      include:{
+        patient:{ select:{ name:true } },
+        doctor:{ select:{ name:true } },
+        nurse:{ select:{ name:true } }
       }
     })
 
-    return NextResponse.json(vital)
+    return NextResponse.json({
+      success:true,
+      data:vital
+    })
 
   } catch (err) {
     console.log(err)

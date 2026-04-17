@@ -3,7 +3,8 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { cookies } from "next/headers"
 
-/* AUTH */
+/* ================= AUTH ================= */
+
 async function getUser() {
   const cookieStore = await cookies()
   const token = cookieStore.get("token")?.value
@@ -17,9 +18,7 @@ async function getUser() {
   }
 }
 
-/* ============================= */
-/* GET */
-/* ============================= */
+/* ================= GET ================= */
 
 export async function GET(req: Request) {
   try {
@@ -28,11 +27,10 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json([], { status: 401 })
 
     const url = new URL(req.url)
-
     const doctorId = url.searchParams.get("doctorId")
     const date = url.searchParams.get("date")
 
-    /* 🔥 SLOT FILTER (IMPORTANT) */
+    /* 🔥 SLOT FILTER */
     if (doctorId && date) {
 
       const selectedDate = new Date(date)
@@ -48,17 +46,18 @@ export async function GET(req: Request) {
             lt: end
           }
         },
-        include: {
-          patient: true
-        }
+        include: { patient: true },
+        orderBy: { token: "asc" }
       })
 
       return NextResponse.json(appointments)
     }
 
-    /* NORMAL DATA */
+    /* ================= ROLE BASE ================= */
 
     let appointments: any[] = []
+
+    /* ===== PATIENT ===== */
 
     if (user.role === "patient") {
 
@@ -70,9 +69,12 @@ export async function GET(req: Request) {
 
       appointments = await prisma.appointment.findMany({
         where: { patientId: patient.id },
-        include: { doctor: true }
+        include: { doctor: true },
+        orderBy: { createdAt: "desc" }
       })
     }
+
+    /* ===== DOCTOR ===== */
 
     else if (user.role === "doctor") {
 
@@ -82,12 +84,56 @@ export async function GET(req: Request) {
 
       if (!doctor) return NextResponse.json([])
 
-    appointments = await prisma.appointment.findMany({
-  where: { doctorId: doctor.id },
-  include: {
-    patient: true
-  }
-})
+      appointments = await prisma.appointment.findMany({
+        where: { doctorId: doctor.id },
+        include: { patient: true },
+        orderBy: { token: "asc" }
+      })
+    }
+
+    /* ===== NURSE (🔥 FIXED) ===== */
+
+    else if (user.role === "nurse") {
+
+      const nurse = await prisma.nurse.findFirst({
+        where: { userId: user.id }
+      })
+
+      if (!nurse || !nurse.doctorId) {
+        return NextResponse.json([])
+      }
+
+      const start = new Date(new Date().setHours(0,0,0,0))
+      const end = new Date(new Date().setHours(23,59,59,999))
+
+      appointments = await prisma.appointment.findMany({
+        where: {
+          doctorId: nurse.doctorId, // 🔥 IMPORTANT
+          date: {
+            gte: start,
+            lt: end
+          }
+        },
+        include: {
+          patient: true
+        },
+        orderBy: {
+          token: "asc" // 🔥 QUEUE ORDER
+        }
+      })
+    }
+
+    /* ===== ADMIN ===== */
+
+    else if (user.role === "admin") {
+
+      appointments = await prisma.appointment.findMany({
+        include: {
+          patient: true,
+          doctor: true
+        },
+        orderBy: { createdAt: "desc" }
+      })
     }
 
     return NextResponse.json(appointments)
@@ -98,9 +144,8 @@ export async function GET(req: Request) {
   }
 }
 
-/* ============================= */
-/* POST */
-/* ============================= */
+
+/* ================= POST ================= */
 
 export async function POST(req: Request) {
   try {
@@ -118,10 +163,16 @@ export async function POST(req: Request) {
     })
 
     if (!patient) {
-      return NextResponse.json({ error: "Patient not found" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Patient not found" },
+        { status: 400 }
+      )
     }
 
     const selectedDate = new Date(body.date)
+
+    const start = new Date(new Date(body.date).setHours(0,0,0,0))
+    const end = new Date(new Date(body.date).setHours(23,59,59,999))
 
     /* 🔥 SLOT CHECK */
     const slotTaken = await prisma.appointment.findFirst({
@@ -129,8 +180,8 @@ export async function POST(req: Request) {
         doctorId: body.doctorId,
         time: body.time.trim().toLowerCase(),
         date: {
-          gte: new Date(new Date(body.date).setHours(0,0,0,0)),
-          lt: new Date(new Date(body.date).setHours(23,59,59,999))
+          gte: start,
+          lt: end
         }
       }
     })
@@ -142,17 +193,42 @@ export async function POST(req: Request) {
       )
     }
 
+    /* 🔥 TOKEN GENERATION */
+    const lastAppointment = await prisma.appointment.findFirst({
+      where: {
+        doctorId: body.doctorId,
+        date: {
+          gte: start,
+          lt: end
+        }
+      },
+      orderBy: {
+        token: "desc"
+      }
+    })
+
+    const nextToken = lastAppointment ? lastAppointment.token + 1 : 1
+
+    /* 🔥 CREATE APPOINTMENT */
     const appointment = await prisma.appointment.create({
       data: {
         doctorId: body.doctorId,
         patientId: patient.id,
         date: selectedDate,
         time: body.time,
-        status: "pending"
+        status: "pending",
+        token: nextToken
+      },
+      include:{
+        patient:true,
+        doctor:true
       }
     })
 
-    return NextResponse.json(appointment)
+    return NextResponse.json({
+      success:true,
+      data:appointment
+    })
 
   } catch (err) {
     console.log(err)

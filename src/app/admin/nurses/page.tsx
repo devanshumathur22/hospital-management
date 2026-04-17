@@ -7,14 +7,18 @@ import {
   Mail,
   Lock,
   Phone,
-  Briefcase
+  Briefcase,
+  Trash2,
+  Pencil
 } from "lucide-react"
 
 export default function AdminNurses(){
 
   const [nurses,setNurses] = useState<any[]>([])
+  const [doctors,setDoctors] = useState<any[]>([])
   const [loading,setLoading] = useState(true)
   const [adding,setAdding] = useState(false)
+  const [editingId,setEditingId] = useState<string | null>(null)
 
   const [form,setForm] = useState({
     name:"",
@@ -25,23 +29,41 @@ export default function AdminNurses(){
     experience:""
   })
 
-  /* LOAD */
+  /* ================= LOAD ================= */
+
   useEffect(()=>{
-    loadNurses()
+    loadData()
   },[])
 
-  const loadNurses = async () => {
+  const loadData = async () => {
     try{
-      const res = await fetch("/api/nurses")
-      const data = await res.json()
-      setNurses(data || [])
-    }catch{
+      const n = await fetch("/api/nurses")
+      const d = await fetch("/api/doctors")
+
+      const nursesData = await n.json()
+      const doctorsData = await d.json()
+
+      const safeNurses = Array.isArray(nursesData)
+        ? nursesData
+        : nursesData?.data || []
+
+      const safeDoctors = Array.isArray(doctorsData)
+        ? doctorsData
+        : doctorsData?.data || []
+
+      setNurses(safeNurses)
+      setDoctors(safeDoctors)
+
+    }catch(err){
+      console.log(err)
       setNurses([])
     }
+
     setLoading(false)
   }
 
-  /* ADD */
+  /* ================= ADD ================= */
+
   async function addNurse(){
 
     if(!form.name || !form.email || !form.password){
@@ -65,146 +87,180 @@ export default function AdminNurses(){
     setAdding(false)
 
     if(res.ok){
-      await loadNurses()
-
-      setForm({
-        name:"",
-        email:"",
-        password:"",
-        phone:"",
-        department:"",
-        experience:""
-      })
-
+      await loadData()
+      resetForm()
     }else{
       alert(data.error)
     }
   }
 
+  /* ================= DELETE ================= */
+
+  async function deleteNurse(id:string){
+
+    if(!confirm("Delete nurse?")) return
+
+    await fetch(`/api/nurses/${id}`,{
+      method:"DELETE"
+    })
+
+    await loadData()
+  }
+
+  /* ================= EDIT ================= */
+
+  function startEdit(n:any){
+    setEditingId(n.id)
+    setForm({
+      name:n.name || "",
+      email:n.user?.email || "",
+      password:"",
+      phone:n.phone || "",
+      department:n.department || "",
+      experience:n.experience?.toString() || ""
+    })
+  }
+
+  async function updateNurse(){
+
+    const res = await fetch(`/api/nurses/${editingId}`,{
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        ...form,
+        experience:Number(form.experience)
+      })
+    })
+
+    const data = await res.json()
+
+    if(res.ok){
+      await loadData()
+      resetForm()
+      setEditingId(null)
+    }else{
+      alert(data.error)
+    }
+  }
+
+  /* ================= ASSIGN ================= */
+
+  async function assignDoctor(nurseId:string,doctorId:string){
+
+    await fetch("/api/admin/assign-nurse",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ nurseId, doctorId })
+    })
+
+    await loadData()
+  }
+
+  /* ================= RESET ================= */
+
+  function resetForm(){
+    setForm({
+      name:"",
+      email:"",
+      password:"",
+      phone:"",
+      department:"",
+      experience:""
+    })
+  }
+
+  /* ================= UI ================= */
+
   if(loading){
-    return(
-      <div className="flex items-center justify-center min-h-screen text-sm">
-        Loading nurses...
-      </div>
-    )
+    return <div className="p-10 text-center">Loading...</div>
   }
 
   return(
 
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
-      {/* ADD FORM */}
-      <div className="bg-white border rounded-2xl p-5 sm:p-8 shadow space-y-6">
+      {/* FORM */}
+      <div className="bg-white border rounded-xl p-6 space-y-5">
 
-        <h1 className="flex items-center gap-2 text-lg sm:text-2xl font-semibold">
-          <UserPlus size={20}/>
-          Add Nurse
+        <h1 className="text-xl font-semibold flex items-center gap-2">
+          <UserPlus size={18}/>
+          {editingId ? "Edit Nurse" : "Add Nurse"}
         </h1>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+        <div className="grid sm:grid-cols-2 gap-4">
 
-          {/* NAME */}
-          <Input icon={<User size={14}/>} label="Nurse Name"
-            value={form.name}
-            onChange={(v)=>setForm({...form,name:v})}
-            placeholder="Enter name"
-          />
-
-          {/* EMAIL */}
-          <Input icon={<Mail size={14}/>} label="Email"
-            value={form.email}
-            onChange={(v)=>setForm({...form,email:v})}
-            placeholder="Enter email"
-          />
-
-          {/* PASSWORD */}
-          <Input icon={<Lock size={14}/>} label="Password"
-            type="password"
-            value={form.password}
-            onChange={(v)=>setForm({...form,password:v})}
-            placeholder="Create password"
-          />
-
-          {/* PHONE */}
-          <Input icon={<Phone size={14}/>} label="Phone"
-            value={form.phone}
-            onChange={(v)=>setForm({...form,phone:v})}
-            placeholder="Phone number"
-          />
-
-          {/* DEPARTMENT */}
-          <Input icon={<Briefcase size={14}/>} label="Department"
-            value={form.department}
-            onChange={(v)=>setForm({...form,department:v})}
-            placeholder="ICU / Ward"
-          />
-
-          {/* EXPERIENCE */}
-          <Input label="Experience"
-            value={form.experience}
-            onChange={(v)=>setForm({...form,experience:v})}
-            placeholder="Years"
-          />
+          <Input label="Name" value={form.name} onChange={(v)=>setForm({...form,name:v})}/>
+          <Input label="Email" value={form.email} onChange={(v)=>setForm({...form,email:v})}/>
+          {!editingId && (
+            <Input label="Password" type="password" value={form.password} onChange={(v)=>setForm({...form,password:v})}/>
+          )}
+          <Input label="Phone" value={form.phone} onChange={(v)=>setForm({...form,phone:v})}/>
+          <Input label="Department" value={form.department} onChange={(v)=>setForm({...form,department:v})}/>
+          <Input label="Experience" value={form.experience} onChange={(v)=>setForm({...form,experience:v})}/>
 
         </div>
 
         <button
-          onClick={addNurse}
-          disabled={adding}
-          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm disabled:opacity-60"
+          onClick={editingId ? updateNurse : addNurse}
+          className="bg-blue-600 text-white px-5 py-2 rounded-lg"
         >
-          {adding ? "Adding..." : "Add Nurse"}
+          {editingId ? "Update" : "Add"}
         </button>
 
       </div>
 
       {/* LIST */}
-      <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-        <h2 className="text-lg sm:text-xl font-semibold">
-          Nurses
-        </h2>
+        {nurses.map((n:any)=>(
 
-        {nurses.length === 0 && (
-          <p className="text-sm text-gray-500">
-            No nurses found
-          </p>
-        )}
+          <div key={n.id} className="bg-white border p-4 rounded-xl space-y-2">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <p className="font-semibold">{n.name}</p>
+            <p className="text-sm text-gray-500">{n.user?.email}</p>
+            <p className="text-sm">Phone: {n.phone || "-"}</p>
+            <p className="text-sm">Dept: {n.department || "-"}</p>
 
-          {nurses.map((n:any)=>(
+            <p className="text-sm">
+              Doctor: {n.doctor?.name || "Not Assigned"}
+            </p>
 
-            <div
-              key={n.id}
-              className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition space-y-1"
+            {/* ASSIGN */}
+            <select
+              onChange={(e)=>assignDoctor(n.id,e.target.value)}
+              className="border p-1 rounded text-sm w-full"
+              defaultValue=""
             >
+              <option value="">Assign Doctor</option>
+              {doctors.map((d:any)=>(
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
 
-              <p className="font-semibold text-sm">
-                {n.name}
-              </p>
+            {/* ACTIONS */}
+            <div className="flex gap-3 mt-2">
 
-              <p className="text-xs text-gray-500">
-                {n.email}
-              </p>
+              <button
+                onClick={()=>startEdit(n)}
+                className="text-blue-600 text-sm flex items-center gap-1"
+              >
+                <Pencil size={14}/> Edit
+              </button>
 
-              <p className="text-xs text-gray-500">
-                Dept: {n.department || "-"}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                Exp: {n.experience || 0} yrs
-              </p>
-
-              <p className="text-xs text-gray-500">
-                Doctor: {n.doctor?.name || "Not Assigned"}
-              </p>
+              <button
+                onClick={()=>deleteNurse(n.id)}
+                className="text-red-600 text-sm flex items-center gap-1"
+              >
+                <Trash2 size={14}/> Delete
+              </button>
 
             </div>
 
-          ))}
+          </div>
 
-        </div>
+        ))}
 
       </div>
 
@@ -213,21 +269,17 @@ export default function AdminNurses(){
   )
 }
 
-/* 🔥 REUSABLE INPUT */
-function Input({label,icon,value,onChange,placeholder,type="text"}:any){
+/* INPUT */
+function Input({label,value,onChange,type="text"}:any){
   return(
-    <div className="space-y-1">
-      <label className="text-xs sm:text-sm text-gray-500">{label}</label>
-      <div className="flex items-center border rounded-lg px-3 h-10 text-sm focus-within:ring-2 focus-within:ring-blue-500">
-        {icon && <span className="mr-2 text-gray-400">{icon}</span>}
-        <input
-          type={type}
-          value={value}
-          onChange={(e)=>onChange(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1 outline-none text-sm"
-        />
-      </div>
+    <div>
+      <p className="text-sm text-gray-500">{label}</p>
+      <input
+        type={type}
+        value={value}
+        onChange={(e)=>onChange(e.target.value)}
+        className="border rounded-lg px-3 py-2 w-full"
+      />
     </div>
   )
 }

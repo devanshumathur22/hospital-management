@@ -141,21 +141,26 @@ model Appointment {
   id        String            @id @default(auto()) @map("_id") @db.ObjectId
   doctorId  String            @db.ObjectId
   patientId String            @db.ObjectId
+
   date      DateTime
   time      String
+
+  token     Int               @default(1) // 🔥 FIXED
+
   status    AppointmentStatus @default(pending)
+
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
-  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction)
 
   prescription Prescription[]
 
-  @@unique([doctorId, date, time]) // 🔥 only this needed
+  @@unique([doctorId, date, time])
   @@index([doctorId])
   @@index([patientId])
+  @@index([doctorId, date]) // 🔥 ADD (token system fast hoga)
 }
 
 //////////////////////////////
