@@ -152,16 +152,34 @@ export async function POST(req: Request) {
 
     const body = await req.json()
 
-    const patient = await prisma.patient.findFirst({
-      where: { userId: user.id }
-    })
+    const {doctorId, patientId, date, time} = body
+    
+    if(!doctorId || !patientId || !date || !time){
+      return NextResponse.json({ error: "Fill all fields" }, { status: 400 })
+    } 
+    /* 🔥 CHECK PATIENT */
+const patient = await prisma.patient.findUnique({
+  where: { id: patientId }
+})
 
-    if (!patient) {
-      return NextResponse.json(
-        { error: "Patient not found" },
-        { status: 400 }
-      )
-    }
+if (!patient) {
+  return NextResponse.json(
+    { error: "Invalid patient" },
+    { status: 400 }
+  )
+}
+
+/* 🔥 CHECK DOCTOR */
+const doctor = await prisma.doctor.findUnique({
+  where: { id: doctorId }
+})
+
+if (!doctor) {
+  return NextResponse.json(
+    { error: "Invalid doctor" },
+    { status: 400 }
+  )
+}
 
     const selectedDate = new Date(body.date)
 

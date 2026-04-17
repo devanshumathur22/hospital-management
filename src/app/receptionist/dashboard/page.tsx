@@ -1,42 +1,178 @@
 "use client"
 
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Users,
-  UserPlus,
   Calendar,
-  Activity
+  Activity,
+  Plus,
+  Tv
 } from "lucide-react"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 
-export default function Dashboard(){
+/* 🔥 ADD PATIENT MODAL */
+function AddPatientModal({open,setOpen}:any){
 
-  const [stats,setStats] = useState<any>(null)
-  const [loading,setLoading] = useState(true)
-  const [error,setError] = useState("")
+  const [form,setForm] = useState({
+    name:"",
+    email:"",
+    password:"",
+    confirmPassword:"",
+    phone:""
+  })
 
-  /* ================= LOAD ================= */
+  const [loading,setLoading] = useState(false)
 
-  useEffect(()=>{
+  const handleSubmit = async()=>{
 
-    const load = async()=>{
+    if(!form.name || !form.email || !form.password){
+      alert("Fill required fields")
+      return
+    }
 
-      try{
+    if(form.password !== form.confirmPassword){
+      alert("Passwords do not match")
+      return
+    }
 
-        const res = await fetch("/api/stats",{
-          credentials:"include" // 🔥 IMPORTANT
+    setLoading(true)
+
+    try{
+
+      const res = await fetch("/api/patients",{
+        method:"POST",
+        credentials:"include",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          name:form.name,
+          email:form.email,
+          password:form.password,
+          phone:form.phone
+        })
+      })
+
+      const data = await res.json()
+
+      if(!res.ok){
+        alert(data.error || "Failed")
+        return
+      }
+
+      alert("Patient created ✅")
+
+      setForm({
+        name:"",
+        email:"",
+        password:"",
+        confirmPassword:"",
+        phone:""
+      })
+
+      setOpen(false)
+
+    }catch(err){
+      alert("Error creating patient")
+    }
+
+    setLoading(false)
+  }
+
+  if(!open) return null
+
+  return(
+
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
+
+        {/* HEADER */}
+        <div className="flex justify-between items-center">
+          <h2 className="font-semibold text-lg">Add Patient</h2>
+          <button onClick={()=>setOpen(false)}>✕</button>
+        </div>
+
+        {/* INPUTS */}
+        <input
+          placeholder="Full Name"
+          value={form.name}
+          onChange={e=>setForm({...form,name:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
+
+        <input
+          placeholder="Email"
+          value={form.email}
+          onChange={e=>setForm({...form,email:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={e=>setForm({...form,password:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
+
+        <input
+          type="password"
+          placeholder="Confirm Password"
+          value={form.confirmPassword}
+          onChange={e=>setForm({...form,confirmPassword:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
+
+        <input
+          placeholder="Phone"
+          value={form.phone}
+          onChange={e=>setForm({...form,phone:e.target.value})}
+          className="border p-2 w-full rounded"
+        />
+
+        {/* BUTTON */}
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-xl hover:scale-105 transition"
+        >
+          {loading ? "Creating..." : "Create Patient"}
+        </button>
+
+      </div>
+
+    </div>
+
+  )
+}
+
+export default function ReceptionDashboard() {
+
+  const router = useRouter()
+
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [open,setOpen] = useState(false)
+
+  useEffect(() => {
+
+    const load = async () => {
+      try {
+
+        const res = await fetch("/api/stats", {
+          credentials: "include"
         })
 
         const data = await res.json()
 
-        if(!res.ok){
-          setError(data.error || "Failed to load")
-        }else{
+        if (!res.ok) {
+          setError(data.error || "Error")
+        } else {
           setStats(data)
         }
 
-      }catch(err){
-        console.log(err)
+      } catch {
         setError("Something went wrong")
       }
 
@@ -45,90 +181,84 @@ export default function Dashboard(){
 
     load()
 
-  },[])
+  }, [])
 
-  /* ================= UI ================= */
-
-  if(loading){
-    return <div className="p-10 text-center">Loading dashboard...</div>
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
-  if(error){
-    return <div className="p-10 text-center text-red-500">{error}</div>
+  if (error) {
+    return <div className="p-10 text-red-500">{error}</div>
   }
 
-  return(
+  const cards = [
+    {
+      title:"Patients",
+      value:stats.patients,
+      icon:<Users size={20}/>,
+      gradient:"from-blue-500 to-blue-600"
+    },
+    {
+      title:"Appointments",
+      value:stats.appointments,
+      icon:<Calendar size={20}/>,
+      gradient:"from-purple-500 to-purple-600"
+    },
+    {
+      title:"Today",
+      value:stats.today,
+      icon:<Activity size={20}/>,
+      gradient:"from-orange-500 to-orange-600"
+    }
+  ]
 
-    <div className="max-w-7xl mx-auto px-4 py-10">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-8">
 
-      <h1 className="text-3xl font-bold mb-10">
-        Admin Dashboard
-      </h1>
+      <div className="max-w-7xl mx-auto">
 
-      {/* STATS */}
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold">
+            Reception Dashboard
+          </h1>
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
-
-        {/* CARD COMPONENT */}
-        {[
-          {
-            title:"Doctors",
-            value:stats.doctors,
-            icon:<Users size={18}/>,
-            bg:"bg-blue-100"
-          },
-          {
-            title:"Patients",
-            value:stats.patients,
-            icon:<UserPlus size={18}/>,
-            bg:"bg-green-100"
-          },
-          {
-            title:"Appointments",
-            value:stats.appointments,
-            icon:<Calendar size={18}/>,
-            bg:"bg-purple-100"
-          },
-          {
-            title:"Today",
-            value:stats.today,
-            icon:<Activity size={18}/>,
-            bg:"bg-orange-100"
-          }
-        ].map((card,i)=>(
-
-          <motion.div
-            key={i}
-            initial={{opacity:0,y:20}}
-            animate={{opacity:1,y:0}}
-            transition={{delay:i*0.1}}
-            whileHover={{y:-6,scale:1.02}}
-            className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-xl transition"
+          <button
+            onClick={()=>setOpen(true)}
+            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl"
           >
+            <Plus size={16}/>
+            Add Patient
+          </button>
+        </div>
 
-            <div className="flex items-center gap-3 mb-4">
+        {/* CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${card.bg}`}>
+          {cards.map((card,i)=>(
+            <motion.div
+              key={i}
+              initial={{opacity:0,y:20}}
+              animate={{opacity:1,y:0}}
+              transition={{delay:i*0.1}}
+              whileHover={{scale:1.05}}
+              className={`rounded-2xl p-6 text-white shadow-lg bg-gradient-to-r ${card.gradient}`}
+            >
+              <div className="flex justify-between mb-4">
+                <span>{card.title}</span>
                 {card.icon}
               </div>
 
-              <span className="text-sm text-gray-500">
-                {card.title}
-              </span>
+              <h2 className="text-3xl font-bold">{card.value}</h2>
+            </motion.div>
+          ))}
 
-            </div>
-
-            <p className="text-3xl font-bold">
-              {card.value}
-            </p>
-
-          </motion.div>
-
-        ))}
+        </div>
 
       </div>
 
+      {/* MODAL */}
+      <AddPatientModal open={open} setOpen={setOpen}/>
     </div>
-
   )
 }

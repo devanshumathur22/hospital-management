@@ -1,95 +1,132 @@
 "use client"
 
-import { useEffect,useState } from "react"
-import { User, Stethoscope } from "lucide-react"
+import { useEffect, useState } from "react"
+import { User, Stethoscope, Search, Calendar } from "lucide-react"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 
 export default function Doctors(){
 
-const [doctors,setDoctors] = useState<any[]>([])
+  const router = useRouter()
 
-useEffect(()=>{
+  const [doctors,setDoctors] = useState<any[]>([])
+  const [search,setSearch] = useState("")
+  const [loading,setLoading] = useState(true)
 
-fetch("/api/doctors")
-.then(res=>res.json())
-.then(setDoctors)
+  useEffect(()=>{
 
-},[])
+    const load = async()=>{
+      const res = await fetch("/api/doctors")
+      const data = await res.json()
+      setDoctors(data || [])
+      setLoading(false)
+    }
 
+    load()
 
+  },[])
 
-return(
+  const filtered = doctors.filter(d =>
+    d.name?.toLowerCase().includes(search.toLowerCase()) ||
+    d.specialization?.toLowerCase().includes(search.toLowerCase())
+  )
 
-<div className="max-w-7xl mx-auto px-4 py-10">
+  if(loading){
+    return <div className="p-10 text-center">Loading doctors...</div>
+  }
 
-<h1 className="flex items-center gap-2 text-3xl font-bold mb-10">
+  return(
 
-<Stethoscope size={26}/>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 px-4 py-10">
 
-Doctors
+      <div className="max-w-7xl mx-auto">
 
-</h1>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:justify-between gap-6 mb-10">
 
+          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold">
+            <Stethoscope size={26}/>
+            Doctors
+          </h1>
 
+          {/* SEARCH */}
+          <div className="relative w-full md:w-80">
+            <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
+            <input
+              placeholder="Search doctor / specialization"
+              value={search}
+              onChange={(e)=>setSearch(e.target.value)}
+              className="pl-9 pr-3 py-2 border rounded-xl w-full focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-<div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        </div>
 
-{doctors.map(d=>(
+        {/* EMPTY */}
+        {filtered.length === 0 && (
+          <p className="text-center text-gray-500">
+            No doctors found
+          </p>
+        )}
 
-<motion.div
-key={d.id}
-initial={{opacity:0,y:20}}
-animate={{opacity:1,y:0}}
-whileHover={{y:-4}}
-className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
->
+        {/* GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
-{/* DOCTOR */}
+          {filtered.map((d,i)=>(
 
-<div className="flex items-center gap-3 mb-4">
+            <motion.div
+              key={d.id}
+              initial={{opacity:0,y:20}}
+              animate={{opacity:1,y:0}}
+              transition={{delay:i*0.05}}
+              whileHover={{y:-6,scale:1.02}}
+              className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-xl transition space-y-4"
+            >
 
-<div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
+              {/* HEADER */}
+              <div className="flex items-center gap-3">
 
-<User size={20}/>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white flex items-center justify-center">
+                  <User size={20}/>
+                </div>
 
-</div>
+                <div>
+                  <p className="font-semibold text-lg">
+                    {d.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Doctor
+                  </p>
+                </div>
 
-<div>
+              </div>
 
-<p className="font-semibold">
-{d.name}
-</p>
+              {/* SPECIALIZATION */}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Stethoscope size={14}/>
+                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                  {d.specialization}
+                </span>
+              </div>
 
-<p className="text-xs text-gray-500">
-Doctor
-</p>
+              {/* ACTION */}
+              <button
+                onClick={()=>router.push(`/receptionist/book?doctorId=${d.id}`)}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-xl hover:scale-105 transition"
+              >
+                <Calendar size={16}/>
+                Book Appointment
+              </button>
 
-</div>
+            </motion.div>
 
-</div>
+          ))}
 
+        </div>
 
+      </div>
 
-{/* SPECIALIZATION */}
+    </div>
 
-<div className="flex items-center gap-2 text-sm text-gray-600">
-
-<Stethoscope size={14}/>
-
-<span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-{d.specialization}
-</span>
-
-</div>
-
-</motion.div>
-
-))}
-
-</div>
-
-</div>
-
-)
-
+  )
 }

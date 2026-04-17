@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import { User, Mail, Phone, Search, Activity } from "lucide-react"
 import { motion } from "framer-motion"
+import Link from "next/link"
 
 export default function Patients(){
 
@@ -12,15 +13,13 @@ export default function Patients(){
   const [loading,setLoading] = useState(true)
   const [error,setError] = useState("")
 
-  /* ================= LOAD ================= */
-
   useEffect(()=>{
 
     const load = async()=>{
 
       try{
 
-        const res = await fetch("/api/patients",{
+        const res = await fetch(`/api/patients?search=${search}`,{
           credentials:"include"
         })
 
@@ -29,8 +28,8 @@ export default function Patients(){
         if(!res.ok){
           setError(data.error || "Failed to load")
         }else{
-          setPatients(data || [])
-          setFiltered(data || [])
+          setPatients(data.data || [])
+          setFiltered(data.data || [])
         }
 
       }catch(err){
@@ -43,121 +42,131 @@ export default function Patients(){
 
     load()
 
-  },[])
+  },[search])
 
-  /* ================= SEARCH ================= */
-
+  /* SEARCH LOCAL */
   useEffect(()=>{
 
+    const q = search.toLowerCase()
+
     const f = patients.filter((p:any)=>
-      p.name?.toLowerCase().includes(search.toLowerCase())
+      p.name?.toLowerCase().includes(q) ||
+      p.phone?.toLowerCase().includes(q) ||
+      p.mrn?.toLowerCase().includes(q)
     )
 
     setFiltered(f)
 
   },[search,patients])
 
-  /* ================= UI ================= */
-
+  /* LOADING */
   if(loading){
-    return <div className="p-10 text-center">Loading patients...</div>
+    return (
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+        {[1,2,3,4].map((_,i)=>(
+          <div key={i} className="animate-pulse bg-white rounded-2xl p-6 border"/>
+        ))}
+      </div>
+    )
   }
 
   if(error){
-    return <div className="p-10 text-center text-red-500">{error}</div>
+    return <div className="p-10 text-red-500">{error}</div>
   }
 
   return(
 
-    <div className="max-w-7xl mx-auto px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-8">
 
-      {/* HEADER */}
+      <div className="max-w-7xl mx-auto">
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:justify-between gap-6 mb-10">
 
-        <h1 className="flex items-center gap-2 text-3xl font-bold">
-          <User size={26}/>
-          Patients
-        </h1>
+          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold">
+            <User size={26}/>
+            Patients
+          </h1>
 
-        {/* SEARCH */}
-        <div className="relative w-full md:w-96">
-          <Search size={18} className="absolute left-3 top-3 text-gray-400"/>
-          <input
-            placeholder="Search patient..."
-            value={search}
-            onChange={(e)=>setSearch(e.target.value)}
-            className="pl-10 pr-4 py-2 border rounded-lg w-full"
-          />
+          <div className="relative w-full md:w-96">
+            <Search size={18} className="absolute left-3 top-3 text-gray-400"/>
+            <input
+              placeholder="Search patient..."
+              value={search}
+              onChange={(e)=>setSearch(e.target.value)}
+              className="pl-10 pr-4 py-2.5 border rounded-xl w-full focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
         </div>
 
-      </div>
+        {/* EMPTY */}
+        {filtered.length === 0 && (
+          <div className="text-center text-gray-500 py-20">
+            No patients found
+          </div>
+        )}
 
-      {/* EMPTY */}
-      {filtered.length === 0 && (
-        <p className="text-gray-500 text-center">
-          No patients found
-        </p>
-      )}
+        {/* GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
-      {/* GRID */}
+          {filtered.map((p:any,i)=>(
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <Link key={p.id} href={`/receptionist/patients/${p.id}`}>
 
-        {filtered.map((p:any)=>(
+              <motion.div
+                initial={{opacity:0,y:20}}
+                animate={{opacity:1,y:0}}
+                transition={{delay:i*0.05}}
+                whileHover={{y:-6,scale:1.02}}
+                className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition border cursor-pointer"
+              >
 
-          <motion.div
-            key={p.id}
-            initial={{opacity:0,y:20}}
-            animate={{opacity:1,y:0}}
-            whileHover={{y:-6,scale:1.02}}
-            className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-xl transition"
-          >
+                {/* HEADER */}
+                <div className="flex items-center gap-4 mb-5">
 
-            {/* HEADER */}
-            <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white flex items-center justify-center">
+                    <User size={20}/>
+                  </div>
 
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <User size={20}/>
-              </div>
+                  <div>
+                    <p className="font-semibold text-lg">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      MRN: {p.mrn}
+                    </p>
+                  </div>
 
-              <div>
-                <p className="font-semibold text-lg">
-                  {p.name}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Patient
-                </p>
-              </div>
+                </div>
 
-            </div>
+                {/* INFO */}
+                <div className="space-y-2 text-sm text-gray-600">
 
-            {/* INFO */}
+                  <div className="flex items-center gap-2">
+                    <Mail size={14}/>
+                    {p.user?.email || "No email"}
+                  </div>
 
-            <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Phone size={14}/>
+                    {p.phone || "No phone"}
+                  </div>
 
-              {/* ✅ EMAIL FIX */}
-              <div className="flex items-center gap-2">
-                <Mail size={14}/>
-                {p.user?.email || "No email"}
-              </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Activity size={12}/>
+                    Blood Group: {p.bloodGroup || "-"}
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <Phone size={14}/>
-                {p.phone || "No phone"}
-              </div>
+                </div>
 
-              {/* EXTRA */}
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Activity size={12}/>
-                Blood Group: {p.bloodGroup || "-"}
-              </div>
+              </motion.div>
 
-            </div>
+            </Link>
 
-          </motion.div>
+          ))}
 
-        ))}
+        </div>
 
       </div>
 

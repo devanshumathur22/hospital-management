@@ -19,7 +19,7 @@ async function getUser(){
   }
 }
 
-/* ================= MRN GENERATOR ================= */
+/* ================= MRN ================= */
 
 function generateMRN(){
   return "MRN" + Date.now().toString().slice(-6)
@@ -27,34 +27,87 @@ function generateMRN(){
 
 /* ================= GET ================= */
 
-export async function GET(){
+export async function GET(req:Request){
 
   try{
 
     const user:any = await getUser()
-
     if(!user){
       return NextResponse.json({error:"Unauthorized"},{status:401})
     }
 
-    let patients:any = []
+    const url = new URL(req.url)
 
-    /* PATIENT → own */
-    if(user.role === "patient"){
+    /* 🔥 SINGLE PATIENT (DETAIL PAGE) */
+    const id = url.searchParams.get("id")
+    if(id){
 
-      const patient = await prisma.patient.findFirst({
-        where:{ userId:user.id },
+      const patient = await prisma.patient.findUnique({
+        where:{ id },
         include:{
           user:{ select:{ email:true } }
         }
       })
 
+      if(!patient){
+        return NextResponse.json({error:"Not found"},{status:404})
+      }
+
+      return NextResponse.json(patient)
+    }
+
+    /* 🔥 SEARCH + PAGINATION */
+    const search = url.searchParams.get("search") || ""
+    const page = Number(url.searchParams.get("page") || 1)
+    const limit = 6
+    const skip = (page - 1) * limit
+
+    let patients:any = []
+
+    /* ADMIN / RECEPTIONIST */
+    if(user.role === "admin" || user.role === "receptionist"){
+
+      patients = await prisma.patient.findMany({
+        where:{
+          OR:[
+            { name:{ contains:search, mode:"insensitive" } },
+            { phone:{ contains:search } },
+            {
+              user:{
+                email:{ contains:search, mode:"insensitive" }
+              }
+            }
+          ]
+        },
+        include:{
+          user:{ select:{ email:true } }
+        },
+        orderBy:{ createdAt:"desc" },
+        skip,
+        take:limit
+      })
+
+      const total = await prisma.patient.count()
+
+      return NextResponse.json({
+        data:patients,
+        total,
+        page,
+        totalPages:Math.ceil(total/limit)
+      })
+    }
+
+    /* PATIENT */
+    if(user.role === "patient"){
+      const patient = await prisma.patient.findFirst({
+        where:{ userId:user.id },
+        include:{ user:{ select:{ email:true } } }
+      })
       return NextResponse.json(patient)
     }
 
     /* DOCTOR */
     if(user.role === "doctor"){
-
       const doctor = await prisma.doctor.findFirst({
         where:{ userId:user.id }
       })
@@ -65,15 +118,12 @@ export async function GET(){
             some:{ doctorId:doctor?.id }
           }
         },
-        include:{
-          user:{ select:{ email:true } }
-        }
+        include:{ user:{ select:{ email:true } } }
       })
     }
 
     /* NURSE */
     else if(user.role === "nurse"){
-
       const nurse = await prisma.nurse.findFirst({
         where:{ userId:user.id },
         include:{ doctor:true }
@@ -85,25 +135,8 @@ export async function GET(){
             some:{ doctorId:nurse?.doctor?.id }
           }
         },
-        include:{
-          user:{ select:{ email:true } }
-        }
+        include:{ user:{ select:{ email:true } } }
       })
-    }
-
-    /* ADMIN / RECEPTIONIST */
-    else if(user.role === "admin" || user.role === "receptionist"){
-
-      patients = await prisma.patient.findMany({
-        include:{
-          user:{ select:{ email:true } }
-        },
-        orderBy:{ createdAt:"desc" }
-      })
-    }
-
-    else{
-      return NextResponse.json({error:"Forbidden"},{status:403})
     }
 
     return NextResponse.json(patients)
@@ -151,12 +184,9 @@ export async function POST(req:Request){
       data:{
         userId:newUser.id,
         name:body.name,
-
-        /* 🔥 NEW FIELDS */
         mrn: generateMRN(),
         phone:body.phone || null,
         gender:body.gender || null,
-
         address:body.address || null,
         bloodGroup:body.bloodGroup || null,
         emergencyContact:body.emergencyContact || null
@@ -168,8 +198,7 @@ export async function POST(req:Request){
 
     return NextResponse.json(patient)
 
-  }catch(err){
-    console.log(err)
+  }catch{
     return NextResponse.json({error:"Failed"},{status:500})
   }
 }
@@ -182,18 +211,14 @@ export async function PUT(req:Request){
 
     const user:any = await getUser()
 
-    if(!user || user.role !== "patient"){
+    if(!user){
       return NextResponse.json({error:"Unauthorized"},{status:401})
     }
 
     const body = await req.json()
 
-    const patient = await prisma.patient.findFirst({
-      where:{ userId:user.id }
-    })
-
     const updated = await prisma.patient.update({
-      where:{ id:patient?.id },
+      where:{ id:body.id },
       data:{
         name: body.name || undefined,
         phone: body.phone || null,
@@ -203,6 +228,36 @@ export async function PUT(req:Request){
     })
 
     return NextResponse.json(updated)
+
+  }catch{
+    return NextResponse.json({error:"Failed"},{status:500})
+  }
+}
+
+/* ================= DELETE ================= */
+
+export async function DELETE(req:Request){
+
+  try{
+
+    const user:any = await getUser()
+
+    if(!user || (user.role !== "admin" && user.role !== "receptionist")){
+      return NextResponse.json({error:"Unauthorized"},{status:401})
+    }
+
+    const url = new URL(req.url)
+    const id = url.searchParams.get("id")
+
+    if(!id){
+      return NextResponse.json({error:"ID required"},{status:400})
+    }
+
+    await prisma.patient.delete({
+      where:{ id }
+    })
+
+    return NextResponse.json({success:true})
 
   }catch{
     return NextResponse.json({error:"Failed"},{status:500})
