@@ -19,8 +19,8 @@ export default function AssignNurse(){
 
   const loadData = async () => {
     try{
-      const d = await fetch("/api/doctors")
-      const n = await fetch("/api/nurses")
+      const d = await fetch("/api/doctors",{ credentials:"include" })
+      const n = await fetch("/api/nurses",{ credentials:"include" })
 
       const doctorsData = await d.json()
       const nursesData = await n.json()
@@ -57,7 +57,7 @@ export default function AssignNurse(){
       const res = await fetch("/api/admin/assign-nurse",{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({ doctorId, nurseId })
+        body:JSON.stringify({ doctorId, nurseId }),credentials:"include"
       })
 
       const data = await res.json()

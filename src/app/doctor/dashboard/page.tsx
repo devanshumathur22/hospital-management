@@ -21,8 +21,8 @@ useEffect(()=>{
 const fetchData = async()=>{
 try{
 const [aRes,pRes] = await Promise.all([
-fetch("/api/appointments"),
-fetch("/api/prescriptions")
+fetch("/api/appointments",{ credentials:"include" }),
+fetch("/api/prescriptions",{ credentials:"include" })
 ])
 
 const aData = await aRes.json()

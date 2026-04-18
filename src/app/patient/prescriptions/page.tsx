@@ -15,7 +15,7 @@ const [search, setSearch] = useState("")
 
 /* FETCH */
 useEffect(() => {
-fetch("/api/prescriptions")
+fetch("/api/prescriptions",{ credentials: "include" })
 .then(res => res.json())
 .then(data => {
 setPrescriptions(data || [])

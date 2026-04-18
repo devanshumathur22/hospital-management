@@ -23,7 +23,7 @@ useEffect(()=>{
 
 if(!params?.id) return
 
-fetch(`/api/doctors/${params.id}`)
+fetch(`/api/doctors/${params.id}`, { credentials:"include" })
 .then(res=>res.json())
 .then(data=>{
 if(data){
@@ -52,7 +52,7 @@ headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 ...doctor,
 experience:Number(doctor.experience)
-})
+}),credentials:"include"
 })
 
 setSaving(false)

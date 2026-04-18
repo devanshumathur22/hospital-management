@@ -64,7 +64,7 @@ const openReschedule = async(a:any)=>{
   setNewDate(new Date(a.date))
   setNewTime(a.time)
 
-  const res = await fetch(`/api/doctors/availability?doctorId=${a.doctorId}`)
+  const res = await fetch(`/api/doctors/availability?doctorId=${a.doctorId}`,{ credentials:"include" })
   const data = await res.json()
   setAvailability(data)
 }

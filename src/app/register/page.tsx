@@ -41,7 +41,7 @@ export default function Register(){
     e.preventDefault()
 
     const res = await fetch("/api/auth/register",{
-      method:"POST",
+      method:"POST",credentials:"include",
       headers:{
         "Content-Type":"application/json"
       },

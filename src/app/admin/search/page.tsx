@@ -39,7 +39,7 @@ const timer = setTimeout(async()=>{
 
 setLoading(true)
 
-const res = await fetch(`/api/search?q=${query}`)
+const res = await fetch(`/api/search?q=${query}`,{ credentials:"include" })
 const data = await res.json()
 
 setResults(data || [])

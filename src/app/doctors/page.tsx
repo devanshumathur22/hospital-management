@@ -15,7 +15,7 @@ export default function Doctors() {
 
   useEffect(() => {
     const fetchDoctors = async () => {
-      const res = await fetch("/api/doctors")
+      const res = await fetch("/api/doctors",{ credentials: "include" })
       const data = await res.json()
       setDoctors(data)
     }

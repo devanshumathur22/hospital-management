@@ -29,7 +29,7 @@ export default function NurseProfile(){
     const loadProfile = async () => {
       try{
         // 🔥 FIX: correct API
-        const res = await fetch("/api/nurses/me",{ cache:"no-store" })
+        const res = await fetch("/api/nurses/me", { cache:"no-store", credentials:"include" })
         const data = await res.json()
 
         const nurseData = data.data
@@ -61,7 +61,7 @@ export default function NurseProfile(){
     try{
 
       const res = await fetch("/api/nurses/profile",{
-        method:"PATCH",
+        method:"PATCH",credentials:"include",
         headers:{ "Content-Type":"application/json" },
         body:JSON.stringify(form)
       })

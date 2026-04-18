@@ -33,7 +33,7 @@ export default function NurseVitals(){
   },[])
 
   const loadAppointments = async()=>{
-    const res = await fetch("/api/appointments")
+    const res = await fetch("/api/appointments",{ credentials:"include" })
     const data = await res.json()
 
     const today = new Date()
@@ -79,7 +79,7 @@ export default function NurseVitals(){
 
   /* LOAD VITALS */
   const loadVitals = async(patientId:string)=>{
-    const res = await fetch(`/api/vitals?patient=${patientId}`)
+    const res = await fetch(`/api/vitals?patient=${patientId}`,{ credentials:"include" })
     const data = await res.json()
 
     const sorted = data.sort(
@@ -101,7 +101,7 @@ export default function NurseVitals(){
     if(!selected) return
 
     await fetch("/api/vitals",{
-      method:"POST",
+      method:"POST",credentials:"include",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
         ...form,
@@ -110,7 +110,7 @@ export default function NurseVitals(){
     })
 
     await fetch(`/api/appointments/${selected.id}`,{
-      method:"PUT", // 🔥 FIXED
+      method:"PUT", credentials:"include",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ status:"ready" })
     })

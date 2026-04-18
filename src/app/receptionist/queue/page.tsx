@@ -12,7 +12,7 @@ export default function Queue(){
   useEffect(()=>{
 
     const load = async()=>{
-      const res = await fetch("/api/queue")
+      const res = await fetch("/api/queue",{ credentials: "include" })
       const data = await res.json()
       setQueue(data || [])
       setLoading(false)

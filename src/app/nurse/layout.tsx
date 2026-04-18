@@ -27,7 +27,7 @@ export default function NurseLayout({
   /* ================= LOGOUT ================= */
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout",{ method:"POST" })
+    await fetch("/api/auth/logout", { credentials: "include", method:"POST" })
     router.push("/login")
   }
 

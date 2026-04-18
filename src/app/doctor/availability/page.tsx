@@ -17,7 +17,7 @@ export default function DoctorAvailability() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/api/doctors/me");
+        const res = await fetch("/api/doctors/me",{ credentials: "include" });
         const data = await res.json();
 
         const doc = data.user;
@@ -32,7 +32,7 @@ export default function DoctorAvailability() {
         // Load availability
         const res2 = await fetch(
           `/api/doctors/availability?doctorId=${doc.id}`
-        );
+        ,{ credentials: "include" });
         const availability = await res2.json();
 
         if (availability) {
@@ -103,7 +103,7 @@ export default function DoctorAvailability() {
     }
 
     const res = await fetch("/api/doctors/availability", {
-      method: "POST",
+      method: "POST",credentials:"include",
       headers: {
         "Content-Type": "application/json",
       },

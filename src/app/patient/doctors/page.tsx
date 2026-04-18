@@ -49,7 +49,7 @@ export default function PatientDoctors() {
   }
 
   useEffect(() => {
-    fetch("/api/doctors")
+    fetch("/api/doctors", { credentials: "include" })
       .then(res => res.json())
       .then(data => {
 
@@ -71,7 +71,7 @@ export default function PatientDoctors() {
 
     setAvailability(null)
 
-    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`)
+    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`, { credentials: "include" })
       .then(res => res.json())
       .then(data => setAvailability(data))
 
@@ -83,7 +83,7 @@ export default function PatientDoctors() {
 
     setAppointments([])
 
-    fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`)
+    fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`, { credentials: "include" })
       .then(res => res.json())
       .then(data => setAppointments(data || []))
 
@@ -136,7 +136,7 @@ export default function PatientDoctors() {
 
     const updated = await fetch(
       `/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`
-    )
+    , { credentials: "include" })
 
     const updatedData = await updated.json()
     setAppointments(updatedData)

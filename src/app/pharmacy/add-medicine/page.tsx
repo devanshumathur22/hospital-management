@@ -14,7 +14,7 @@ stock:""
 const submit = async()=>{
 
 await fetch("/api/medicine",{
-method:"POST",
+method:"POST",credentials:"include",
 headers:{
 "Content-Type":"application/json"
 },

@@ -23,7 +23,7 @@ useEffect(()=>{
 const load = async()=>{
 
 try{
-const res = await fetch("/api/patient/dashboard")
+const res = await fetch("/api/patient/dashboard",{ credentials:"include" })
 const data = await res.json()
 
 setStats(data.stats || {})

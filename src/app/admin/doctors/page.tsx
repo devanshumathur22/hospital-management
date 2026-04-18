@@ -14,7 +14,7 @@ const [loading,setLoading] = useState(true)
 /* FETCH */
 useEffect(()=>{
 
-fetch("/api/doctors")
+fetch("/api/doctors",{ credentials:"include" })
 .then(res=>res.json())
 .then(data=>{
 setDoctors(data || [])
@@ -33,7 +33,7 @@ if(!confirmDelete) return
 try{
 
 const res = await fetch(`/api/doctors/${id}`,{
-method:"DELETE"
+method:"DELETE",credentials:"include"
 })
 
 if(!res.ok) throw new Error("Delete failed")

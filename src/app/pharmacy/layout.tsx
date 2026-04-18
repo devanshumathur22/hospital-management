@@ -18,7 +18,7 @@ const handleLogout = async (e:any)=>{
   e.preventDefault()
 
   await fetch("/api/auth/logout",{
-    method:"POST"
+    method:"POST",credentials:"include"
   })
 
   router.push("/login")

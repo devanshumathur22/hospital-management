@@ -29,7 +29,7 @@ useEffect(()=>{
 
 const loadDoctor = async()=>{
 try{
-const res = await fetch("/api/auth/me",{ cache:"no-store" })
+const res = await fetch("/api/auth/me",{ cache:"no-store",credentials:"include" })
 const data = await res.json()
 
 if(data?.user){
@@ -66,7 +66,7 @@ setSaving(true)
 try{
 const res = await fetch(`/api/doctors/${doctor.id}`,{
 method:"PUT",
-headers:{ "Content-Type":"application/json" },
+headers:{ "Content-Type":"application/json", "credentials": "include" },
 body:JSON.stringify(form)
 })
 

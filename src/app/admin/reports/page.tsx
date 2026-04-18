@@ -35,7 +35,7 @@ const chartData = [
 
 useEffect(()=>{
 
-fetch("/api/stats")
+fetch("/api/stats",{ credentials:"include" })
 .then(res=>res.json())
 .then(data=>setStats(data))
 .catch(()=>setStats(null))

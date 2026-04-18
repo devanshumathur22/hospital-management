@@ -21,6 +21,7 @@ fetch(`/api/vitals?patient=${patientId}`)
 .then(data=>setVitals(data || []))
 .catch(()=>setVitals([]))
 .finally(()=>setLoading(false))
+,{ credentials: "include" }
 
 },[patientId])
 

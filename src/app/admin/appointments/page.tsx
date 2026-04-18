@@ -13,7 +13,7 @@ const [search,setSearch] = useState("")
 /* FETCH */
 const fetchAppointments = async()=>{
 try{
-const res = await fetch("/api/appointments")
+const res = await fetch("/api/appointments",{ credentials:"include" })
 const data = await res.json()
 setAppointments(data || [])
 }catch(err){
@@ -31,7 +31,7 @@ const updateStatus = async(id:string,status:string)=>{
 await fetch(`/api/appointments/${id}`,{
 method:"PUT",
 headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({status})
+body:JSON.stringify({status}),credentials:"include"
 })
 
 setAppointments(prev =>

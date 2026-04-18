@@ -21,7 +21,7 @@ const load = async ()=>{
 
 try{
 
-let res = await fetch(`/api/prescriptions/${id}`)
+let res = await fetch(`/api/prescriptions/${id}`,{ credentials: "include" })
 
 /* ❌ NOT FOUND → AUTO CREATE */
 if(res.status === 404){
@@ -33,11 +33,11 @@ body: JSON.stringify({
   appointmentId: id,
   medicine: [],
   notes:""
-})
+}),credentials:"include"
 })
 
 /* 🔁 REFETCH */
-res = await fetch(`/api/prescriptions/${id}`)
+res = await fetch(`/api/prescriptions/${id}`,{ credentials: "include" })
 }
 
 if(!res.ok){

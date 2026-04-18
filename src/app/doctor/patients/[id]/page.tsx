@@ -18,7 +18,7 @@ fetch(`/api/patients/${params.id}`)
 .then(setData)
 .catch(()=>setData(null))
 .finally(()=>setLoading(false))
-
+,{ credentials: "include" }
 },[])
 
 if(loading){

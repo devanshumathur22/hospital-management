@@ -8,13 +8,13 @@ const [queue,setQueue] = useState([])
 
 useEffect(()=>{
 
-fetch("/api/queue")
+fetch("/api/queue",{ credentials: "include" })
 .then(res=>res.json())
 .then(setQueue)
 
 const interval = setInterval(()=>{
 
-fetch("/api/queue")
+fetch("/api/queue",{ credentials: "include" })
 .then(res=>res.json())
 .then(setQueue)
 

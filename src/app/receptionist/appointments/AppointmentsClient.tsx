@@ -36,8 +36,8 @@ export default function Appointments() {
     const load = async()=>{
 
       const [d,p] = await Promise.all([
-        fetch("/api/doctors"),
-        fetch("/api/patients")
+        fetch("/api/doctors", { credentials: "include" }),
+        fetch("/api/patients", { credentials: "include" })
       ])
 
       const doctorsData = await d.json()
@@ -61,7 +61,7 @@ export default function Appointments() {
     const loadSlots = async()=>{
 
       const res = await fetch(
-        `/api/slots?doctorId=${form.doctorId}&date=${form.date}`
+        `/api/slots?doctorId=${form.doctorId}&date=${form.date}`, { credentials: "include" }
       )
 
       const data = await res.json()
@@ -118,7 +118,7 @@ export default function Appointments() {
 
     /* 🔥 REFRESH SLOTS (IMPORTANT FIX) */
     const updated = await fetch(
-      `/api/slots?doctorId=${form.doctorId}&date=${form.date}`
+      `/api/slots?doctorId=${form.doctorId}&date=${form.date}`, { credentials: "include" }
     )
 
     const updatedSlots = await updated.json()

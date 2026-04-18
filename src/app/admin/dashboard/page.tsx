@@ -27,9 +27,9 @@ const [loading,setLoading] = useState(true)
 useEffect(()=>{
 
 Promise.all([
-fetch("/api/stats").then(res=>res.json()),
-fetch("/api/appointments").then(res=>res.json()),
-fetch("/api/doctors").then(res=>res.json())
+fetch("/api/stats",{ credentials:"include" }).then(res=>res.json()),
+fetch("/api/appointments",{ credentials:"include" }).then(res=>res.json()),
+fetch("/api/doctors",{ credentials:"include" }).then(res=>res.json())
 ])
 .then(([statsData,appData,docData])=>{
 
@@ -55,7 +55,7 @@ const updateStatus = async(id:string,status:string)=>{
 await fetch(`/api/appointments/${id}`,{
 method:"PUT",
 headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({ status })
+body:JSON.stringify({ status }),credentials:"include"
 })
 
 setRecentAppointments(prev =>

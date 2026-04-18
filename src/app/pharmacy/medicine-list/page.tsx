@@ -11,7 +11,7 @@ const [filtered,setFiltered] = useState<any[]>([])
 
 useEffect(()=>{
 
-fetch("/api/medicine")
+fetch("/api/medicine",{ credentials:"include" })
 .then(res=>res.json())
 .then((res)=>{
 setData(res)

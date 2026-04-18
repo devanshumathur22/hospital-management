@@ -89,6 +89,7 @@ export default function NurseAppointments(){
       method:"PUT",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ status:"ready" })
+      ,credentials:"include"
     })
     loadAppointments()
   }

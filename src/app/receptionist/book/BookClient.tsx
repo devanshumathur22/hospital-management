@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, CheckCircle } from "lucide-react"
+import { Search } from "lucide-react"
 import { motion } from "framer-motion"
 import { useSearchParams } from "next/navigation"
 import toast from "react-hot-toast"
@@ -31,7 +31,16 @@ export default function BookPage() {
     time:""
   })
 
-  /* 🔥 FORMAT FIX */
+  /* 🔥 FILTERS FIX */
+  const filteredPatients = patients.filter(p =>
+    p.name?.toLowerCase().includes(patientSearch.toLowerCase())
+  )
+
+  const filteredDoctors = doctors.filter(d =>
+    d.name?.toLowerCase().includes(doctorSearch.toLowerCase())
+  )
+
+  /* 🔥 FORMAT */
   function formatTimeTo12H(time:string){
     const [h,m] = time.split(":").map(Number)
     const ampm = h >= 12 ? "PM" : "AM"
@@ -71,12 +80,10 @@ export default function BookPage() {
 
   /* 🔥 FETCH DATA */
   useEffect(()=>{
-
     const load = async()=>{
-
       const [p,d]=await Promise.all([
-        fetch("/api/patients"),
-        fetch("/api/doctors")
+        fetch("/api/patients",{credentials:"include"}),
+        fetch("/api/doctors",{credentials:"include"})
       ])
 
       const patientsData = await p.json()
@@ -87,12 +94,10 @@ export default function BookPage() {
 
       setLoading(false)
     }
-
     load()
-
   },[])
 
-  /* AUTO SELECT PATIENT */
+  /* AUTO SELECT */
   useEffect(()=>{
     if(patientIdFromURL && patients.length>0){
       const found = patients.find(p=>p.id===patientIdFromURL)
@@ -103,40 +108,39 @@ export default function BookPage() {
     }
   },[patientIdFromURL,patients])
 
-  /* 🔥 FETCH AVAILABILITY */
+  /* 🔥 AVAILABILITY */
   useEffect(()=>{
     if(!form.doctorId) return
 
-    fetch(`/api/doctors/availability?doctorId=${form.doctorId}`)
+    fetch(`/api/doctors/availability?doctorId=${form.doctorId}`,{
+      credentials:"include"
+    })
       .then(res=>res.json())
       .then(setAvailability)
 
   },[form.doctorId])
 
-  /* 🔥 FETCH BOOKED */
+  /* 🔥 BOOKED */
   useEffect(()=>{
     if(!form.doctorId || !form.date) return
 
-    fetch(`/api/appointments?doctorId=${form.doctorId}&date=${form.date}`)
+    fetch(`/api/appointments?doctorId=${form.doctorId}&date=${form.date}`,{
+      credentials:"include"
+    })
       .then(res=>res.json())
       .then(data=>{
-        const times = data.map((a:any)=>formatTimeTo12H(a.time))
+        const times = Array.isArray(data)
+          ? data.map((a:any)=>formatTimeTo12H(a.time))
+          : []
         setBookedSlots(times)
       })
+      .catch(()=>setBookedSlots([]))
 
   },[form.doctorId,form.date])
 
   const timeSlots = availability
     ? generateSlots(availability.start, availability.end)
     : []
-
-  const filteredPatients = patients.filter(p =>
-    p.name?.toLowerCase().includes(patientSearch.toLowerCase())
-  )
-
-  const filteredDoctors = doctors.filter(d =>
-    d.name?.toLowerCase().includes(doctorSearch.toLowerCase())
-  )
 
   const isAvailableDay = (date:string)=>{
     if(!availability?.days) return true
@@ -157,10 +161,7 @@ export default function BookPage() {
       method:"POST",
       credentials:"include",
       headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({
-        ...form,
-        time: form.time // already formatted
-      })
+      body:JSON.stringify(form)
     })
 
     const data = await res.json()
@@ -171,18 +172,6 @@ export default function BookPage() {
     }
 
     toast.success("Appointment booked ✅")
-
-    /* 🔥 REFRESH SLOTS */
-    const updated = await fetch(
-      `/api/appointments?doctorId=${form.doctorId}&date=${form.date}`
-    )
-    const updatedData = await updated.json()
-    setBookedSlots(updatedData.map((a:any)=>formatTimeTo12H(a.time)))
-
-    setForm({doctorId:"",patientId:"",date:"",time:""})
-    setPatientSearch("")
-    setDoctorSearch("")
-    setAvailability(null)
   }
 
   if(loading){
@@ -190,147 +179,86 @@ export default function BookPage() {
   }
 
   return(
+    <div className="p-6">
+      <h1 className="text-xl font-bold mb-4">Book Appointment</h1>
 
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+      {/* Patient */}
+      <input
+        value={patientSearch}
+        onChange={(e)=>{
+          setPatientSearch(e.target.value)
+          setShowPatients(true)
+        }}
+        placeholder="Search patient"
+        className="border p-2 w-full"
+      />
 
-      <div className="max-w-5xl mx-auto">
-
-        <motion.div className="bg-white rounded-3xl p-8 shadow-xl space-y-6">
-
-          <h1 className="text-2xl font-bold">Book Appointment</h1>
-
-          <div className="grid md:grid-cols-2 gap-6">
-
-            {/* PATIENT */}
-            <div className="relative">
-              <label className="text-sm mb-1 block">Patient</label>
-              <div className="flex items-center border rounded-xl px-3 h-11 bg-gray-50">
-                <Search size={16}/>
-                <input
-                  value={patientSearch}
-                  onChange={(e)=>{
-                    setPatientSearch(e.target.value)
-                    setShowPatients(true)
-                  }}
-                  className="flex-1 outline-none bg-transparent ml-2"
-                />
-              </div>
-
-              {showPatients && (
-                <div className="absolute bg-white w-full mt-1 border rounded-xl shadow max-h-40 overflow-y-auto z-10">
-                  {filteredPatients.map(p=>(
-                    <div key={p.id}
-                      onClick={()=>{
-                        setForm(prev=>({...prev,patientId:p.id}))
-                        setPatientSearch(p.name)
-                        setShowPatients(false)
-                      }}
-                      className="p-2 hover:bg-blue-50 cursor-pointer"
-                    >
-                      {p.name}
-                    </div>
-                  ))}
-                </div>
-              )}
+      {showPatients && (
+        <div>
+          {filteredPatients.map(p=>(
+            <div key={p.id}
+              onClick={()=>{
+                setForm(prev=>({...prev,patientId:p.id}))
+                setPatientSearch(p.name)
+                setShowPatients(false)
+              }}>
+              {p.name}
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* DOCTOR */}
-            <div className="relative">
-              <label className="text-sm mb-1 block">Doctor</label>
-              <div className="flex items-center border rounded-xl px-3 h-11 bg-gray-50">
-                <Search size={16}/>
-                <input
-                  value={doctorSearch}
-                  onChange={(e)=>{
-                    setDoctorSearch(e.target.value)
-                    setShowDoctors(true)
-                  }}
-                  className="flex-1 outline-none bg-transparent ml-2"
-                />
-              </div>
+      {/* Doctor */}
+      <input
+        value={doctorSearch}
+        onChange={(e)=>{
+          setDoctorSearch(e.target.value)
+          setShowDoctors(true)
+        }}
+        placeholder="Search doctor"
+        className="border p-2 w-full mt-3"
+      />
 
-              {showDoctors && (
-                <div className="absolute bg-white w-full mt-1 border rounded-xl shadow max-h-40 overflow-y-auto z-10">
-                  {filteredDoctors.map(d=>(
-                    <div key={d.id}
-                      onClick={()=>{
-                        setForm(prev=>({...prev,doctorId:d.id}))
-                        setDoctorSearch(d.name)
-                        setShowDoctors(false)
-                      }}
-                      className="p-2 hover:bg-purple-50 cursor-pointer"
-                    >
-                      {d.name}
-                    </div>
-                  ))}
-                </div>
-              )}
+      {showDoctors && (
+        <div>
+          {filteredDoctors.map(d=>(
+            <div key={d.id}
+              onClick={()=>{
+                setForm(prev=>({...prev,doctorId:d.id}))
+                setDoctorSearch(d.name)
+                setShowDoctors(false)
+              }}>
+              {d.name}
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* DATE */}
-            <div>
-              <label className="text-sm mb-1 block">Date</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={e=>{
-                  const value = e.target.value
-                  if(!isAvailableDay(value)){
-                    toast.error("Doctor not available this day")
-                    return
-                  }
-                  setForm(prev=>({...prev,date:value}))
-                }}
-                className="border rounded-xl px-3 h-11 w-full"
-              />
-            </div>
+      {/* DATE */}
+      <input
+        type="date"
+        value={form.date}
+        onChange={(e)=>setForm(prev=>({...prev,date:e.target.value}))}
+        className="border p-2 w-full mt-3"
+      />
 
-          </div>
-
-          {/* 🔥 TIME SLOTS */}
-          <div>
-            <label className="text-sm mb-2 block">Select Time</label>
-
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-
-              {timeSlots.map(slot=>{
-                const selected = form.time === slot
-                const isBooked = bookedSlots.includes(slot)
-
-                return (
-                  <button
-                    key={slot}
-                    disabled={isBooked}
-                    onClick={()=>setForm(prev=>({...prev,time:slot}))}
-                    className={`py-2 rounded-xl text-sm
-
-                      ${isBooked
-                        ? "bg-red-100 text-red-500 line-through cursor-not-allowed"
-                        : selected
-                          ? "bg-blue-600 text-white"
-                          : "bg-white border hover:bg-gray-100"
-                      }
-                    `}
-                  >
-                    {isBooked ? `❌ ${slot}` : slot}
-                  </button>
-                )
-              })}
-
-            </div>
-
-          </div>
-
-          <button
-            onClick={createAppointment}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl"
-          >
-            Book Appointment
+      {/* TIME */}
+      <div className="grid grid-cols-4 gap-2 mt-3">
+        {timeSlots.map(slot=>(
+          <button key={slot}
+            onClick={()=>setForm(prev=>({...prev,time:slot}))}
+            className="border p-2">
+            {slot}
           </button>
-
-        </motion.div>
-
+        ))}
       </div>
+
+      <button
+        onClick={createAppointment}
+        className="bg-blue-600 text-white p-2 mt-4 w-full"
+      >
+        Book
+      </button>
 
     </div>
   )

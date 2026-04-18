@@ -37,8 +37,8 @@ export default function AdminNurses(){
 
   const loadData = async () => {
     try{
-      const n = await fetch("/api/nurses")
-      const d = await fetch("/api/doctors")
+      const n = await fetch("/api/nurses",{ credentials:"include" })
+      const d = await fetch("/api/doctors",{ credentials:"include" })
 
       const nursesData = await n.json()
       const doctorsData = await d.json()
@@ -101,7 +101,8 @@ export default function AdminNurses(){
     if(!confirm("Delete nurse?")) return
 
     await fetch(`/api/nurses/${id}`,{
-      method:"DELETE"
+      method:"DELETE",
+      credentials:"include"
     })
 
     await loadData()
@@ -129,7 +130,7 @@ export default function AdminNurses(){
       body:JSON.stringify({
         ...form,
         experience:Number(form.experience)
-      })
+      }),credentials:"include"
     })
 
     const data = await res.json()
@@ -150,7 +151,8 @@ export default function AdminNurses(){
     await fetch("/api/admin/assign-nurse",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ nurseId, doctorId })
+      body:JSON.stringify({ nurseId, doctorId }),
+      credentials:"include"
     })
 
     await loadData()

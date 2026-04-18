@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 
 const SECRET = process.env.JWT_SECRET!
 
-export function proxy(req: NextRequest) {
+export function proxy (req: NextRequest) {
 
   const { pathname } = req.nextUrl
 
@@ -12,7 +12,7 @@ export function proxy(req: NextRequest) {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/api") ||
+    // pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon")
   ) {

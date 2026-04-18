@@ -7,7 +7,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/admissions")
+    fetch("/api/admissions", { credentials: "include" })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {

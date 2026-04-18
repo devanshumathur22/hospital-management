@@ -26,7 +26,7 @@ const [events,setEvents] = useState<any[]>([])
 
 useEffect(()=>{
 
-fetch("/api/appointments")
+fetch("/api/appointments",{ credentials:"include" })
 .then(res=>res.json())
 .then(data=>{
 

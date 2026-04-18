@@ -23,7 +23,7 @@ export default function NurseDashboard(){
     try{
       const [a,n] = await Promise.all([
         fetch("/api/appointments",{ credentials:"include" }),
-        fetch("/api/auth/me",{ cache:"no-store" })
+        fetch("/api/auth/me",{ cache:"no-store",credentials:"include" })
       ])
 
       const appt = await a.json()
@@ -63,6 +63,7 @@ export default function NurseDashboard(){
       method:"PUT",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ status:"ready" })
+      ,credentials:"include"
     })
     loadData()
   }
@@ -72,6 +73,7 @@ export default function NurseDashboard(){
       method:"PUT",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ status:"completed" })
+      ,credentials:"include"
     })
     loadData()
   }

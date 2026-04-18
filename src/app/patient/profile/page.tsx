@@ -31,7 +31,7 @@ export default function PatientProfile(){
   }
 
   const load = async()=>{
-    const res = await fetch("/api/auth/me",{ cache:"no-store" })
+    const res = await fetch("/api/auth/me",{ cache:"no-store",credentials:"include" })
     const data = await res.json()
 
     if(data.user){
@@ -57,7 +57,7 @@ export default function PatientProfile(){
 
   const save = async()=>{
     await fetch("/api/profile",{
-      method:"PUT",
+      method:"PUT",credentials:"include",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify(form)
     })
