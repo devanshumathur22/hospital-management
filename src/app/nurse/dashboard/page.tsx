@@ -18,8 +18,7 @@ export default function NurseDashboard(){
   const [nurse,setNurse] = useState<any>(null)
   const [loading,setLoading] = useState(true)
 
-  /* ================= LOAD ================= */
-
+  /* LOAD */
   const loadData = async () => {
     try{
       const [a,n] = await Promise.all([
@@ -52,31 +51,32 @@ export default function NurseDashboard(){
     setLoading(false)
   }
 
-  /* ================= AUTO REFRESH ================= */
-
   useEffect(()=>{
     loadData()
-
-    const interval = setInterval(()=>{
-      loadData()
-    },5000)
-
+    const interval = setInterval(loadData,5000)
     return ()=> clearInterval(interval)
   },[])
 
-  /* ================= ACTION ================= */
-
+  /* ACTIONS */
   const markReady = async(id:string)=>{
     await fetch(`/api/appointments/${id}`,{
-      method:"PATCH",
+      method:"PUT",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ status:"ready" })
     })
     loadData()
   }
 
-  /* ================= ALERT LOGIC ================= */
+  const markComplete = async(id:string)=>{
+    await fetch(`/api/appointments/${id}`,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ status:"completed" })
+    })
+    loadData()
+  }
 
+  /* CRITICAL */
   const isCritical = (a:any)=>{
     const v = a.vitals
     if(!v) return false
@@ -88,15 +88,12 @@ export default function NurseDashboard(){
     )
   }
 
-  /* ================= STATS ================= */
+  /* FILTER */
+  const pending = appointments.filter(a=>a.status==="pending")
+  const ready = appointments.filter(a=>a.status==="ready")
+  const completed = appointments.filter(a=>a.status==="completed")
 
-  const vitalsPending = appointments.filter(a => a.status === "pending").length
-  const readyForDoctor = appointments.filter(a => a.status === "ready").length
-
-  const queue = [
-    ...appointments.filter(a=>a.status==="pending"),
-    ...appointments.filter(a=>a.status==="ready")
-  ]
+  const queue = [...pending, ...ready]
 
   if(loading){
     return <div className="p-10 text-center">Loading...</div>
@@ -104,11 +101,11 @@ export default function NurseDashboard(){
 
   return(
 
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
       {/* HEADER */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold">
+        <h1 className="text-2xl font-semibold">
           Nurse Dashboard
         </h1>
 
@@ -118,28 +115,25 @@ export default function NurseDashboard(){
       </div>
 
       {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4">
 
-        <Card icon={Calendar} label="Appointments Today" value={appointments.length} color="text-blue-600"/>
-        <Card icon={Activity} label="Vitals Pending" value={vitalsPending} color="text-orange-500"/>
-        <Card icon={CheckCircle} label="Ready For Doctor" value={readyForDoctor} color="text-green-600"/>
+        <Card icon={Calendar} label="Today" value={appointments.length} color="text-blue-600"/>
+        <Card icon={Activity} label="Pending" value={pending.length} color="text-orange-500"/>
+        <Card icon={CheckCircle} label="Completed" value={completed.length} color="text-green-600"/>
 
       </div>
 
-      {/* 🔥 QUEUE */}
+      {/* QUEUE */}
       <div className="bg-white p-4 rounded-xl border shadow-sm">
         <h2 className="font-semibold mb-3">Queue</h2>
 
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-3 overflow-x-auto">
 
           {queue.map((a:any,i:number)=>(
             <div
               key={a.id}
-              className={`min-w-[120px] px-3 py-2 rounded-lg text-sm text-center font-medium
-              ${i===0
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-700"
-              }`}
+              className={`min-w-[120px] px-3 py-2 rounded-lg text-center text-sm
+              ${i===0 ? "bg-green-600 text-white" : "bg-gray-100"}`}
             >
               {i===0 ? "Now" : `#${i+1}`}
               <br/>
@@ -150,104 +144,63 @@ export default function NurseDashboard(){
         </div>
       </div>
 
-      {/* PATIENTS */}
+      {/* ACTIVE PATIENTS */}
       <div>
-
-        <h2 className="text-lg sm:text-xl font-semibold mb-4">
-          Today's Patients
+        <h2 className="text-xl font-semibold mb-4">
+          Active Patients
         </h2>
 
-        {appointments.length === 0 && (
-          <div className="text-center py-10 text-gray-500">
-            🏥 No patients today
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-
-          {appointments.map((a:any)=>(
+          {queue.map((a:any)=>(
 
             <motion.div
               key={a.id}
               initial={{opacity:0,y:20}}
               animate={{opacity:1,y:0}}
-              whileHover={{y:-4}}
-              className={`bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between
+              className={`bg-white p-4 rounded-xl border shadow-sm space-y-3
               ${isCritical(a) ? "border-red-500" : ""}
               `}
             >
 
-              {/* ALERT */}
               {isCritical(a) && (
-                <div className="flex items-center gap-2 text-red-600 text-xs mb-2">
-                  <AlertTriangle size={14}/>
-                  Critical Patient
+                <div className="text-red-600 text-xs flex gap-2">
+                  <AlertTriangle size={14}/> Critical
                 </div>
               )}
 
-              {/* PATIENT */}
-              <div className="flex items-center gap-3 mb-3">
+              <p className="font-semibold">
+                {a.patient?.name}
+              </p>
 
-                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User size={16}/>
-                </div>
+              <p className="text-xs text-gray-500">
+                Dr. {a.doctor?.name}
+              </p>
 
-                <div className="truncate">
-                  <p className="font-medium text-sm">
-                    {a.patient?.name || "Patient"}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {a.patient?.user?.email || "No email"}
-                  </p>
-                </div>
+              <p className="text-xs text-gray-500 flex gap-2 items-center">
+                <Clock size={14}/> {a.time}
+              </p>
 
-              </div>
+              <span className={`text-xs px-2 py-1 rounded ${
+                a.status==="ready"
+                ? "bg-green-100 text-green-700"
+                : "bg-orange-100 text-orange-600"
+              }`}>
+                {a.status}
+              </span>
 
-              {/* INFO */}
-              <div className="space-y-1 text-xs text-gray-600">
+              <div className="space-y-2">
 
-                <div className="flex items-center gap-2">
-                  <Stethoscope size={14}/>
-                  {a.doctor?.name}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Clock size={14}/>
-                  {a.time}
-                </div>
-
-              </div>
-
-              {/* STATUS */}
-              <div className="mt-3">
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                  a.status === "ready"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-orange-100 text-orange-600"
-                }`}>
-                  {a.status}
-                </span>
-              </div>
-
-              {/* ACTIONS */}
-              <div className="mt-4 space-y-2">
-
-                <a
-                  href={`/nurse/vitals?patient=${a.patientId}&appointment=${a.id}`}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm"
-                >
-                  <Activity size={14}/>
-                  Add Vitals
-                </a>
-
-                {a.status !== "ready" && (
+                {a.status === "pending" && (
                   <button
                     onClick={()=>markReady(a.id)}
-                    className="w-full border border-green-600 text-green-600 hover:bg-green-50 py-2 rounded-lg text-sm"
+                    className="w-full border border-green-600 text-green-600 py-2 rounded"
                   >
                     Mark Ready
                   </button>
                 )}
+
+               
 
               </div>
 
@@ -256,7 +209,50 @@ export default function NurseDashboard(){
           ))}
 
         </div>
+      </div>
 
+      {/* COMPLETED */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">
+          Completed Patients
+        </h2>
+
+        {completed.length === 0 && (
+          <p className="text-gray-500 text-sm">
+            No completed patients
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+          {completed.map((a:any)=>(
+
+            <div
+              key={a.id}
+              className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2"
+            >
+
+              <p className="font-semibold">
+                {a.patient?.name}
+              </p>
+
+              <p className="text-sm text-gray-600">
+                Dr. {a.doctor?.name}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                {new Date(a.updatedAt).toLocaleString()}
+              </p>
+
+              <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">
+                Completed
+              </span>
+
+            </div>
+
+          ))}
+
+        </div>
       </div>
 
     </div>
@@ -267,7 +263,7 @@ export default function NurseDashboard(){
 /* CARD */
 function Card({icon:Icon,label,value,color}:any){
   return(
-    <div className="bg-white border rounded-xl p-4 flex items-center gap-3 shadow-sm">
+    <div className="bg-white p-4 rounded-xl border flex items-center gap-3 shadow-sm">
       <Icon className={color} size={22}/>
       <div>
         <p className="text-xs text-gray-500">{label}</p>

@@ -1,43 +1,54 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import jsPDF from "jspdf"
+import { useParams } from "next/navigation"
 
-export default function PrescriptionPage(){
+export default function PrescriptionView(){
 
 const params = useParams()
-const router = useRouter()
+const id = params?.id as string
 
-const [appointment,setAppointment] = useState<any>(null)
-const [history,setHistory] = useState<any[]>([])
+const [data,setData] = useState<any>(null)
 const [loading,setLoading] = useState(true)
+const [error,setError] = useState<string | null>(null)
 
-const [medicines,setMedicines] = useState([
-  { name:"", dosage:"", timing:"" }
-])
-
-/* 🔥 LOAD DATA */
+/* 🔥 FETCH + AUTO CREATE */
 useEffect(()=>{
 
-const load = async()=>{
+if(!id) return
+
+const load = async ()=>{
 
 try{
 
-const res = await fetch(`/api/appointments/${params.id}`)
-const data = await res.json()
+let res = await fetch(`/api/prescriptions/${id}`)
 
-setAppointment(data)
+/* ❌ NOT FOUND → AUTO CREATE */
+if(res.status === 404){
 
-/* ✅ FIXED: no patientId param */
-if(data?.patient?.id){
-  fetch(`/api/prescriptions`)
-  .then(res=>res.json())
-  .then(historyData=>setHistory(historyData))
+await fetch("/api/prescriptions",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body: JSON.stringify({
+  appointmentId: id,
+  medicine: [],
+  notes:""
+})
+})
+
+/* 🔁 REFETCH */
+res = await fetch(`/api/prescriptions/${id}`)
 }
 
-}catch(err){
-console.log(err)
+if(!res.ok){
+throw new Error("Failed to load prescription")
+}
+
+const result = await res.json()
+setData(result)
+
+}catch(err:any){
+setError(err.message)
 }
 
 setLoading(false)
@@ -45,293 +56,129 @@ setLoading(false)
 
 load()
 
-},[])
+},[id])
 
-
+/* STATES */
 if(loading){
-return <div className="p-6 text-sm">Loading...</div>
+return <div className="p-6">Loading...</div>
 }
 
-if(!appointment){
-return <div className="p-6 text-sm">Appointment not found</div>
+if(error){
+return <div className="p-6 text-red-500">{error}</div>
 }
 
-const doctor = appointment.doctor
-const patient = appointment.patient
-
-/* 🔥 ADD MEDICINE */
-const addMedicine = ()=>{
-setMedicines([...medicines,{name:"",dosage:"",timing:""}])
-}
-
-/* 🔥 UPDATE MEDICINE */
-const updateMedicine = (index:number,field:string,value:string)=>{
-const updated = [...medicines]
-updated[index][field] = value
-setMedicines(updated)
-}
-
-/* 🔥 PDF */
-const downloadPDF = ()=>{
-
-const doc = new jsPDF()
-
-doc.setFontSize(18)
-doc.text("City Care Hospital",105,20,{ align:"center" })
-
-doc.setFontSize(10)
-doc.text("MG Road Jaipur | +91 9876543210",105,26,{ align:"center" })
-
-doc.line(20,30,190,30)
-
-doc.setFontSize(12)
-
-doc.text(`Doctor: Dr. ${doctor.name}`,20,40)
-doc.text(`Specialization: ${doctor.specialization}`,20,46)
-
-doc.text(`Patient: ${patient.name}`,20,60)
-doc.text(`Phone: ${patient.phone}`,20,66)
-doc.text(`Gender: ${patient.gender}`,20,72)
-
-doc.text(`Date: ${new Date().toLocaleDateString()}`,140,40)
-
-let y = 90
-
-doc.setFontSize(13)
-doc.text("Prescription",20,y)
-
-y += 10
-
-doc.setFontSize(11)
-
-doc.text("No",20,y)
-doc.text("Medicine",35,y)
-doc.text("Dosage",100,y)
-doc.text("Timing",150,y)
-
-doc.line(20,y+2,190,y+2)
-
-y += 10
-
-medicines.forEach((m,index)=>{
-
-doc.text(String(index+1),20,y)
-doc.text(m.name || "-",35,y)
-doc.text(m.dosage || "-",100,y)
-doc.text(m.timing || "-",150,y)
-
-y += 8
-
-})
-
-y += 20
-
-doc.line(120,y,180,y)
-doc.text("Doctor Signature",130,y+6)
-
-doc.save(`Prescription-${patient.name}.pdf`)
-}
-
-/* 🔥 SAVE */
-const savePrescription = async ()=>{
-
-if(medicines.some(m => !m.name)){
-  alert("Enter medicine name")
-  return
-}
-
-const res = await fetch("/api/prescriptions",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-  doctorId:doctor.id,
-  patientId:patient.id,
-  appointmentId:appointment.id,
-  medicine: medicines,
-  notes:""
-})
-})
-
-if(res.ok){
-  alert("Saved ✅")
-
-  /* 🔥 MARK COMPLETED */
-  await fetch(`/api/appointments/${appointment.id}`,{
-    method:"PUT",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({
-      status:"completed"
-    })
-  })
-
-  router.push("/doctor/appointments")
-}else{
-  alert("Error saving")
-}
-
+if(!data){
+return <div className="p-6">No data found</div>
 }
 
 return(
 
-<div className="p-4 sm:p-6 bg-gray-100 min-h-screen space-y-6">
+<div className="min-h-screen bg-gray-100 p-6">
 
-<div className="max-w-4xl mx-auto bg-white shadow rounded-xl p-4 sm:p-6 md:p-10 space-y-6">
+<div className="max-w-5xl mx-auto bg-white p-8 shadow rounded space-y-6">
 
 {/* HEADER */}
 <div className="text-center border-b pb-4">
-<h1 className="text-xl sm:text-2xl font-bold">
-City Care Hospital
-</h1>
-<p className="text-xs text-gray-500">
-MG Road Jaipur • +91 9876543210
+<h1 className="text-2xl font-bold">City Care Hospital</h1>
+<p className="text-sm text-gray-500">
+Discharge Summary / Prescription
 </p>
 </div>
 
-{/* DOCTOR */}
+{/* INFO */}
+<div className="grid grid-cols-2 gap-4 text-sm">
+
 <div>
-<p className="font-semibold text-lg">
-Dr. {doctor.name}
+<p><b>Patient:</b> {data.patient?.name || "-"}</p>
+<p><b>Phone:</b> {data.patient?.phone || "-"}</p>
+<p><b>Gender:</b> {data.patient?.gender || "-"}</p>
+</div>
+
+<div className="text-right">
+<p><b>Doctor:</b> Dr. {data.doctor?.name || "-"}</p>
+<p><b>Date:</b> {new Date(data.createdAt).toLocaleDateString()}</p>
+</div>
+
+</div>
+
+{/* SECTIONS */}
+<div className="space-y-4 text-sm">
+
+<div>
+<p className="font-semibold">CONDITION AT DISCHARGE</p>
+<p className="text-gray-700">
+Patient is stable at the time of discharge.
 </p>
-<p className="text-gray-500 text-sm">
-{doctor.specialization} • {doctor.experience} yrs
+</div>
+
+<div>
+<p className="font-semibold">ADVICE AT DISCHARGE</p>
+<p className="text-gray-700">
+Do not stop medications without consulting doctor.
 </p>
 </div>
 
-{/* PATIENT */}
-<div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg text-sm">
-
 <div>
-<p className="text-gray-500">Patient</p>
-<p className="font-medium">{patient.name}</p>
+<p className="font-semibold">DIETARY ADVICE</p>
+<p className="text-gray-700">
+Diet as per dietitian advice.
+</p>
 </div>
 
+</div>
+
+{/* MEDICATION */}
 <div>
-<p className="text-gray-500">Phone</p>
-<p className="font-medium">{patient.phone}</p>
-</div>
 
-<div>
-<p className="text-gray-500">Gender</p>
-<p className="font-medium">{patient.gender}</p>
-</div>
-
-<div>
-<p className="text-gray-500">Blood</p>
-<p className="font-medium">{patient.bloodGroup}</p>
-</div>
-
-</div>
-
-{/* HISTORY BTN */}
-<button
-onClick={()=>router.push(`/doctor/patients/${patient.id}`)}
-className="text-sm bg-gray-800 text-white px-3 py-2 rounded-lg"
->
-View Patient History
-</button>
-
-{/* MEDICINES */}
-<h2 className="font-semibold text-lg">
-Medicines
+<h2 className="font-bold mb-3">
+MEDICATION AT DISCHARGE
 </h2>
 
-<div className="space-y-3">
+<div className="grid grid-cols-2 gap-6 text-sm">
 
-{medicines.map((med,index)=>(
-
-<div key={index} className="grid md:grid-cols-3 gap-2">
-
-<input
-placeholder="Medicine"
-className="border p-2 rounded-lg"
-value={med.name}
-onChange={(e)=>updateMedicine(index,"name",e.target.value)}
-/>
-
-<input
-placeholder="Dosage"
-className="border p-2 rounded-lg"
-value={med.dosage}
-onChange={(e)=>updateMedicine(index,"dosage",e.target.value)}
-/>
-
-<select
-className="border p-2 rounded-lg"
-value={med.timing}
-onChange={(e)=>updateMedicine(index,"timing",e.target.value)}
->
-<option value="">Timing</option>
-<option>Morning</option>
-<option>Afternoon</option>
-<option>Night</option>
-</select>
-
-</div>
-
-))}
-
-</div>
-
-<button
-onClick={addMedicine}
-className="text-blue-600 text-sm"
->
-+ Add Medicine
-</button>
-
-{/* HISTORY */}
-{history.length > 0 && (
+{/* LEFT */}
 <div>
+<p className="font-semibold underline mb-2">DRUG NAME</p>
 
-<h2 className="font-semibold mb-2">
-Recent Prescriptions
-</h2>
-
-<div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
-
-{history.slice(0,5).map((h:any)=>(
-<div key={h.id} className="flex justify-between">
-<span>{new Date(h.createdAt).toLocaleDateString()}</span>
-<span>{h.medicine?.length} meds</span>
-</div>
-))}
-
-</div>
-
-</div>
+{data.medicine?.length > 0 ? (
+data.medicine.map((m:any,i:number)=>(
+<p key={i}>{i+1}) {m.name}</p>
+))
+) : (
+<p className="text-gray-500">No medicines</p>
 )}
 
+</div>
+
+{/* RIGHT */}
+<div>
+<p className="font-semibold underline mb-2">PATIENT INSTRUCTION</p>
+
+{data.medicine?.length > 0 ? (
+data.medicine.map((m:any,i:number)=>(
+<p key={i}>{m.timing || "-"} • {m.dosage || "-"}</p>
+))
+) : (
+<p className="text-gray-500">-</p>
+)}
+
+</div>
+
+</div>
+
+</div>
+
 {/* FOOTER */}
-<div className="flex justify-between text-sm">
-<p>Date: {new Date().toLocaleDateString()}</p>
-<p className="font-semibold">Dr. {doctor.name}</p>
+<div className="flex justify-between items-end pt-6 text-sm">
+
+<p>Hospital Helpline: +91 XXXXXXXX</p>
+
+<div className="text-right">
+<div className="border-t w-40 mb-1"></div>
+<p>Doctor Signature</p>
 </div>
 
 </div>
-
-{/* ACTIONS */}
-<div className="max-w-4xl mx-auto flex gap-3">
-
-<button
-onClick={()=>window.print()}
-className="bg-green-600 text-white px-4 py-2 rounded-lg"
->
-Print
-</button>
-
-<button
-onClick={downloadPDF}
-className="bg-purple-600 text-white px-4 py-2 rounded-lg"
->
-Download PDF
-</button>
-
-<button
-onClick={savePrescription}
-className="bg-blue-600 text-white px-4 py-2 rounded-lg"
->
-Save
-</button>
 
 </div>
 

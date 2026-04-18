@@ -107,6 +107,28 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    /* 🔥 ROLE BASED STATUS CONTROL */
+    if (body.status) {
+
+      if (body.status === "ready" && user.role !== "nurse") {
+        return NextResponse.json(
+          { error: "Only nurse can mark ready" },
+          { status: 403 }
+        )
+      }
+
+      if (
+        body.status === "completed" &&
+        user.role !== "doctor" &&
+        user.role !== "admin"
+      ) {
+        return NextResponse.json(
+          { error: "Only doctor/admin can complete" },
+          { status: 403 }
+        )
+      }
+    }
+
     const newDate = body.date ? new Date(body.date) : appointment.date
     const newTime = body.time || appointment.time
 
@@ -130,6 +152,7 @@ export async function PUT(
       }
     }
 
+    /* 🔥 UPDATE */
     const updated = await prisma.appointment.update({
       where: { id },
       data: {
@@ -142,6 +165,23 @@ export async function PUT(
         patient: true
       }
     })
+
+    /* 🔥 AUTO PRESCRIPTION CREATE */
+    if (body.status === "completed") {
+
+      await prisma.prescription.upsert({
+        where: { appointmentId: id },
+        update: {},
+        create: {
+          doctorId: updated.doctorId,
+          patientId: updated.patientId,
+          appointmentId: id,
+          medicine: [],
+          notes: ""
+        }
+      })
+
+    }
 
     return NextResponse.json({
       success: true,
@@ -158,7 +198,6 @@ export async function PUT(
     )
   }
 }
-
 /* ============================= */
 /* DELETE (FINAL PRO VERSION) */
 /* ============================= */

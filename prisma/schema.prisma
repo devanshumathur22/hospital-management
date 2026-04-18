@@ -17,6 +17,7 @@ enum Role {
 
 enum AppointmentStatus {
   pending
+  ready
   confirmed
   cancelled
   completed
@@ -170,9 +171,9 @@ model Appointment {
 model Prescription {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  doctorId      String? @db.ObjectId
+  doctorId      String  @db.ObjectId   // ❗ required
   patientId     String  @db.ObjectId
-  appointmentId String? @unique @db.ObjectId
+  appointmentId String  @unique @db.ObjectId  // ❗ required + unique
 
   medicine Json
   notes    String?
@@ -180,10 +181,10 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  doctor  Doctor? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   @@index([doctorId])
   @@index([patientId])

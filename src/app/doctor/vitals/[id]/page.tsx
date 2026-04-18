@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { Activity, User } from "lucide-react"
 
 export default function DoctorVitals(){
 
@@ -10,193 +11,119 @@ const patientId = params.id
 
 const [vitals,setVitals] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
-const [saving,setSaving] = useState(false)
 
-/* 🔥 FORM */
-const [form,setForm] = useState({
-bp:"",
-temperature:"",
-pulse:"",
-notes:""
-})
+/* LOAD */
+useEffect(()=>{
+if(!patientId) return
 
-/* 🔥 LOAD */
-const loadVitals = ()=>{
 fetch(`/api/vitals?patient=${patientId}`)
 .then(res=>res.json())
 .then(data=>setVitals(data || []))
 .catch(()=>setVitals([]))
 .finally(()=>setLoading(false))
-}
 
-useEffect(()=>{
-loadVitals()
 },[patientId])
 
-/* 🔥 INPUT */
-const handleChange = (e:any)=>{
-setForm({
-...form,
-[e.target.name]:e.target.value
-})
+/* FORMAT */
+const formatDate = (date:string)=>{
+const d = new Date(date)
+
+return {
+date: d.toLocaleDateString(),
+time: d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }),
+day: d.toLocaleDateString(undefined,{ weekday:"long" })
+}
 }
 
-/* 🔥 SAVE */
-const saveVitals = async()=>{
-
-if(!form.bp || !form.temperature || !form.pulse){
-alert("Fill required fields")
-return
-}
-
-setSaving(true)
-
-try{
-await fetch("/api/vitals",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-patientId,
-...form
-})
-})
-
-setForm({
-bp:"",
-temperature:"",
-pulse:"",
-notes:""
-})
-
-loadVitals()
-
-}catch(err){
-console.log(err)
-}finally{
-setSaving(false)
-}
-
-}
-
-/* 🔥 UI */
+/* LOADING */
 if(loading){
-return <div className="p-6 text-sm">Loading vitals...</div>
+return <div className="p-6">Loading vitals...</div>
 }
 
 return(
 
-<div className="p-4 sm:p-6 space-y-6 bg-gray-50 min-h-screen">
+<div className="min-h-screen bg-gray-100 p-6 space-y-6">
 
-{/* 🔥 TITLE */}
-<h1 className="text-lg sm:text-xl md:text-2xl font-bold">
-Patient Vitals
+{/* HEADER */}
+<h1 className="text-2xl font-bold flex items-center gap-2">
+<Activity size={22}/> Patient Vitals History
 </h1>
 
-{/* 🔥 ADD FORM */}
-<div className="bg-white border rounded-xl p-4 shadow space-y-3">
-
-<h2 className="font-semibold text-sm sm:text-base">
-Add Vitals
-</h2>
-
-<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-
-<input
-name="bp"
-placeholder="BP"
-value={form.bp}
-onChange={handleChange}
-className="border p-2 rounded text-sm"
-/>
-
-<input
-name="temperature"
-placeholder="Temp"
-value={form.temperature}
-onChange={handleChange}
-className="border p-2 rounded text-sm"
-/>
-
-<input
-name="pulse"
-placeholder="Pulse"
-value={form.pulse}
-onChange={handleChange}
-className="border p-2 rounded text-sm"
-/>
-
-<input
-name="notes"
-placeholder="Notes"
-value={form.notes}
-onChange={handleChange}
-className="border p-2 rounded text-sm"
-/>
-
-</div>
-
-<button
-onClick={saveVitals}
-disabled={saving}
-className="bg-green-600 text-white px-4 py-2 rounded text-sm"
->
-{saving ? "Saving..." : "Add Vitals"}
-</button>
-
-</div>
-
-{/* ❌ Empty */}
+{/* EMPTY */}
 {vitals.length === 0 && (
 <p className="text-gray-500 text-sm">
-No vitals added yet
+No vitals recorded yet
 </p>
 )}
 
-{/* 🔥 LIST */}
+{/* LIST */}
 <div className="space-y-4">
 
-{vitals.map(v=>(
+{vitals.map((v:any)=>{
+
+const { date, time, day } = formatDate(v.createdAt)
+
+return(
 
 <div
 key={v.id}
-className="bg-white border rounded-xl p-4 shadow-sm space-y-2"
+className="bg-white rounded-2xl shadow p-5 space-y-3"
 >
 
-<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+{/* TOP */}
+<div className="flex justify-between items-center">
+
+<div className="flex items-center gap-2 text-sm font-medium">
+<User size={16}/>
+{v.nurse?.name || v.doctor?.name || "Staff"}
+</div>
+
+<div className="text-xs text-gray-500 text-right">
+<p>{day}</p>
+<p>{date} • {time}</p>
+</div>
+
+</div>
+
+{/* VITALS */}
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
 
 <div>
-<p className="text-gray-500">BP</p>
-<p className="font-medium">{v.bp}</p>
+<p className="text-gray-500">Blood Pressure</p>
+<p className="font-semibold">{v.bp}</p>
 </div>
 
 <div>
-<p className="text-gray-500">Temp</p>
-<p className="font-medium">{v.temperature}°C</p>
+<p className="text-gray-500">Temperature</p>
+<p className="font-semibold">{v.temperature}°C</p>
 </div>
 
 <div>
 <p className="text-gray-500">Pulse</p>
-<p className="font-medium">{v.pulse}</p>
+<p className="font-semibold">{v.pulse}</p>
 </div>
 
 <div>
-<p className="text-gray-500">Date</p>
-<p className="font-medium">
-{new Date(v.createdAt).toLocaleDateString()}
+<p className="text-gray-500">Recorded By</p>
+<p className="font-semibold">
+{v.nurse?.name || v.doctor?.name || "-"}
 </p>
 </div>
 
 </div>
 
+{/* NOTES */}
 {v.notes && (
-<p className="text-xs sm:text-sm text-gray-600 border-t pt-2">
+<div className="border-t pt-2 text-sm text-gray-600">
 <b>Notes:</b> {v.notes}
-</p>
+</div>
 )}
 
 </div>
 
-))}
+)
+
+})}
 
 </div>
 
