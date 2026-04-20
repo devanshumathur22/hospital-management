@@ -20,11 +20,12 @@ export default function PatientDoctors() {
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState("all")
 
+  /* ================= SLOT GENERATOR ================= */
+
   function generateSlots(start: string, end: string) {
     if (!start || !end) return []
 
-    const slots: { value: string; label: string }[] = []
-
+    const slots = []
     const [sh, sm] = start.split(":").map(Number)
     const [eh, em] = end.split(":").map(Number)
 
@@ -48,6 +49,8 @@ export default function PatientDoctors() {
     return slots
   }
 
+  /* ================= FETCH DOCTORS ================= */
+
   useEffect(() => {
     fetch("/api/doctors", { credentials: "include" })
       .then(res => res.json())
@@ -65,29 +68,65 @@ export default function PatientDoctors() {
       })
   }, [])
 
+  /* ================= RESET ================= */
+
+  useEffect(() => {
+    setAppointments([])
+    setTime("")
+    setDate(null)
+  }, [selectedDoctor])
+
+  /* ================= FETCH AVAILABILITY ================= */
+
   useEffect(() => {
 
     if (!selectedDoctor?.id) return
 
     setAvailability(null)
 
-    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`, { credentials: "include" })
+    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`, {
+      credentials: "include"
+    })
       .then(res => res.json())
       .then(data => setAvailability(data))
 
   }, [selectedDoctor])
 
+  /* ================= SMART DEFAULT DATE ================= */
+
   useEffect(() => {
 
-    if (!selectedDoctor?.id || !date) return
+    if (!availability?.days) return
 
-    setAppointments([])
+    const today = new Date()
 
-    fetch(`/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`, { credentials: "include" })
-      .then(res => res.json())
-      .then(data => setAppointments(data || []))
+    const dayName = today.toLocaleDateString("en-US", {
+      weekday: "long"
+    })
 
-  }, [selectedDoctor, date])
+    if (availability.days.includes(dayName)) {
+      setDate(today)
+    } else {
+      setDate(null)
+    }
+
+  }, [availability])
+
+  /* ================= FETCH APPOINTMENTS ================= */
+
+  useEffect(() => {
+
+  if (!selectedDoctor?.id || !date) return
+
+  fetch(`/api/appointments/slots?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`, {
+    credentials: "include"
+  })
+    .then(res => res.json())
+    .then(data => setAppointments(Array.isArray(data) ? data : []))
+
+}, [selectedDoctor, date])
+
+  /* ================= LOGIC ================= */
 
   const timeSlots = availability
     ? generateSlots(availability.start, availability.end)
@@ -95,7 +134,11 @@ export default function PatientDoctors() {
 
   const isDoctorAvailable = (date: Date) => {
     if (!availability?.days) return false
-    const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][date.getDay()]
+
+    const day = date.toLocaleDateString("en-US", {
+      weekday: "long"
+    })
+
     return availability.days.includes(day)
   }
 
@@ -103,7 +146,8 @@ export default function PatientDoctors() {
     return appointments.some((a: any) => a.time === slot)
   }
 
-  /* 🔥 UPDATED BOOK */
+  /* ================= BOOK ================= */
+
   const handleBook = async () => {
 
     if (!date || !time) {
@@ -134,13 +178,6 @@ export default function PatientDoctors() {
 
     toast.success("Appointment Booked ✅")
 
-    const updated = await fetch(
-      `/api/appointments?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`
-    , { credentials: "include" })
-
-    const updatedData = await updated.json()
-    setAppointments(updatedData)
-
     setSelectedDoctor(null)
     setTime("")
     setDate(null)
@@ -153,6 +190,7 @@ export default function PatientDoctors() {
 
       <h1 className="text-2xl font-bold">Find Doctors</h1>
 
+      {/* FILTER */}
       <div className="flex flex-wrap gap-2">
         {specializations.map((sp) => (
           <button
@@ -169,6 +207,7 @@ export default function PatientDoctors() {
         ))}
       </div>
 
+      {/* DOCTOR LIST */}
       {Object.entries(groupedDoctors)
         .filter(([category]) => filter === "all" || filter === category)
         .map(([category, docs]: any) => (
@@ -190,11 +229,7 @@ export default function PatientDoctors() {
                   </p>
 
                   <button
-                    onClick={() => {
-                      setSelectedDoctor(doc)
-                      setDate(null)
-                      setTime("")
-                    }}
+                    onClick={() => setSelectedDoctor(doc)}
                     className="w-full bg-blue-600 text-white py-2 rounded"
                   >
                     Book
@@ -210,6 +245,7 @@ export default function PatientDoctors() {
 
         ))}
 
+      {/* MODAL */}
       <AnimatePresence>
         {selectedDoctor && (
 
@@ -224,15 +260,30 @@ export default function PatientDoctors() {
                 </button>
               </div>
 
+              {/* DATE */}
               <DatePicker
                 selected={date}
                 onChange={(d) => setDate(d)}
                 filterDate={(d) => isDoctorAvailable(d)}
+                minDate={new Date()}
+                placeholderText="Select a date"
+                onKeyDown={(e) => e.preventDefault()}
                 className="w-full border p-2 rounded"
               />
 
+              {/* SLOT UI */}
               {!availability ? (
                 <p className="text-sm text-gray-500">Loading slots...</p>
+              ) : !date ? (
+                <p className="text-sm text-gray-500">Select a date</p>
+              ) : !isDoctorAvailable(date) ? (
+                <p className="text-sm text-red-500">
+                  Doctor not available on this day
+                </p>
+              ) : timeSlots.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No slots available
+                </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
 
@@ -253,7 +304,7 @@ export default function PatientDoctors() {
                             : "bg-white hover:bg-blue-50"
                         }`}
                       >
-                        {booked ? "Booked ❌" : slot.label}
+                        {booked ? "Full" : slot.label}
                       </button>
                     )
                   })}
@@ -261,9 +312,15 @@ export default function PatientDoctors() {
                 </div>
               )}
 
+              {/* BUTTON */}
               <button
                 onClick={handleBook}
-                className="w-full bg-blue-600 text-white py-2 rounded"
+                disabled={!time || loading}
+                className={`w-full py-2 rounded text-white ${
+                  !time
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600"
+                }`}
               >
                 {loading ? "Booking..." : "Confirm"}
               </button>

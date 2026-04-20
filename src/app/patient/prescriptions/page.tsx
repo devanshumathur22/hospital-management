@@ -207,47 +207,125 @@ PDF
 {/* MODAL */}
 {selected && (
 
-<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
 
-<div className="bg-white p-6 rounded-xl w-full max-w-md space-y-4">
+<div className="bg-white w-full max-w-2xl p-6 rounded-2xl space-y-6 shadow-lg">
 
-<h2 className="font-bold text-lg">Prescription</h2>
+  {/* HEADER */}
+  <div className="text-center border-b pb-4">
+    <h1 className="text-xl font-bold">City Care Hospital</h1>
+    <p className="text-sm text-gray-500">Medical Prescription</p>
+  </div>
 
-<p><b>Doctor:</b> Dr. {selected.doctor?.name}</p>
-<p><b>Date:</b> {new Date(selected.createdAt).toLocaleString()}</p>
+  {/* INFO */}
+  <div className="grid grid-cols-2 gap-4 text-sm">
 
-<ul className="text-sm space-y-1">
-{selected.medicine?.map((m:any,i:number)=>(
-<li key={i}>
-{m.name} - {m.dosage} ({m.timing})
-</li>
-))}
-</ul>
+    <div>
+      <p><b>Patient:</b> {selected.patient?.name || "-"}</p>
+      <p><b>Phone:</b> {selected.patient?.phone || "-"}</p>
+      <p><b>Gender:</b> {selected.patient?.gender || "-"}</p>
+    </div>
 
-<div className="flex gap-2">
+    <div className="text-right">
+      <p><b>Doctor:</b> Dr. {selected.doctor?.name || "-"}</p>
+      <p><b>Date:</b> {new Date(selected.createdAt).toLocaleDateString()}</p>
+      <p><b>Time:</b> {new Date(selected.createdAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</p>
+      <p><b>Day:</b> {new Date(selected.createdAt).toLocaleDateString(undefined,{weekday:"long"})}</p>
+    </div>
 
-<button
-onClick={()=>downloadPDF(selected)}
-className="bg-green-600 text-white px-3 py-2 rounded w-full"
->
-Download PDF
-</button>
+  </div>
 
-<button
-onClick={()=>setSelected(null)}
-className="bg-gray-500 text-white px-3 py-2 rounded w-full"
->
-Close
-</button>
+  {/* MEDICINES TABLE */}
+  <div>
 
-</div>
+    <h2 className="font-semibold mb-3">Medicines</h2>
+
+    <table className="w-full text-sm border rounded overflow-hidden">
+
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="p-2 text-left">#</th>
+          <th className="p-2 text-left">Medicine</th>
+          <th className="p-2 text-center">Dosage</th>
+          <th className="p-2 text-center">Days</th>
+          <th className="p-2 text-left">Note</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {selected.medicine?.map((m:any,i:number)=>(
+          <tr key={i} className="border-t">
+
+            <td className="p-2">{i+1}</td>
+
+            <td className="p-2">{m.name}</td>
+
+            <td className="text-center">
+              {m.morning && "M "}
+              {m.afternoon && "A "}
+              {m.night && "N"}
+            </td>
+
+            <td className="text-center">
+              {m.days || "-"}
+            </td>
+
+            <td className="p-2">
+              {m.note || "-"}
+            </td>
+
+          </tr>
+        ))}
+      </tbody>
+
+    </table>
+
+  </div>
+
+  {/* NOTES */}
+  <div>
+    <h2 className="font-semibold mb-1">Notes</h2>
+    <p className="text-sm text-gray-600">
+      {selected.notes || "-"}
+    </p>
+  </div>
+
+  {/* FOOTER */}
+  <div className="flex justify-between items-end pt-6 text-sm">
+
+    <p>Helpline: +91 XXXXXXXX</p>
+
+    <div className="text-right">
+      <div className="border-t w-40 mb-1"></div>
+      <p>Doctor Signature</p>
+    </div>
+
+  </div>
+
+  {/* ACTIONS */}
+  <div className="flex gap-3 pt-4">
+
+    <button
+      onClick={()=>downloadPDF(selected)}
+      className="flex-1 bg-green-600 text-white py-2 rounded-lg"
+    >
+      Download PDF
+    </button>
+
+    <button
+      onClick={()=>setSelected(null)}
+      className="flex-1 bg-gray-600 text-white py-2 rounded-lg"
+    >
+      Close
+    </button>
+
+  </div>
 
 </div>
 
 </div>
 
 )}
-
 </div>
 
 )

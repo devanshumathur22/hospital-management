@@ -1,188 +1,253 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
+import { Plus, Trash2, Save } from "lucide-react"
 
-export default function PrescriptionView(){
+const medicineList = [
+  "Paracetamol","Crocin","Dolo 650","Azithromycin",
+  "Amoxicillin","Ibuprofen","Cetirizine","Pantoprazole"
+]
 
-const params = useParams()
-const id = params?.id as string
+export default function PrescriptionEdit(){
 
-const [data,setData] = useState<any>(null)
-const [loading,setLoading] = useState(true)
-const [error,setError] = useState<string | null>(null)
+  const { id } = useParams()
+  const router = useRouter()
 
-/* 🔥 FETCH + AUTO CREATE */
-useEffect(()=>{
+  const [data,setData] = useState<any>(null)
+  const [loading,setLoading] = useState(true)
+  const [saving,setSaving] = useState(false)
 
-if(!id) return
+  const [medicines,setMedicines] = useState<any[]>([
+    { name:"", morning:false, afternoon:false, night:false, days:"", note:"" }
+  ])
 
-const load = async ()=>{
+  const [notes,setNotes] = useState("")
 
-try{
+  /* ================= LOAD ================= */
 
-let res = await fetch(`/api/prescriptions/${id}`,{ credentials: "include" })
+  useEffect(()=>{
+    const load = async()=>{
+      try{
+        const res = await fetch(`/api/prescriptions/${id}`,{
+          credentials:"include"
+        })
 
-/* ❌ NOT FOUND → AUTO CREATE */
-if(res.status === 404){
+        const result = await res.json()
 
-await fetch("/api/prescriptions",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body: JSON.stringify({
-  appointmentId: id,
-  medicine: [],
-  notes:""
-}),credentials:"include"
-})
+        if(result){
+          setData(result)
+          setNotes(result.notes || "")
 
-/* 🔁 REFETCH */
-res = await fetch(`/api/prescriptions/${id}`,{ credentials: "include" })
-}
+          if(Array.isArray(result.medicine) && result.medicine.length){
+            setMedicines(result.medicine)
+          }
+        }
 
-if(!res.ok){
-throw new Error("Failed to load prescription")
-}
+      }catch(err){
+        console.log(err)
+      }
 
-const result = await res.json()
-setData(result)
+      setLoading(false)
+    }
 
-}catch(err:any){
-setError(err.message)
-}
+    load()
+  },[id])
 
-setLoading(false)
-}
+  /* ================= HANDLERS ================= */
 
-load()
+  const addMedicine = ()=>{
+    setMedicines(prev=>[
+      ...prev,
+      { name:"", morning:false, afternoon:false, night:false, days:"", note:"" }
+    ])
+  }
 
-},[id])
+  const updateMedicine = (i:number,field:string,value:any)=>{
+    setMedicines(prev=>{
+      const copy = [...prev]
+      copy[i][field] = value
+      return copy
+    })
+  }
 
-/* STATES */
-if(loading){
-return <div className="p-6">Loading...</div>
-}
+  const removeMedicine = (i:number)=>{
+    setMedicines(prev=>prev.filter((_,index)=>index!==i))
+  }
 
-if(error){
-return <div className="p-6 text-red-500">{error}</div>
-}
+  /* ================= SAVE ================= */
 
-if(!data){
-return <div className="p-6">No data found</div>
-}
+  const save = async()=>{
 
-return(
+    const clean = medicines
+      .filter(m => m.name.trim() !== "")
+      .map(m => ({
+        name: m.name,
+        morning: m.morning,
+        afternoon: m.afternoon,
+        night: m.night,
+        days: Number(m.days || 0),
+        note: m.note || ""
+      }))
 
-<div className="min-h-screen bg-gray-100 p-6">
+    if(clean.length === 0){
+      return alert("Add at least 1 medicine ❌")
+    }
 
-<div className="max-w-5xl mx-auto bg-white p-8 shadow rounded space-y-6">
+    setSaving(true)
 
-{/* HEADER */}
-<div className="text-center border-b pb-4">
-<h1 className="text-2xl font-bold">City Care Hospital</h1>
-<p className="text-sm text-gray-500">
-Discharge Summary / Prescription
-</p>
-</div>
+    try{
 
-{/* INFO */}
-<div className="grid grid-cols-2 gap-4 text-sm">
+      const res = await fetch("/api/prescriptions",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        credentials:"include",
+        body:JSON.stringify({
+          appointmentId:id,
+          medicine:clean,
+          notes
+        })
+      })
 
-<div>
-<p><b>Patient:</b> {data.patient?.name || "-"}</p>
-<p><b>Phone:</b> {data.patient?.phone || "-"}</p>
-<p><b>Gender:</b> {data.patient?.gender || "-"}</p>
-</div>
+      const result = await res.json()
 
-<div className="text-right">
-<p><b>Doctor:</b> Dr. {data.doctor?.name || "-"}</p>
-<p><b>Date:</b> {new Date(data.createdAt).toLocaleDateString()}</p>
-</div>
+      if(!res.ok){
+        alert(result.error || "Failed ❌")
+        return
+      }
 
-</div>
+      alert("Saved Successfully ✅")
 
-{/* SECTIONS */}
-<div className="space-y-4 text-sm">
+      // 🔥 redirect back
+      router.push("/doctor/appointments")
 
-<div>
-<p className="font-semibold">CONDITION AT DISCHARGE</p>
-<p className="text-gray-700">
-Patient is stable at the time of discharge.
-</p>
-</div>
+    }catch(err){
+      console.log(err)
+      alert("Server error ❌")
+    }
 
-<div>
-<p className="font-semibold">ADVICE AT DISCHARGE</p>
-<p className="text-gray-700">
-Do not stop medications without consulting doctor.
-</p>
-</div>
+    setSaving(false)
+  }
 
-<div>
-<p className="font-semibold">DIETARY ADVICE</p>
-<p className="text-gray-700">
-Diet as per dietitian advice.
-</p>
-</div>
+  if(loading){
+    return <div className="p-6">Loading...</div>
+  }
 
-</div>
+  return(
 
-{/* MEDICATION */}
-<div>
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
 
-<h2 className="font-bold mb-3">
-MEDICATION AT DISCHARGE
-</h2>
+      {/* HEADER */}
+      <div className="bg-white rounded-2xl shadow p-5">
+        <h1 className="text-xl font-bold">Prescription</h1>
+        <p className="text-sm text-gray-500">
+          Patient: {data?.patient?.name} • Dr. {data?.doctor?.name}
+        </p>
+      </div>
 
-<div className="grid grid-cols-2 gap-6 text-sm">
+      {/* MEDICINES */}
+      <div className="bg-white rounded-2xl shadow p-5 space-y-4">
 
-{/* LEFT */}
-<div>
-<p className="font-semibold underline mb-2">DRUG NAME</p>
+        <div className="flex justify-between items-center">
+          <h2 className="font-semibold">Medicines</h2>
 
-{data.medicine?.length > 0 ? (
-data.medicine.map((m:any,i:number)=>(
-<p key={i}>{i+1}) {m.name}</p>
-))
-) : (
-<p className="text-gray-500">No medicines</p>
-)}
+          <button
+            onClick={addMedicine}
+            className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded"
+          >
+            <Plus size={14}/> Add
+          </button>
+        </div>
 
-</div>
+        <div className="space-y-3">
 
-{/* RIGHT */}
-<div>
-<p className="font-semibold underline mb-2">PATIENT INSTRUCTION</p>
+          {medicines.map((m,i)=>(
 
-{data.medicine?.length > 0 ? (
-data.medicine.map((m:any,i:number)=>(
-<p key={i}>{m.timing || "-"} • {m.dosage || "-"}</p>
-))
-) : (
-<p className="text-gray-500">-</p>
-)}
+            <div key={i} className="grid md:grid-cols-6 gap-3 items-center bg-gray-50 p-3 rounded-lg">
 
-</div>
+              {/* NAME */}
+              <input
+                list="med-list"
+                value={m.name}
+                onChange={(e)=>updateMedicine(i,"name",e.target.value)}
+                placeholder="Medicine"
+                className="border p-2 rounded col-span-2"
+              />
 
-</div>
+              {/* DOSAGE */}
+              <div className="flex gap-2 text-xs">
 
-</div>
+                {["morning","afternoon","night"].map((t:any)=>(
+                  <label key={t} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={m[t]}
+                      onChange={(e)=>updateMedicine(i,t,e.target.checked)}
+                    />
+                    {t[0].toUpperCase()}
+                  </label>
+                ))}
 
-{/* FOOTER */}
-<div className="flex justify-between items-end pt-6 text-sm">
+              </div>
 
-<p>Hospital Helpline: +91 XXXXXXXX</p>
+              {/* DAYS */}
+              <input
+                value={m.days}
+                onChange={(e)=>updateMedicine(i,"days",e.target.value)}
+                placeholder="Days"
+                className="border p-2 rounded w-20"
+              />
 
-<div className="text-right">
-<div className="border-t w-40 mb-1"></div>
-<p>Doctor Signature</p>
-</div>
+              {/* NOTE */}
+              <input
+                value={m.note}
+                onChange={(e)=>updateMedicine(i,"note",e.target.value)}
+                placeholder="Note"
+                className="border p-2 rounded"
+              />
 
-</div>
+              {/* DELETE */}
+              <button
+                onClick={()=>removeMedicine(i)}
+                className="text-red-500"
+              >
+                <Trash2 size={16}/>
+              </button>
 
-</div>
+            </div>
 
-</div>
+          ))}
 
-)
+        </div>
+
+        <datalist id="med-list">
+          {medicineList.map((m,i)=>(
+            <option key={i} value={m}/>
+          ))}
+        </datalist>
+
+      </div>
+
+      {/* NOTES */}
+      <div className="bg-white rounded-2xl shadow p-5">
+        <textarea
+          value={notes}
+          onChange={(e)=>setNotes(e.target.value)}
+          placeholder="Extra instructions..."
+          className="w-full border p-3 rounded"
+        />
+      </div>
+
+      {/* SAVE */}
+      <button
+        onClick={save}
+        disabled={saving}
+        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg flex items-center justify-center gap-2"
+      >
+        <Save size={16}/>
+        {saving ? "Saving..." : "Save Prescription"}
+      </button>
+
+    </div>
+  )
 }

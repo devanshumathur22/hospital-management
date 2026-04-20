@@ -30,7 +30,6 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-
     const { id } = await context.params
 
     const appointment = await prisma.appointment.findUnique({
@@ -62,7 +61,6 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-
     const user: any = await getUser()
 
     if (!user) {
@@ -132,14 +130,55 @@ export async function PUT(
     const newDate = body.date ? new Date(body.date) : appointment.date
     const newTime = body.time || appointment.time
 
+    /* 🔥 PAST DATE BLOCK */
+    const today = new Date()
+    today.setHours(0,0,0,0)
+
+    if (newDate < today) {
+      return NextResponse.json(
+        { error: "Cannot update to past date" },
+        { status: 400 }
+      )
+    }
+
+    /* 🔥 DOCTOR AVAILABILITY CHECK */
+    const dayName = newDate.toLocaleDateString("en-US", {
+      weekday: "long",
+    })
+
+    const doctor = await prisma.doctor.findUnique({
+      where: { id: appointment.doctorId }
+    })
+
+    const availability = doctor?.availability as {
+      days?: string[]
+    } | null
+
+    if (availability?.days && !availability.days.includes(dayName)) {
+      return NextResponse.json(
+        { error: "Doctor not available on this day" },
+        { status: 400 }
+      )
+    }
+
+    /* 🔥 DATE RANGE (SAFE) */
+    const start = new Date(newDate)
+    start.setHours(0,0,0,0)
+
+    const end = new Date(newDate)
+    end.setHours(23,59,59,999)
+
     /* 🔥 SLOT CHECK */
     if (body.date || body.time) {
 
       const slotTaken = await prisma.appointment.findFirst({
         where: {
           doctorId: appointment.doctorId,
-          date: newDate,
           time: newTime,
+          date: {
+            gte: start,
+            lt: end
+          },
           NOT: { id }
         }
       })
@@ -180,7 +219,6 @@ export async function PUT(
           notes: ""
         }
       })
-
     }
 
     return NextResponse.json({
@@ -189,7 +227,6 @@ export async function PUT(
     })
 
   } catch (err) {
-
     console.log("UPDATE ERROR:", err)
 
     return NextResponse.json(
@@ -198,8 +235,9 @@ export async function PUT(
     )
   }
 }
+
 /* ============================= */
-/* DELETE (FINAL PRO VERSION) */
+/* DELETE */
 /* ============================= */
 
 export async function DELETE(
@@ -207,7 +245,6 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-
     const user: any = await getUser()
 
     if (!user) {
@@ -271,7 +308,6 @@ export async function DELETE(
       where: { id }
     })
 
-    /* 🔥 FINAL RESPONSE */
     return NextResponse.json({
       success: true,
       message: "Appointment cancelled successfully",
@@ -283,7 +319,6 @@ export async function DELETE(
     })
 
   } catch (err) {
-
     console.log("DELETE ERROR:", err)
 
     return NextResponse.json(

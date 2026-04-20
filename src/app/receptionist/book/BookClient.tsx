@@ -1,8 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search } from "lucide-react"
-import { motion } from "framer-motion"
 import { useSearchParams } from "next/navigation"
 import toast from "react-hot-toast"
 
@@ -15,8 +13,6 @@ export default function BookPage() {
   const [doctors,setDoctors] = useState<any[]>([])
   const [availability,setAvailability] = useState<any>(null)
   const [bookedSlots,setBookedSlots] = useState<string[]>([])
-
-  const [loading,setLoading] = useState(true)
 
   const [patientSearch,setPatientSearch] = useState("")
   const [doctorSearch,setDoctorSearch] = useState("")
@@ -31,16 +27,8 @@ export default function BookPage() {
     time:""
   })
 
-  /* 🔥 FILTERS FIX */
-  const filteredPatients = patients.filter(p =>
-    p.name?.toLowerCase().includes(patientSearch.toLowerCase())
-  )
+  /* ================= FORMAT ================= */
 
-  const filteredDoctors = doctors.filter(d =>
-    d.name?.toLowerCase().includes(doctorSearch.toLowerCase())
-  )
-
-  /* 🔥 FORMAT */
   function formatTimeTo12H(time:string){
     const [h,m] = time.split(":").map(Number)
     const ampm = h >= 12 ? "PM" : "AM"
@@ -48,29 +36,31 @@ export default function BookPage() {
     return `${hour.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${ampm}`
   }
 
-  /* 🔥 SLOT GENERATOR */
+  /* ================= SLOT GENERATOR ================= */
+
   function generateSlots(start="09:00",end="17:00",interval=15){
-    const slots:any[]=[]
-    let [h,m]=start.split(":").map(Number)
-    let [eh,em]=end.split(":").map(Number)
+    const slots:string[]=[]
+    let current = new Date()
 
-    let current=new Date()
-    current.setHours(h,m,0,0)
+    const [sh,sm] = start.split(":").map(Number)
+    const [eh,em] = end.split(":").map(Number)
 
-    const endTime=new Date()
+    current.setHours(sh,sm,0,0)
+
+    const endTime = new Date()
     endTime.setHours(eh,em,0,0)
 
-    while(current<=endTime){
-      let hrs=current.getHours()
-      let mins=current.getMinutes()
-      const ampm=hrs>=12?"PM":"AM"
-      hrs=hrs%12||12
+    while(current <= endTime){
 
-      slots.push(
-        `${hrs.toString().padStart(2,"0")}:${mins
-          .toString()
-          .padStart(2,"0")} ${ampm}`
-      )
+      const h = current.getHours()
+      const m = current.getMinutes()
+
+      const ampm = h >= 12 ? "PM" : "AM"
+      const hour = h % 12 || 12
+
+      const formatted = `${hour.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${ampm}`
+
+      slots.push(formatted)
 
       current.setMinutes(current.getMinutes()+interval)
     }
@@ -78,10 +68,11 @@ export default function BookPage() {
     return slots
   }
 
-  /* 🔥 FETCH DATA */
+  /* ================= FETCH ================= */
+
   useEffect(()=>{
     const load = async()=>{
-      const [p,d]=await Promise.all([
+      const [p,d] = await Promise.all([
         fetch("/api/patients",{credentials:"include"}),
         fetch("/api/doctors",{credentials:"include"})
       ])
@@ -90,14 +81,15 @@ export default function BookPage() {
       const doctorsData = await d.json()
 
       setPatients(patientsData.data || [])
-      setDoctors(doctorsData || [])
 
-      setLoading(false)
+      const availableDoctors = doctorsData.filter((doc:any)=>doc.isAvailable !== false)
+      setDoctors(availableDoctors)
     }
     load()
   },[])
 
-  /* AUTO SELECT */
+  /* ================= AUTO SELECT ================= */
+
   useEffect(()=>{
     if(patientIdFromURL && patients.length>0){
       const found = patients.find(p=>p.id===patientIdFromURL)
@@ -108,48 +100,60 @@ export default function BookPage() {
     }
   },[patientIdFromURL,patients])
 
-  /* 🔥 AVAILABILITY */
+  /* ================= AVAILABILITY ================= */
+
   useEffect(()=>{
     if(!form.doctorId) return
 
-    fetch(`/api/doctors/availability?doctorId=${form.doctorId}`,{
-      credentials:"include"
-    })
+    fetch(`/api/doctors/availability?doctorId=${form.doctorId}`)
       .then(res=>res.json())
       .then(setAvailability)
 
   },[form.doctorId])
 
-  /* 🔥 BOOKED */
-  useEffect(()=>{
+  /* ================= BOOKED SLOTS ================= */
+
+  const fetchBookedSlots = async()=>{
     if(!form.doctorId || !form.date) return
 
-    fetch(`/api/appointments?doctorId=${form.doctorId}&date=${form.date}`,{
-      credentials:"include"
-    })
-      .then(res=>res.json())
-      .then(data=>{
-        const times = Array.isArray(data)
-          ? data.map((a:any)=>formatTimeTo12H(a.time))
-          : []
-        setBookedSlots(times)
-      })
-      .catch(()=>setBookedSlots([]))
+    try{
+      const res = await fetch(`/api/appointments?doctorId=${form.doctorId}&date=${form.date}`)
+      const data = await res.json()
 
+      const times = Array.isArray(data)
+        ? data.map((a:any)=>formatTimeTo12H(a.time))
+        : []
+
+      setBookedSlots(times)
+    }catch{
+      setBookedSlots([])
+    }
+  }
+
+  useEffect(()=>{
+    fetchBookedSlots()
   },[form.doctorId,form.date])
 
-  const timeSlots = availability
-    ? generateSlots(availability.start, availability.end)
-    : []
+  /* ================= CHECK DAY ================= */
 
   const isAvailableDay = (date:string)=>{
     if(!availability?.days) return true
+
     const d = new Date(date)
     const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]
+
     return availability.days.includes(day)
   }
 
-  /* 🔥 CREATE */
+  /* ================= FINAL SLOTS ================= */
+
+  const timeSlots = availability
+    ? generateSlots(availability.start, availability.end)
+        .filter(slot => !bookedSlots.includes(slot))
+    : []
+
+  /* ================= CREATE ================= */
+
   async function createAppointment(){
 
     if(!form.doctorId || !form.patientId || !form.date || !form.time){
@@ -157,9 +161,13 @@ export default function BookPage() {
       return
     }
 
+    if(!isAvailableDay(form.date)){
+      toast.error("Doctor not available ❌")
+      return
+    }
+
     const res = await fetch("/api/appointments",{
       method:"POST",
-      credentials:"include",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify(form)
     })
@@ -167,22 +175,25 @@ export default function BookPage() {
     const data = await res.json()
 
     if(!res.ok){
-      toast.error(data.error || "Failed")
+      toast.error(data.error || "Failed ❌")
       return
     }
 
     toast.success("Appointment booked ✅")
+
+    setForm(prev=>({...prev,time:""}))
+
+    // 🔥 refresh slots instantly
+    await fetchBookedSlots()
   }
 
-  if(loading){
-    return <div className="p-10 text-center">Loading...</div>
-  }
+  /* ================= UI ================= */
 
   return(
-    <div className="p-6">
+    <div className="p-6 max-w-xl mx-auto">
       <h1 className="text-xl font-bold mb-4">Book Appointment</h1>
 
-      {/* Patient */}
+      {/* PATIENT */}
       <input
         value={patientSearch}
         onChange={(e)=>{
@@ -194,21 +205,24 @@ export default function BookPage() {
       />
 
       {showPatients && (
-        <div>
-          {filteredPatients.map(p=>(
-            <div key={p.id}
-              onClick={()=>{
-                setForm(prev=>({...prev,patientId:p.id}))
-                setPatientSearch(p.name)
-                setShowPatients(false)
-              }}>
-              {p.name}
-            </div>
-          ))}
+        <div className="border max-h-40 overflow-auto">
+          {patients
+            .filter(p=>p.name.toLowerCase().includes(patientSearch.toLowerCase()))
+            .map(p=>(
+              <div key={p.id}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={()=>{
+                  setForm(prev=>({...prev,patientId:p.id}))
+                  setPatientSearch(p.name)
+                  setShowPatients(false)
+                }}>
+                {p.name}
+              </div>
+            ))}
         </div>
       )}
 
-      {/* Doctor */}
+      {/* DOCTOR */}
       <input
         value={doctorSearch}
         onChange={(e)=>{
@@ -220,17 +234,20 @@ export default function BookPage() {
       />
 
       {showDoctors && (
-        <div>
-          {filteredDoctors.map(d=>(
-            <div key={d.id}
-              onClick={()=>{
-                setForm(prev=>({...prev,doctorId:d.id}))
-                setDoctorSearch(d.name)
-                setShowDoctors(false)
-              }}>
-              {d.name}
-            </div>
-          ))}
+        <div className="border max-h-40 overflow-auto">
+          {doctors
+            .filter(d=>d.name.toLowerCase().includes(doctorSearch.toLowerCase()))
+            .map(d=>(
+              <div key={d.id}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={()=>{
+                  setForm(prev=>({...prev,doctorId:d.id}))
+                  setDoctorSearch(d.name)
+                  setShowDoctors(false)
+                }}>
+                {d.name}
+              </div>
+            ))}
         </div>
       )}
 
@@ -242,22 +259,34 @@ export default function BookPage() {
         className="border p-2 w-full mt-3"
       />
 
-      {/* TIME */}
-      <div className="grid grid-cols-4 gap-2 mt-3">
+      {/* SLOTS */}
+      <div className="grid grid-cols-3 gap-2 mt-3">
+
+        {timeSlots.length === 0 && (
+          <p className="text-sm text-gray-500">No slots available</p>
+        )}
+
         {timeSlots.map(slot=>(
-          <button key={slot}
+          <button
+            key={slot}
             onClick={()=>setForm(prev=>({...prev,time:slot}))}
-            className="border p-2">
+            className={`p-2 border rounded text-sm
+              ${form.time===slot
+                ? "bg-blue-600 text-white"
+                : "hover:bg-gray-100"
+              }`}
+          >
             {slot}
           </button>
         ))}
+
       </div>
 
       <button
         onClick={createAppointment}
-        className="bg-blue-600 text-white p-2 mt-4 w-full"
+        className="bg-blue-600 text-white p-2 mt-4 w-full rounded"
       >
-        Book
+        Book Appointment
       </button>
 
     </div>

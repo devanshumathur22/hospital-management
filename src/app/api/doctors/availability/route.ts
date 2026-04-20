@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import jwt from "jsonwebtoken"
+import { cookies } from "next/headers"
 
-/* ============================= */
-/* GET AVAILABILITY */
-/* ============================= */
+const SECRET = process.env.JWT_SECRET!
+
+/* ================= AUTH ================= */
+
+async function getUser() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get("token")?.value
+
+  if (!token) return null
+
+  try {
+    return jwt.verify(token, SECRET)
+  } catch {
+    return null
+  }
+}
+
+/* ================= GET ================= */
 
 export async function GET(req: Request) {
   try {
@@ -30,8 +47,10 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json(doctor.availability ?? {})
+
   } catch (error) {
     console.log("GET AVAILABILITY ERROR:", error)
+
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -39,12 +58,19 @@ export async function GET(req: Request) {
   }
 }
 
-/* ============================= */
-/* SAVE AVAILABILITY */
-/* ============================= */
+/* ================= POST ================= */
 
 export async function POST(req: Request) {
   try {
+    const user: any = await getUser()
+
+    if (!user || user.role !== "doctor") {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
     const body = await req.json()
 
     const doctorId = body?.doctorId
@@ -57,9 +83,10 @@ export async function POST(req: Request) {
       )
     }
 
-    const { start, end, days } = availability
+    let { start, end, days } = availability
 
-    /* 🔥 VALIDATION */
+    /* ================= TIME VALIDATION ================= */
+
     if (!start || !end) {
       return NextResponse.json(
         { error: "Start and end time required" },
@@ -67,33 +94,84 @@ export async function POST(req: Request) {
       )
     }
 
-    if (start >= end) {
+    // 🔥 normalize time (handle AM/PM also)
+    const parseTime = (t: string) => {
+      if (t.includes("AM") || t.includes("PM")) {
+        const [time, modifier] = t.split(" ")
+        let [hours, minutes] = time.split(":").map(Number)
+
+        if (modifier === "PM" && hours !== 12) hours += 12
+        if (modifier === "AM" && hours === 12) hours = 0
+
+        return hours * 60 + minutes
+      } else {
+        const [h, m] = t.split(":").map(Number)
+        return h * 60 + m
+      }
+    }
+
+    const startMin = parseTime(start)
+    const endMin = parseTime(end)
+
+    if (endMin <= startMin) {
       return NextResponse.json(
         { error: "End time must be greater than start time" },
         { status: 400 }
       )
     }
 
-    if (!Array.isArray(days) || days.length === 0) {
+    if (endMin - startMin < 120) {
       return NextResponse.json(
-        { error: "At least one working day required" },
+        { error: "Minimum 2 hours required" },
         { status: 400 }
       )
     }
 
-    /* 🔥 CHECK DOCTOR EXISTS */
-    const exists = await prisma.doctor.findUnique({
+    /* ================= DAY FIX ================= */
+
+    const validDays = [
+      "Monday","Tuesday","Wednesday",
+      "Thursday","Friday","Saturday","Sunday"
+    ]
+
+    // 🔥 normalize short → full
+    const normalizeDay = (d: string) => {
+      const map: any = {
+        Mon: "Monday",
+        Tue: "Tuesday",
+        Wed: "Wednesday",
+        Thu: "Thursday",
+        Fri: "Friday",
+        Sat: "Saturday",
+        Sun: "Sunday"
+      }
+      return map[d] || d
+    }
+
+    days = (days || []).map(normalizeDay)
+
+    if (!Array.isArray(days) || days.some(d => !validDays.includes(d))) {
+      return NextResponse.json(
+        { error: "Invalid day format" },
+        { status: 400 }
+      )
+    }
+
+    /* ================= CHECK DOCTOR ================= */
+
+    const doctor = await prisma.doctor.findUnique({
       where: { id: doctorId }
     })
 
-    if (!exists) {
+    if (!doctor) {
       return NextResponse.json(
         { error: "Doctor not found" },
         { status: 404 }
       )
     }
 
-    /* 🔥 SAVE */
+    /* ================= SAVE ================= */
+
     const updated = await prisma.doctor.update({
       where: { id: doctorId },
       data: {
@@ -107,8 +185,10 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json(updated.availability ?? {})
+
   } catch (error) {
     console.log("POST AVAILABILITY ERROR:", error)
+
     return NextResponse.json(
       { error: "Failed to update availability" },
       { status: 500 }

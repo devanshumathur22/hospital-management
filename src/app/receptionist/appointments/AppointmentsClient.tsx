@@ -66,14 +66,24 @@ export default function Appointments() {
 
       const data = await res.json()
 
-      setSlots(data || [])
+      /* 🔥 FORCE FIX (IMPORTANT) */
+      const fixedSlots = (data || []).map((s:any)=>({
+        ...s,
+        isBooked:
+          s.isBooked ||
+          s.status === "booked" ||
+          s.status === "completed" ||
+          s.status === "pending"
+      }))
+
+      setSlots(fixedSlots)
     }
 
     loadSlots()
 
   },[form.doctorId,form.date])
 
-  /* AUTO SELECT PATIENT */
+  /* AUTO SELECT */
   useEffect(()=>{
     if(patientIdFromURL && patients.length > 0){
       const found = patients.find(p=>p.id === patientIdFromURL)
@@ -116,18 +126,25 @@ export default function Appointments() {
 
     toast.success("Appointment booked ✅")
 
-    /* 🔥 REFRESH SLOTS (IMPORTANT FIX) */
+    /* 🔥 REFRESH */
     const updated = await fetch(
       `/api/slots?doctorId=${form.doctorId}&date=${form.date}`, { credentials: "include" }
     )
 
     const updatedSlots = await updated.json()
-    setSlots(updatedSlots || [])
 
-    /* RESET */
-    setForm({ doctorId:"",patientId:"",date:"",time:"" })
-    setPatientSearch("")
-    setDoctorSearch("")
+    const fixedSlots = (updatedSlots || []).map((s:any)=>({
+      ...s,
+      isBooked:
+        s.isBooked ||
+        s.status === "booked" ||
+        s.status === "completed" ||
+        s.status === "pending"
+    }))
+
+    setSlots(fixedSlots)
+
+    setForm(prev=>({...prev,time:""}))
   }
 
   if(loading){
@@ -235,7 +252,7 @@ export default function Appointments() {
 
           </div>
 
-          {/* 🔥 SLOT UI */}
+          {/* SLOTS */}
           <div>
             <label className="text-sm mb-2 block">Available Slots</label>
 
@@ -257,7 +274,7 @@ export default function Appointments() {
                     key={slot.time}
                     disabled={isBooked}
                     onClick={()=>setForm(prev=>({...prev,time:slot.time}))}
-                    className={`py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1
+                    className={`py-2 rounded-xl text-sm font-medium transition
 
                       ${isBooked
                         ? "bg-red-100 text-red-500 cursor-not-allowed border border-red-300"
@@ -266,7 +283,7 @@ export default function Appointments() {
                           : "bg-white border hover:bg-gray-100"
                       }`}
                   >
-                    {isBooked ? "❌" : ""}
+                    {isBooked ? "❌ " : ""}
                     {slot.time}
                   </button>
                 )

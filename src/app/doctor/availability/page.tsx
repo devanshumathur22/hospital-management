@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
-const daysList = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const daysList = [
+  "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday",
+];
 
 export default function DoctorAvailability() {
   const [start, setStart] = useState("");
@@ -10,38 +13,37 @@ export default function DoctorAvailability() {
   const [days, setDays] = useState<string[]>([]);
   const [doctorId, setDoctorId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  /* ============================= */
-  /* GET DOCTOR + LOAD DATA */
-  /* ============================= */
+  /* ================= LOAD ================= */
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/api/doctors/me",{ credentials: "include" });
+        const res = await fetch("/api/doctors/me", { credentials: "include" });
         const data = await res.json();
 
         const doc = data.user;
-
         if (!doc?.id) {
-          alert("Doctor not found ❌");
+          toast.error("Doctor not found ❌");
           return;
         }
 
         setDoctorId(doc.id);
 
-        // Load availability
         const res2 = await fetch(
-          `/api/doctors/availability?doctorId=${doc.id}`
-        ,{ credentials: "include" });
+          `/api/doctors/availability?doctorId=${doc.id}`,
+          { credentials: "include" }
+        );
+
         const availability = await res2.json();
 
-        if (availability) {
-          setStart(availability.start || "");
-          setEnd(availability.end || "");
-          setDays(availability.days || []);
-        }
-      } catch (err) {
-        console.log("Error:", err);
+        // ✅ SAFE SET
+        setStart(availability?.start || "");
+        setEnd(availability?.end || "");
+        setDays(Array.isArray(availability?.days) ? availability.days : []);
+
+      } catch {
+        toast.error("Failed to load ❌");
       } finally {
         setLoading(false);
       }
@@ -50,145 +52,175 @@ export default function DoctorAvailability() {
     fetchData();
   }, []);
 
-  /* ============================= */
-  /* TOGGLE DAYS */
-  /* ============================= */
+  /* ================= TOGGLE ================= */
   const toggleDay = (day: string) => {
-    setDays((prev) =>
+    setDays(prev =>
       prev.includes(day)
-        ? prev.filter((d) => d !== day)
+        ? prev.filter(d => d !== day)
         : [...prev, day]
     );
   };
 
-  /* ============================= */
-  /* VALIDATION */
-  /* ============================= */
+  /* ================= VALIDATION ================= */
   const validate = () => {
     if (!start || !end) {
-      alert("Select start & end time");
+      toast.error("Select time");
       return false;
     }
 
-    if (start >= end) {
-      alert("End must be greater than start");
+    if (!doctorId) {
+      toast.error("Doctor missing ❌");
       return false;
     }
 
-    const startHour = parseInt(start.split(":")[0]);
-    const endHour = parseInt(end.split(":")[0]);
-
-    if (endHour - startHour < 2) {
-      alert("Minimum 2 hours required");
+    // 🔥 strict HH:mm check
+    if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
+      toast.error("Invalid time format");
       return false;
     }
 
-    if (days.length === 0) {
-      alert("Select at least 1 day");
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+
+    if (endMin <= startMin) {
+      toast.error("End must be after start");
+      return false;
+    }
+
+    if (endMin - startMin < 120) {
+      toast.error("Minimum 2 hours required");
+      return false;
+    }
+
+    if (!days.length) {
+      toast.error("Select at least 1 day");
       return false;
     }
 
     return true;
   };
 
-  /* ============================= */
-  /* SAVE */
-  /* ============================= */
+  /* ================= SAVE ================= */
   const handleSave = async () => {
     if (!validate()) return;
 
-    if (!doctorId) {
-      alert("Doctor not found ❌");
-      return;
-    }
+    setSaving(true);
 
-    const res = await fetch("/api/doctors/availability", {
-      method: "POST",credentials:"include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        doctorId,
-        availability: {
-          start,
-          end,
-          days,
+    try {
+      const res = await fetch("/api/doctors/availability", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      }),
-    });
+        body: JSON.stringify({
+          doctorId,
+          availability: {
+            start,
+            end,
+            days,
+          },
+        }),
+      });
 
-    if (res.ok) {
-      alert("Saved ✅");
-    } else {
-      alert("Failed ❌");
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Saved ✅");
+      } else {
+        console.log("ERROR:", data);
+        toast.error(data?.error || "Failed ❌");
+      }
+
+    } catch (err) {
+      console.log(err);
+      toast.error("Server error ❌");
+    } finally {
+      setSaving(false);
     }
   };
 
-  /* ============================= */
-  /* LOADING */
-  /* ============================= */
+  /* ================= LOADING ================= */
   if (loading) {
-    return <div className="p-6">Loading...</div>;
+    return <div className="p-6 text-sm">Loading...</div>;
   }
 
-  /* ============================= */
-  /* UI */
-  /* ============================= */
+  /* ================= UI ================= */
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Doctor Availability</h1>
+    <div className="max-w-3xl mx-auto p-6">
 
-      {/* TIME */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <p className="text-sm mb-1">Start Time</p>
-          <input
-            type="time"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className="w-full border p-3 rounded"
-          />
+      <div className="bg-white shadow-xl rounded-2xl p-6 space-y-6">
+
+        <h1 className="text-xl font-bold text-gray-800">
+          Doctor Availability
+        </h1>
+
+        {/* TIME */}
+        <div className="grid md:grid-cols-2 gap-4">
+
+          <div>
+            <label className="text-sm text-gray-600">Start Time</label>
+            <input
+              type="time"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="w-full border p-3 rounded"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-600">End Time</label>
+            <input
+              type="time"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="w-full border p-3 rounded"
+            />
+          </div>
+
         </div>
 
+        {/* DAYS */}
         <div>
-          <p className="text-sm mb-1">End Time</p>
-          <input
-            type="time"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            className="w-full border p-3 rounded"
-          />
+          <p className="text-sm text-gray-600 mb-2">
+            Working Days
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {daysList.map(day => (
+              <button
+                key={day}
+                onClick={() => toggleDay(day)}
+                className={`px-4 py-1.5 rounded-full text-sm transition
+                  ${days.includes(day)
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-100 hover:bg-gray-200"
+                  }`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* SAVE */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`w-full py-3 rounded-lg text-white font-medium transition
+            ${saving
+              ? "bg-gray-400"
+              : "bg-green-600 hover:bg-green-700"
+            }`}
+        >
+          {saving ? "Saving..." : "Save Availability"}
+        </button>
+
       </div>
 
-      {/* DAYS */}
-      <div>
-        <p className="text-sm mb-2">Working Days</p>
-
-        <div className="flex flex-wrap gap-2">
-          {daysList.map((day) => (
-            <button
-              key={day}
-              onClick={() => toggleDay(day)}
-              className={`px-3 py-1 rounded text-sm ${
-                days.includes(day)
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-200"
-              }`}
-            >
-              {day}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* SAVE */}
-      <button
-        onClick={handleSave}
-        className="bg-green-600 text-white px-6 py-2 rounded"
-      >
-        Save Availability
-      </button>
     </div>
   );
 }
