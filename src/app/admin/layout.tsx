@@ -41,6 +41,7 @@ export default function AdminLayout({
     { name:"Nurses", href:"/admin/nurses", icon:Users },
     { name:"Appointments", href:"/admin/appointments", icon:ClipboardList },
     { name:"Patients", href:"/admin/patients", icon:Users },
+    { name:"Admissions", href:"/admin/admissions", icon:Users },
     { name:"Calendar", href:"/admin/calendar", icon:Calendar },
     { name:"Reports", href:"/admin/reports", icon:BarChart3 },
     { name:"Search", href:"/admin/search", icon:Search },

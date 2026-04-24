@@ -318,14 +318,25 @@ export async function POST(req: Request) {
         doctor: { select: doctorSelect }
       }
     })
+   const bill = await prisma.bill.create({
+      data: {
+        patientId,
+        appointmentId: appointment.id,
+        type: "DOCTOR",
+        title: `${doctor.name} Consultation`,
+        totalAmount: 500,
+        status: "pending"
+      }
+    })
 
     return NextResponse.json({
       success: true,
-      data: appointment
+      data: appointment,
+      billId: bill.id
     })
 
   } catch (err: any) {
-    console.log(err)
+    console.log("Appointment creation error:", err)
 
     return NextResponse.json(
       { error: "Failed to create appointment" },

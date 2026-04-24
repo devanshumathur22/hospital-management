@@ -52,6 +52,7 @@ Patient Panel
 <Link href="/patient/appointments" onClick={()=>setOpen(false)}>Appointments</Link>
 <Link href="/patient/prescriptions" onClick={()=>setOpen(false)}>Prescriptions</Link>
 <Link href="/patient/appointment-history" onClick={()=>setOpen(false)}>Appointment History</Link>
+<Link href="/patient/bills" onClick={()=>setOpen(false)}>Bills</Link>
 <Link href="/patient/profile" onClick={()=>setOpen(false)}>Profile</Link>
 
 <button

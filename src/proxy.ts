@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import jwt from "jsonwebtoken"
+import { jwtVerify } from "jose"
 
-const SECRET = process.env.JWT_SECRET!
+const secret = new TextEncoder().encode(process.env.JWT_SECRET)
 
-export function proxy (req: NextRequest) {
-
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // allow public routes
+  // public routes
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    // pathname.startsWith("/api") ||
+    pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon")
   ) {
@@ -26,13 +25,10 @@ export function proxy (req: NextRequest) {
   }
 
   try {
+    const { payload }: any = await jwtVerify(token, secret)
+    const role = payload.role?.toLowerCase()
 
-    // ✅ verify JWT
-    const decoded: any = jwt.verify(token, SECRET)
-
-    const role = decoded.role
-
-    // role-based protection
+    // role based protection
     if (pathname.startsWith("/doctor") && role !== "doctor") {
       return NextResponse.redirect(new URL("/login", req.url))
     }
@@ -56,7 +52,6 @@ export function proxy (req: NextRequest) {
     return NextResponse.next()
 
   } catch (err) {
-    console.log("JWT error:", err)
     return NextResponse.redirect(new URL("/login", req.url))
   }
 }

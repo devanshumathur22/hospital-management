@@ -17,20 +17,20 @@ export default function PatientDoctors() {
   const [time, setTime] = useState("")
   const [appointments, setAppointments] = useState<any[]>([])
   const [availability, setAvailability] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+
   const [filter, setFilter] = useState("all")
 
-  /* ================= SLOT GENERATOR ================= */
+  // 🔥 PAYMENT
+  const [showPayment, setShowPayment] = useState(false)
+  const [paymentMode, setPaymentMode] = useState("UPI")
 
+  // 🔥 SLOT GENERATOR
   function generateSlots(start: string, end: string) {
     if (!start || !end) return []
-
     const slots = []
-    const [sh, sm] = start.split(":").map(Number)
-    const [eh, em] = end.split(":").map(Number)
 
-    let startMin = sh * 60 + sm
-    let endMin = eh * 60 + em
+    let startMin = +start.split(":")[0] * 60 + +start.split(":")[1]
+    let endMin = +end.split(":")[0] * 60 + +end.split(":")[1]
 
     for (let i = startMin; i < endMin; i += 15) {
       const h = Math.floor(i / 60)
@@ -49,13 +49,11 @@ export default function PatientDoctors() {
     return slots
   }
 
-  /* ================= FETCH DOCTORS ================= */
-
+  // 🔥 FETCH DOCTORS
   useEffect(() => {
-    fetch("/api/doctors", { credentials: "include" })
+    fetch("/api/doctors")
       .then(res => res.json())
       .then(data => {
-
         setDoctors(data || [])
 
         const grouped = (data || []).reduce((acc: any, doc: any) => {
@@ -68,119 +66,118 @@ export default function PatientDoctors() {
       })
   }, [])
 
-  /* ================= RESET ================= */
-
   useEffect(() => {
     setAppointments([])
     setTime("")
     setDate(null)
   }, [selectedDoctor])
 
-  /* ================= FETCH AVAILABILITY ================= */
-
+  // 🔥 AVAILABILITY
   useEffect(() => {
-
     if (!selectedDoctor?.id) return
 
-    setAvailability(null)
-
-    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`, {
-      credentials: "include"
-    })
+    fetch(`/api/doctors/availability?doctorId=${selectedDoctor.id}`)
       .then(res => res.json())
       .then(data => setAvailability(data))
-
   }, [selectedDoctor])
 
-  /* ================= SMART DEFAULT DATE ================= */
-
+  // 🔥 DEFAULT DATE
   useEffect(() => {
-
     if (!availability?.days) return
 
     const today = new Date()
-
-    const dayName = today.toLocaleDateString("en-US", {
-      weekday: "long"
-    })
+    const dayName = today.toLocaleDateString("en-US", { weekday: "long" })
 
     if (availability.days.includes(dayName)) {
       setDate(today)
-    } else {
-      setDate(null)
     }
-
   }, [availability])
 
-  /* ================= FETCH APPOINTMENTS ================= */
-
+  // 🔥 FETCH BOOKED SLOTS
   useEffect(() => {
+    if (!selectedDoctor?.id || !date) return
 
-  if (!selectedDoctor?.id || !date) return
-
-  fetch(`/api/appointments/slots?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`, {
-    credentials: "include"
-  })
-    .then(res => res.json())
-    .then(data => setAppointments(Array.isArray(data) ? data : []))
-
-}, [selectedDoctor, date])
-
-  /* ================= LOGIC ================= */
+    fetch(`/api/appointments/slots?doctorId=${selectedDoctor.id}&date=${date.toISOString()}`)
+      .then(res => res.json())
+      .then(data => setAppointments(Array.isArray(data) ? data : []))
+  }, [selectedDoctor, date])
 
   const timeSlots = availability
     ? generateSlots(availability.start, availability.end)
     : []
 
-  const isDoctorAvailable = (date: Date) => {
-    if (!availability?.days) return false
-
-    const day = date.toLocaleDateString("en-US", {
-      weekday: "long"
-    })
-
-    return availability.days.includes(day)
-  }
-
   const isSlotBooked = (slot: string) => {
     return appointments.some((a: any) => a.time === slot)
   }
 
-  /* ================= BOOK ================= */
+  // 🔥 CONFIRM (CHECK FIRST)
+  const handleConfirm = async () => {
+  if (!time) return
 
-  const handleBook = async () => {
+  const res = await fetch("/api/appointments/check", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      doctorId: selectedDoctor.id,
+      date: date?.toISOString()
+    })
+  })
 
-    if (!date || !time) {
-      toast.error("Select date & time")
-      return
-    }
+  let data: any = {}
 
-    setLoading(true)
+  try {
+    data = await res.json()
+  } catch {
+    data = {}
+  }
 
+  if (!res.ok) {
+    toast.error(data.error || "Already booked")
+    return
+  }
+
+  setShowPayment(true)
+}
+
+  // 🔥 FINAL BOOKING
+  const finalBooking = async () => {
     const res = await fetch("/api/appointments", {
-      method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         doctorId: selectedDoctor.id,
-        date: date.toISOString(),
-        time
+        date: date?.toISOString(),
+        time,
+        paymentMode,
+        amount: 500
       })
     })
 
     const data = await res.json()
-    setLoading(false)
 
     if (!res.ok) {
       toast.error(data.error || "Booking failed")
       return
     }
 
-    toast.success("Appointment Booked ✅")
+    // 🔥 PAYMENT AFTER SUCCESS
+    if (paymentMode === "UPI") {
+      toast.loading("Processing UPI Payment...")
+      await new Promise(res => setTimeout(res, 2000))
+      toast.dismiss()
+      toast.success("Payment Successful ✅")
+    }
 
-    setSelectedDoctor(null)
-    setTime("")
-    setDate(null)
+    if (paymentMode === "CASH") {
+      toast("Pay at hospital 💰")
+    }
+
+    window.location.href = `/patient/invoice/${data.billId}`
   }
 
   const specializations = ["all", ...Object.keys(groupedDoctors)]
@@ -197,9 +194,7 @@ export default function PatientDoctors() {
             key={sp}
             onClick={() => setFilter(sp)}
             className={`px-3 py-1 rounded-full border ${
-              filter === sp
-                ? "bg-blue-600 text-white"
-                : "bg-white"
+              filter === sp ? "bg-blue-600 text-white" : "bg-white"
             }`}
           >
             {sp}
@@ -207,7 +202,7 @@ export default function PatientDoctors() {
         ))}
       </div>
 
-      {/* DOCTOR LIST */}
+      {/* DOCTORS */}
       {Object.entries(groupedDoctors)
         .filter(([category]) => filter === "all" || filter === category)
         .map(([category, docs]: any) => (
@@ -245,12 +240,10 @@ export default function PatientDoctors() {
 
         ))}
 
-      {/* MODAL */}
+      {/* BOOK MODAL */}
       <AnimatePresence>
         {selectedDoctor && (
-
           <motion.div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-
             <motion.div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">
 
               <div className="flex justify-between">
@@ -260,77 +253,85 @@ export default function PatientDoctors() {
                 </button>
               </div>
 
-              {/* DATE */}
               <DatePicker
                 selected={date}
                 onChange={(d) => setDate(d)}
-                filterDate={(d) => isDoctorAvailable(d)}
                 minDate={new Date()}
-                placeholderText="Select a date"
-                onKeyDown={(e) => e.preventDefault()}
                 className="w-full border p-2 rounded"
               />
 
-              {/* SLOT UI */}
-              {!availability ? (
-                <p className="text-sm text-gray-500">Loading slots...</p>
-              ) : !date ? (
-                <p className="text-sm text-gray-500">Select a date</p>
-              ) : !isDoctorAvailable(date) ? (
-                <p className="text-sm text-red-500">
-                  Doctor not available on this day
-                </p>
-              ) : timeSlots.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  No slots available
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
+                {timeSlots.map((slot) => {
+                  const booked = isSlotBooked(slot.value)
 
-                  {timeSlots.map((slot) => {
+                  return (
+                    <button
+                      key={slot.value}
+                      disabled={booked}
+                      onClick={() => setTime(slot.value)}
+                      className={`px-3 py-1 rounded border text-sm ${
+                        booked
+                          ? "bg-red-200 text-red-600 line-through"
+                          : time === slot.value
+                          ? "bg-blue-600 text-white"
+                          : "bg-white"
+                      }`}
+                    >
+                      {booked ? "Full" : slot.label}
+                    </button>
+                  )
+                })}
+              </div>
 
-                    const booked = isSlotBooked(slot.value)
-
-                    return (
-                      <button
-                        key={slot.value}
-                        disabled={booked}
-                        onClick={() => setTime(slot.value)}
-                        className={`px-3 py-1 rounded border text-sm ${
-                          booked
-                            ? "bg-red-200 text-red-600 line-through cursor-not-allowed opacity-80"
-                            : time === slot.value
-                            ? "bg-blue-600 text-white"
-                            : "bg-white hover:bg-blue-50"
-                        }`}
-                      >
-                        {booked ? "Full" : slot.label}
-                      </button>
-                    )
-                  })}
-
-                </div>
-              )}
-
-              {/* BUTTON */}
               <button
-                onClick={handleBook}
-                disabled={!time || loading}
-                className={`w-full py-2 rounded text-white ${
-                  !time
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600"
-                }`}
+                onClick={handleConfirm}
+                disabled={!time}
+                className="w-full bg-blue-600 text-white py-2 rounded"
               >
-                {loading ? "Booking..." : "Confirm"}
+                Confirm
               </button>
 
             </motion.div>
-
           </motion.div>
-
         )}
       </AnimatePresence>
+
+      {/* PAYMENT MODAL */}
+      {showPayment && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+          <div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">
+
+            <h2 className="font-bold text-lg">Payment</h2>
+
+            <p>Doctor Fee: ₹500</p>
+
+            <select
+              className="w-full border p-2 rounded"
+              onChange={(e)=>setPaymentMode(e.target.value)}
+            >
+              <option value="UPI">UPI</option>
+              <option value="CASH">Cash</option>
+            </select>
+
+            <button
+              onClick={finalBooking}
+              className="w-full bg-green-600 text-white py-2 rounded"
+            >
+              Pay & Confirm
+            </button>
+
+            <button
+              onClick={()=>setShowPayment(false)}
+              className="w-full bg-gray-300 py-2 rounded"
+            >
+              Cancel
+            </button>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   )
