@@ -36,7 +36,7 @@
     "**/*.mts",
     "**/*.ts",
     "**/*.tsx"
-, "src/app/receptionist/book/BookClient.tsx "  ],
+, "src/app/receptionist/book/BookClient.tsx ", "capacitor.config.jsx"  ],
   "exclude": [
     "node_modules"
   ]

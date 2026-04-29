@@ -1,0 +1,9 @@
+{
+  "appId": "com.devanshu.hospitalmanagement",
+  "appName": "hospital-management",
+  "webDir": "public",
+  "server": {
+    "url": "https://hospital-management.vercel.app",
+    "cleartext": true
+  }
+}
