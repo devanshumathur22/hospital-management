@@ -3,7 +3,7 @@
   "appName": "hospital-management",
   "webDir": "public",
   "server": {
-    "url": "https://hospital-management.vercel.app",
+    "url": "https://hospital-management-one-ruby.vercel.app",
     "cleartext": true
   }
 }
